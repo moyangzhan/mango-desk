@@ -93,7 +93,9 @@ pnpm tauri build
 src-tauri/target/release/
 ```
 
-不同平台生成的安装包格式可能有所不同。
+不同平台生成的安装包格式可能有所不同，如
+
+windows: `src-tauri/target/release/bundle/msi/Mango Desk_0.1.0_x64_en-US.msi`
 
 ## 🤝 贡献指南
 

@@ -88,7 +88,7 @@ windows: `src-tauri/target/release/bundle/msi/Mango Desk_0.1.0_x64_en-US.msi`
 
 ## 📝 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+see the [LICENSE](LICENSE) file for details.
 
 ## 🤝 Contributing
 
