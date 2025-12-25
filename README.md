@@ -104,3 +104,6 @@ Before submitting a pull request, please consider:
 3. Keep commit messages clear and readable
 4. Make sure `pnpm tauri dev` runs successfully in your local environment
 
+## Sceenshots
+
+![home](./screenshots/home.png)
