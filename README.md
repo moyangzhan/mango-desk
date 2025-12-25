@@ -7,13 +7,13 @@
 ![image](./screenshots/work.png)
 
 ## What is Mango Desk?
-Mango Desk is a desktop application that helps you search your data using natural language.
+Mango Desk is a desktop application that helps you search your local data using natural language.
 
 Feel free to use this project, star the repo, provide feedback, or contribute ❤️
 
 ### ✨ Features
 
-* 🧠 Query data using natural language
+* 🧠 Query local data using natural language
 * 🖥️ Cross-platform desktop application (based on Tauri)
 * ⚡ Rust backend, high performance with low resource usage
 * 🔒 Local-first approach, data never leaves your device
