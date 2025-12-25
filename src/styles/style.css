@@ -1,0 +1,67 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+body {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+:root {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  --bg-color: #ffffff;
+  --text-color: #213547;
+  --n-text-color: black;
+  --primary-color: #18a058;
+  --secondary-bg-color: #f9f9f9;
+  --border-color: #e0e0e6;
+  --svg-color: #0e0d0dab;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:root.dark,
+body.dark {
+  --bg-color: #212121;
+  --text-color: #ffffff;
+  --n-text-color: #ffffff;
+  --primary-color: #63e2b7;
+  --secondary-bg-color: #ffffff1a;
+  --border-color: gray;
+  --svg-color: #e0e0e6;
+  background-color: var(--bg-color) !important;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color: #213547;
+    background-color: #ffffff;
+  }
+
+  a:hover {
+    color: #747bff;
+  }
+
+  button {
+    background-color: #f9f9f9;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  a:hover {
+    color: #747bff;
+  }
+
+  button {
+    color: #ffffff;
+    background-color: #213547;
+  }
+}

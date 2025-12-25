@@ -1,0 +1,42 @@
+common:
+  show: Show
+  quit: Quit
+  cancel: Cancel
+  confirm: Confirm
+  tip: Tip
+  yes: Yes
+  no: No
+prompt:
+  image-analyze: |
+    Analyze the following image and extract all visible information, including but not limited to:  
+    1. Main content (types and quantities of people/objects/scenes)  
+    2. Detailed features (colors, shapes, text, actions, expressions)  
+    3. Spatial relationships (relative positions of objects, layout structure)  
+    4. Environmental clues (inferred time, location, atmosphere)  
+
+    Requirements:  
+    - Output ONLY objective observations; no explanations, evaluations, or speculations (unless supported by explicit text)  
+    - Order information by importance, prioritizing prominent elements  
+    - If text is present, transcribe it completely and note its location  
+    - No opening remarks, summaries, or irrelevant comments  
+  audio-analyze: what's in this audio?
+  video-introduce: |
+    ## Requirements
+    The following video title may be the name of a movie or a short video. Please return a text description of the video content, including the characters, plot, and themes.
+
+    ## Video Title
+    %{title}
+
+    ## Notes
+    1. If there is no relevant content, return [No relevant content];
+    2. The length of the returned description should not exceed 1000 words.
+model:
+  platform:
+    openai: OpenAI
+    siliconflow: SiliconFlow
+message:
+  scanning: Scan process already started. Please wait.
+  indexing-processing: Index process already started. Please wait.
+  indexing-paths-empty: No file or folder selected for indexing.
+  indexing-skip-empty-content: Skipping empty content.
+  abort-tasks-and-exit: Abort running background tasks [%{tasks}] and exit Mango Desk?

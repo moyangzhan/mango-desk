@@ -1,0 +1,53 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Mango Desk",
+  "version": "0.1.0",
+  "identifier": "com.mango-desk",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://localhost:5173",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Mango Desk",
+        "width": 1000,
+        "height": 760,
+        "resizable": true,
+        "fullscreen": false,
+        "minWidth": 800,
+        "minHeight": 600
+      }
+    ],
+    "security": {
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "**/*"
+        ]
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "resources": [
+      "assets/model/all-minilm-l6-v2.onnx",
+      "assets/model/all-minilm-l6-v2-tokenizer.json"
+    ],
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "copyright": "© 2025 Copyright Mango Desk",
+    "shortDescription": "Search your data using nature language",
+    "longDescription": "Search your data using nature language",
+    "publisher": "Mango Desk"
+  }
+}

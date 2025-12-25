@@ -1,0 +1,42 @@
+common:
+  show: 打开
+  quit: 退出
+  cancel: 取消
+  confirm: 确认
+  tip: 提示
+  yes: 是
+  no: 否
+prompt:
+  image-analyze: |
+    请分析以下图片并提取所有可见信息，包括但不限于：  
+    1. 主体内容（人物/物体/场景类型及数量）  
+    2. 细节特征（颜色、形状、文字、动作、表情）  
+    3. 空间关系（物体相对位置、布局结构）  
+    4. 环境线索（时间、地点、氛围推断）  
+
+    要求：  
+    - 仅输出客观观察结果，不添加解释、评价或推测（除非有明确文字信息支持）  
+    - 按信息重要性排序，优先描述显著元素  
+    - 若包含文字内容，完整转录并注明位置  
+    - 无需开场白、总结或无关说明 
+  audio-analyze: 这段音频的内容和情感基调是什么？
+  video-introduce: |
+    ## 要求
+    下面的视频标题可能是某部电影的名称或某个短视频的标题，请该视频的内容描述，包括视频中的角色、情节、主题等。
+
+    ## 视频的标题
+    %{title}
+
+    ## 注意
+    1. 如果没有相关内容，返回【无相关内容】；
+    2. 返回的文字描述长度不超过1000字。
+model:
+  platform:
+    openai: OpenAI
+    siliconflow: 硅基流动
+message:
+  scanning: 文件扫描进行中，请稍候...
+  indexing-processing: 索引进行中，请稍候...
+  indexing-paths-empty: 未选择索引路径
+  indexing-skip-empty-content: 文件内容为空，跳过
+  abort-tasks-and-exit: 是否中止后台任务 [%{tasks}] 并退出 Mango Desk？

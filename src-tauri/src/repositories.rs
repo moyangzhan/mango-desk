@@ -1,0 +1,52 @@
+pub mod ai_model_repo;
+pub mod config_repo;
+pub mod file_content_embedding_repo;
+pub mod file_info_repo;
+pub mod file_metadata_embedding_repo;
+pub mod indexing_task_repo;
+pub mod model_platform_repo;
+
+use crate::errors::AppError;
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum RepositoryError {
+    #[error("DateTime parse error: {0}")]
+    DateTimeParse(String),
+    #[error("Database error: {0}")]
+    Database(rusqlite::Error),
+}
+
+impl From<chrono::ParseError> for RepositoryError {
+    fn from(err: chrono::ParseError) -> Self {
+        RepositoryError::DateTimeParse(err.to_string())
+    }
+}
+
+impl From<AppError> for RepositoryError {
+    fn from(err: AppError) -> Self {
+        match err {
+            AppError::DateTimeParseError(e) => RepositoryError::DateTimeParse(e.to_string()),
+            _ => RepositoryError::DateTimeParse(err.to_string()),
+        }
+    }
+}
+
+impl From<rusqlite::Error> for RepositoryError {
+    fn from(err: rusqlite::Error) -> Self {
+        RepositoryError::Database(err)
+    }
+}
+
+impl From<RepositoryError> for rusqlite::Error {
+    fn from(err: RepositoryError) -> Self {
+        match err {
+            RepositoryError::Database(e) => e,
+            RepositoryError::DateTimeParse(msg) => rusqlite::Error::InvalidColumnType(
+                0,
+                format!("datetime parse error: {}", msg),
+                rusqlite::types::Type::Text,
+            ),
+        }
+    }
+}
