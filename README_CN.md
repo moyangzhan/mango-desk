@@ -6,20 +6,54 @@
 
 ![1691585544443](./screenshots/work.png)
 
+[![Download](./screenshots/download-ready.svg)](https://github.com/moyangzhan/mango-desk/releases)
+
 ## 📖 项目简介
 
-Mango Desk 是一个基于 Tauri + Rust + Web 前端的桌面应用，它允许你使用自然语言来搜索你的本地数据。
+Mango Desk 是一款用自然语言搜索本地文档的桌面应用。
 
-欢迎使用、🌟点赞、反馈以及参与贡献 ❤️
+帮助您根据记忆中的内容查找信息，而不需要记住文件名或文件夹结构。
+
+### 📌 使用场景
+
+拥有**大量本地文档**并希望通过自然语言检索信息时。
+
+- 📝 **个人文档库**
+  - 多年来积累的笔记、PDF、Word 文件、Markdown 文件等
+  - 示例：*"我总结 Rust 所有权规则的那份笔记"*
+
+- 📂 **SVN / Git 仓库**
+  - 搜索设计文档、README、技术方案和历史解决方案
+  - 示例：*"关于权限重构的文档在哪里？"*
+
+- 🏢 **团队或公司知识库**
+  - 内部文档、项目文档、会议记录、入职材料
+  - 示例：*"查找所有关于预算规划的第四季度会议记录"*
+  - 示例：*"公司关于远程工作的政策是什么？"*
+
+- 📚 **研究与学术资料**
+  - 论文、实验记录、文献笔记
+  - 示例：*"关于 AI 的最新研究有哪些？"*
+
+- ⚖️ **法律与财务文档**
+  - 合同、政策文件、报告
+  - 示例：*"最新的公司数据隐私政策是什么？"*
 
 ### ✨ 特性
 
-* 🧠 使用自然语言查询本地数据
-* 🖥️ 跨平台桌面应用（基于 Tauri）
-* ⚡ Rust 后端，高性能、低资源占用
-* 🔒 本地优先，数据不离开你的设备
+- 🔍 **按内容搜索，而非文件名**
+  - 通过描述您记得的内容来查找文档，即使不记得确切的标题或位置
 
-### 🛠 技术栈
+- 📂 **兼容现有本地文件**
+  - 无需重新整理文件夹或重命名文件 — Mango Desk 直接使用您已有的文件
+
+- ⚡ **快速轻量**
+  - 即时获得搜索结果，不会拖慢系统运行
+
+- 🔒 **默认保护隐私**
+  - 所有数据都保留在您的设备上，确保隐私安全
+
+### 🛠️ 技术栈
 
 * Frontend
   * WebView（Tauri）
@@ -31,7 +65,7 @@ Mango Desk 是一个基于 Tauri + Rust + Web 前端的桌面应用，它允许�
 
 ## 🚀 快速开始（开发环境）
 
-### 1️⃣ 前端环境准备
+### 1. 前端环境准备
 
 #### Node
 
@@ -55,13 +89,13 @@ npm install pnpm -g
 pnpm i
 ```
 
-### 2️⃣ 后端环境准备（Rust）
+### 2. 后端环境准备（Rust）
 
 需要`rust` v1.90.0 及以上
 
 建议使用官方工具安装：[https://www.rust-lang.org/tools/install](https://www.rust-lang.org/tools/install)
 
-### 3️⃣ Tauri
+### 3. Tauri
 
 在运行项目前，请先根据你的操作系统安装 Tauri 所需依赖：
 
@@ -97,6 +131,10 @@ src-tauri/target/release/
 
 windows: `src-tauri/target/release/bundle/msi/Mango Desk_0.1.0_x64_en-US.msi`
 
+## 📝 LICENSE
+
+[LICENSE](LICENSE)
+
 ## 🤝 贡献指南
 
 欢迎任何形式的贡献，包括但不限于：
@@ -110,3 +148,14 @@ windows: `src-tauri/target/release/bundle/msi/Mango Desk_0.1.0_x64_en-US.msi`
 1. 创建新的分支
 1. 保持提交信息清晰、可读
 1. 确保本地可以正常运行 pnpm tauri dev
+
+## ⭐ 支持我们
+
+如果 Mango Desk 对您有帮助，欢迎：
+* 在 GitHub 上给项目一个 Star
+* 向朋友推荐
+* 分享使用体验
+
+## 💻 截图
+
+![home](./screenshots/home.png)

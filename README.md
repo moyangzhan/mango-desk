@@ -6,19 +6,57 @@
 
 ![image](./screenshots/work.png)
 
-## What is Mango Desk?
-Mango Desk is a desktop application that helps you search your local data using natural language.
+[![Download](./screenshots/download-ready.svg)](https://github.com/moyangzhan/mango-desk/releases)
 
-Feel free to use this project, star the repo, provide feedback, or contribute ❤️
+## What is Mango Desk?
+
+Mango Desk is a local-first desktop app for searching your local documents with natural language.
+
+It helps you find information based on what you remember, not file names or folder structures.
+
+### 📌 Use Cases
+
+Mango Desk is especially useful in scenarios where you have **a large amount of local documents** and want to retrieve information using natural language.
+
+
+#### Typical Use Cases
+
+- 📝 **Personal Document Libraries**
+  - Years of accumulated notes, PDFs, Word files, Markdown files. etc
+  - Example: *“That note where I summarized Rust ownership rules”*
+
+- 📂 **SVN / Git Repositories**
+  - Search through design docs, READMEs, technical proposals, and historical solutions
+  - Example: *“Where is the document about the permission refactor?”*
+
+- 🏢 **Team or Company Knowledge Base**
+  - Internal documents, project docs, meeting notes, onboarding materials
+  - Example: *"Find all Q4 meeting notes about budget planning"*
+  - Example: *"What are the company policies regarding remote work?"*
+
+- 📚 **Research and Study Materials**
+  - Papers, experiment records, literature notes
+  - Example: *“What is the latest research on AI?”*
+
+- ⚖️ **Legal and Financial Documents**
+  - Contracts, policy documents, reports
+  - Example: *“What is the latest company policy on data privacy?”*
 
 ### ✨ Features
 
-* 🧠 Query local data using natural language
-* 🖥️ Cross-platform desktop application (based on Tauri)
-* ⚡ Rust backend, high performance with low resource usage
-* 🔒 Local-first approach, data never leaves your device
+- 🔍 **Search by meaning, not file names**
+  - Find documents by describing what you remember, even if you don’t recall exact titles or locations
 
-### 🛠 Technology Stack
+- 📂 **Works with your existing local files**
+  - No need to reorganize folders or rename files — Mango Desk works with what you already have
+
+- ⚡ **Fast and lightweight**
+  - Instant search results without slowing down your system
+
+- 🔒 **Private by default**
+  - All data stays on your device, ensuring your privacy
+
+### 🛠️ Technology Stack
 
 * Frontend
   * WebView（Tauri）
@@ -28,9 +66,9 @@ Feel free to use this project, star the repo, provide feedback, or contribute �
   * Rust
   * Tauri Core
 
-## Setting Up
+## 🚀 Setting Up
 
-### 1️⃣ Frontend
+### 1. Frontend
 #### Node
 `node` v20+ required
 
@@ -52,12 +90,12 @@ npm install pnpm -g
 pnpm i
 ```
 
-### 2️⃣ Backend(Rust)
+### 2. Backend(Rust)
 `rust` v1.90.0+ required
 
 Install tools: [https://www.rust-lang.org/tools/install](https://www.rust-lang.org/tools/install)
 
-### 3️⃣ Tauri
+### 3. Tauri
 
 Install Tauri Prerequisites: 
 [https://tauri.app/start/prerequisites/](https://tauri.app/start/prerequisites/)
@@ -104,6 +142,13 @@ Before submitting a pull request, please consider:
 3. Keep commit messages clear and readable
 4. Make sure `pnpm tauri dev` runs successfully in your local environment
 
-## Sceenshots
+## ⭐ Support the Project
+
+If you find Mango Desk useful, you can support the project by:
+- Starring the repository on GitHub
+- Recommending it to others
+- Sharing your experience
+
+## 💻 Sceenshots
 
 ![home](./screenshots/home.png)
