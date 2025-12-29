@@ -144,7 +144,7 @@ Before submitting a pull request, please consider:
 
 ## ⭐ Support the Project
 
-If you find Mango Desk useful, you can support the project by:
+Support Mango Desk if you find it helpful:
 - Starring the repository on GitHub
 - Recommending it to others
 - Sharing your experience
