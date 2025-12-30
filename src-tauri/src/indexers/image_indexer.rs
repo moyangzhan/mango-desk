@@ -11,17 +11,14 @@ use crate::repositories::ai_model_repo;
 use crate::traits::image_analyzer::ImageAnalyzer;
 use crate::traits::indexing_template::IndexingTemplate;
 
-pub struct ImageIndexer<'a> {
-    embedding_service: &'a EmbeddingService,
+pub struct ImageIndexer {
     category: FileCategory,
     ai_model: AiModel,
     platform_service: Box<dyn ImageAnalyzer>,
 }
 
-impl<'a> ImageIndexer<'a> {
-    pub async fn new(
-        embedding_service: &'a EmbeddingService,
-    ) -> Result<ImageIndexer<'a>, AppError> {
+impl ImageIndexer {
+    pub async fn new() -> Result<ImageIndexer, AppError> {
         let (platform_name, base_url) = {
             let active_platform = ACTIVE_MODEL_PLATFORM.read().await;
             (
@@ -47,7 +44,6 @@ impl<'a> ImageIndexer<'a> {
                 };
 
             return Ok(Self {
-                embedding_service,
                 category: FileCategory::Image,
                 ai_model,
                 platform_service,
@@ -58,12 +54,9 @@ impl<'a> ImageIndexer<'a> {
     }
 }
 
-impl<'a> IndexingTemplate for ImageIndexer<'a> {
+impl IndexingTemplate for ImageIndexer {
     fn category(&self) -> &FileCategory {
         &self.category
-    }
-    fn embedding_service(&self) -> &EmbeddingService {
-        &self.embedding_service
     }
     async fn load_content(&self, file_info: &FileInfo) -> String {
         match self

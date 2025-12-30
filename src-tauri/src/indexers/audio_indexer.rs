@@ -10,17 +10,14 @@ use crate::repositories::ai_model_repo;
 use crate::traits::audio_analyzer::AudioAnalyzer;
 use crate::traits::indexing_template::IndexingTemplate;
 
-pub struct AudioIndexer<'a> {
-    embedding_service: &'a EmbeddingService,
+pub struct AudioIndexer {
     category: FileCategory,
     ai_model: AiModel,
     model_platform_service: Box<dyn AudioAnalyzer>,
 }
 
-impl<'a> AudioIndexer<'a> {
-    pub async fn new(
-        embedding_service: &'a EmbeddingService,
-    ) -> Result<AudioIndexer<'a>, AppError> {
+impl<'a> AudioIndexer {
+    pub async fn new() -> Result<AudioIndexer, AppError> {
         let (platform_name, base_url) = {
             let active_platform = ACTIVE_MODEL_PLATFORM.read().await;
             (
@@ -45,7 +42,6 @@ impl<'a> AudioIndexer<'a> {
                 };
 
             return Ok(Self {
-                embedding_service,
                 category: FileCategory::Audio,
                 ai_model,
                 model_platform_service: platform_service,
@@ -59,12 +55,9 @@ impl<'a> AudioIndexer<'a> {
     }
 }
 
-impl<'a> IndexingTemplate for AudioIndexer<'a> {
+impl IndexingTemplate for AudioIndexer {
     fn category(&self) -> &FileCategory {
         &self.category
-    }
-    fn embedding_service(&self) -> &EmbeddingService {
-        &self.embedding_service
     }
 
     async fn load_content(&self, file_info: &FileInfo) -> String {

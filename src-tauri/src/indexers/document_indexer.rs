@@ -6,28 +6,23 @@ use crate::structs::embedding_progress::EmbeddingProgress;
 use crate::traits::indexing_template::IndexingTemplate;
 use std::path::Path;
 
-pub struct DocumentIndexer<'a> {
-    pub embedding_service: &'a EmbeddingService,
+pub struct DocumentIndexer {
     pub category: FileCategory,
     pub status: EmbeddingProgress,
 }
 
-impl<'a> DocumentIndexer<'a> {
-    pub fn new(embedding_service: &'a EmbeddingService) -> Self {
+impl DocumentIndexer {
+    pub fn new() -> Self {
         Self {
-            embedding_service,
             category: FileCategory::Document,
             status: EmbeddingProgress::default(),
         }
     }
 }
 
-impl<'a> IndexingTemplate for DocumentIndexer<'a> {
+impl IndexingTemplate for DocumentIndexer {
     fn category(&self) -> &FileCategory {
         &self.category
-    }
-    fn embedding_service(&self) -> &EmbeddingService {
-        &self.embedding_service
     }
     async fn load_content(&self, file_info: &FileInfo) -> String {
         let loader = EXT_TO_DOC_LOADER

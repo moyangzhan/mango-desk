@@ -239,13 +239,9 @@ pub async fn start_indexing(
 
     // Embedding processing
     INDEXING.store(true, Ordering::SeqCst);
-    embedding_service_manager().write().await.clear();
-    let embedding_service = EmbeddingService::new()
-        .await
-        .map_err(|op| AppError::InstantNewFailed(op.to_string()))?;
 
     println!("document indexing...");
-    let mut document_indexer = indexers::document_indexer::DocumentIndexer::new(&embedding_service);
+    let mut document_indexer = indexers::document_indexer::DocumentIndexer::new();
     let _ = document_indexer
         .process(task.clone(), event.clone())
         .await
@@ -290,7 +286,7 @@ pub async fn start_indexing(
     }
 
     if let Ok(mut image_indexer) =
-        indexers::image_indexer::ImageIndexer::new(&embedding_service).await
+        indexers::image_indexer::ImageIndexer::new().await
     {
         println!("image indexing...");
         let _ = image_indexer
@@ -301,7 +297,7 @@ pub async fn start_indexing(
     }
 
     if let Ok(mut audio_indexer) =
-        indexers::audio_indexer::AudioIndexer::new(&embedding_service).await
+        indexers::audio_indexer::AudioIndexer::new().await
     {
         println!("audio indexing...");
         let _ = audio_indexer

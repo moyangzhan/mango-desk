@@ -1,4 +1,4 @@
-use crate::embedding_service::EmbeddingService;
+use crate::embedding_service_manager::embedding_service_manager;
 use crate::entities::{FileContentEmbedding, FileInfo, FileMetaEmbedding, IndexingTask};
 use crate::enums::{FileCategory, FileIndexStatus, IndexingEvent};
 use crate::errors::{AppError, IndexingError};
@@ -114,8 +114,7 @@ pub trait IndexingTemplate {
         file_content_embedding_repo::delete_by_file_id(file_id).await?;
         file_metadata_embedding_repo::delete_by_file_id(file_id).await?;
 
-        let embedding_service = self.embedding_service();
-        embedding_metadata(&embedding_service, file_id, &file_meta).await?;
+        embedding_metadata(file_id, &file_meta).await?;
         if filtered_content.is_empty() {
             let _ = file_info_repo::update_content_index_status(
                 file_id,
@@ -125,7 +124,7 @@ pub trait IndexingTemplate {
             .await;
             indexing_task_util::skipped_incr(self.category(), 1).await;
         } else {
-            match embedding_content(&embedding_service, file_id, &filtered_content).await {
+            match embedding_content(file_id, &filtered_content).await {
                 Ok(_) => {
                     indexing_task_util::success_incr(self.category(), 1).await;
                 }
@@ -140,36 +139,39 @@ pub trait IndexingTemplate {
 
     async fn load_content(&self, file_info: &FileInfo) -> String;
     fn category(&self) -> &FileCategory;
-    fn embedding_service(&self) -> &EmbeddingService;
 }
 
-pub async fn embedding_content(
-    embedding_service: &EmbeddingService,
-    file_id: i64,
-    content: &str,
-) -> Result<(), IndexingError> {
+pub async fn embedding_content(file_id: i64, content: &str) -> Result<(), IndexingError> {
     if content.is_empty() {
         return Err(IndexingError::EmptyContent);
     }
 
     // Embedding content
-    let chunks = text_util::split_text(&content, &embedding_service.tokenizer)
-        .map_err(|op| AppError::DocumentSplitterError(op.to_string()))?;
+    let chunks = {
+        let mut manager = embedding_service_manager().write().await;
+        let embedding_service = manager.service().await?;
+        text_util::split_text(&content, &embedding_service.tokenizer)
+            .map_err(|op| AppError::DocumentSplitterError(op.to_string()))?
+    };
     for (chunk_index, chunk_text) in chunks.into_iter().enumerate() {
         println!("Chunk text: {}", chunk_text.len());
         let mut keep_run = true;
-        let chunk_embedding = match embedding_service.embed(&chunk_text) {
-            Ok(embedding) => embedding,
-            Err(op) => {
-                println!("embedding chunk error:{}", op.to_string());
-                let _ = file_info_repo::update_content_index_status(
-                    file_id,
-                    FileIndexStatus::IndexFailed.value(),
-                    op.to_string().as_str(),
-                )
-                .await;
-                keep_run = false;
-                Vec::new()
+        let chunk_embedding = {
+            let mut manager = embedding_service_manager().write().await;
+            match manager.embed(&chunk_text).await {
+                Ok(embedding) => embedding,
+                Err(op) => {
+                    drop(manager);
+                    println!("embedding chunk error:{}", op.to_string());
+                    let _ = file_info_repo::update_content_index_status(
+                        file_id,
+                        FileIndexStatus::IndexFailed.value(),
+                        op.to_string().as_str(),
+                    )
+                    .await;
+                    keep_run = false;
+                    Vec::new()
+                }
             }
         };
         if !keep_run {
@@ -213,14 +215,18 @@ pub async fn embedding_content(
 }
 
 pub async fn embedding_metadata(
-    embedding_service: &EmbeddingService,
     file_id: i64,
     file_meta: &FileMetadata,
 ) -> Result<(), IndexingError> {
     // File meta embedding
-    let meta_embedding = match embedding_service.embed(file_meta.to_text().as_str()) {
-        Ok(embedding) => embedding,
+    let mut guard = embedding_service_manager().write().await;
+    let meta_embedding = match guard.embed(file_meta.to_text().as_str()).await {
+        Ok(embedding) => {
+            drop(guard);
+            embedding
+        }
         Err(op) => {
+            drop(guard);
             println!("embedding meta error:{}", op.to_string());
             file_info_repo::update_meta_index_status(
                 file_id,
