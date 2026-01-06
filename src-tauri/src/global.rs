@@ -6,6 +6,7 @@ use crate::document_loaders::pdf::PdfLoader;
 use crate::document_loaders::plain_text::PlainTextLoader;
 use crate::document_loaders::pptx::PptxLoader;
 use crate::entities::ModelPlatform;
+use crate::structs::fs_watcher_setting::FsWatcherSetting;
 use crate::structs::indexer_setting::IndexerSetting;
 use crate::structs::indexing_summary::IndexingSummary;
 use crate::structs::proxy_setting::ProxyInfo;
@@ -34,6 +35,11 @@ pub static MULTI_LANG_TOKENIZER_PATH: OnceLock<String> = OnceLock::new();
 pub static EN_EMBEDDING_PATH: OnceLock<String> = OnceLock::new(); // 384 dimensions
 // assets/model/all-minilm-l6-v2-tokenizer.json
 pub static EN_TOKENIZER_PATH: OnceLock<String> = OnceLock::new();
+
+pub static CONFIG_NAME_PROXY: &'static str = "proxy";
+pub static CONFIG_NAME_INDEXER_SETTING: &'static str = "indexer_setting";
+pub static CONFIG_NAME_WATCHER_SETTING: &'static str = "fs_watcher_setting";
+pub static CONFIG_NAME_ACTIVE_LOCALE: &'static str = "active_locale";
 
 pub static ONNX_EXEC_PROVIDERS_INITIALIZED: OnceLock<bool> = OnceLock::new();
 pub static CLIENT_ID: OnceLock<String> = OnceLock::new(); //Identifier for this client instance
@@ -104,6 +110,8 @@ pub static INDEXER_SETTING: LazyLock<AsyncRwLock<IndexerSetting>> =
     LazyLock::new(|| AsyncRwLock::new(IndexerSetting::default()));
 pub static INDEXING: AtomicBool = AtomicBool::new(false);
 pub static STOP_INDEX_SIGNAL: AtomicBool = AtomicBool::new(false);
+pub static FS_WATCHER_SETTING: LazyLock<AsyncRwLock<FsWatcherSetting>> =
+    LazyLock::new(|| AsyncRwLock::new(FsWatcherSetting::default()));
 
 // Running indexing task summary
 pub static INDEXING_SUMMARY: LazyLock<AsyncRwLock<IndexingSummary>> =
@@ -120,3 +128,4 @@ pub async fn supported_doc_exts() -> Vec<String> {
 }
 
 pub const TRAY_ID: &'static str = "main";
+pub const UI_MOUNTED: AtomicBool = AtomicBool::new(false);

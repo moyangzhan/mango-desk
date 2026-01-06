@@ -5,6 +5,7 @@ mod embedding_service_manager;
 mod entities;
 mod enums;
 mod errors;
+mod fs_watcher;
 mod global;
 mod indexer_service;
 mod indexers;
@@ -20,13 +21,15 @@ mod traits;
 mod types;
 mod utils;
 
+use crate::global::UI_MOUNTED;
 use crate::lib_commands::{
-    check_path_type, count_files, count_indexing_tasks, delete_file, delete_indexing_task,
-    download_multilingual_model, is_embedding_model_changed, load_active_locale,
-    load_active_platform, load_embedding_models, load_files, load_indexer_setting,
-    load_indexing_tasks, load_model_by_type, load_model_platforms, load_proxy_info, quick_search,
-    read_file_data, search, set_active_locale, set_active_platform, start_indexing, stop_indexing,
-    ui_mounted, update_indexer_setting, update_model_platform, update_proxy_info, get_app_dir
+    add_watch_path, check_path_type, count_files, count_indexing_tasks, delete_file,
+    delete_indexing_task, download_multilingual_model, get_app_dir, is_embedding_model_changed,
+    load_active_locale, load_active_platform, load_config_value, load_embedding_models, load_files,
+    load_indexer_setting, load_indexing_tasks, load_model_by_type, load_model_platforms,
+    load_proxy_info, quick_search, read_file_data, remove_watch_path, search, set_active_locale,
+    set_active_platform, start_indexing, stop_indexing, ui_mounted, update_indexer_setting,
+    update_model_platform, update_proxy_info,
 };
 use crate::utils::app_util;
 use global::TRAY_ID;
@@ -35,6 +38,7 @@ use rusqlite::ffi::sqlite3_auto_extension;
 use sqlite_vec::sqlite3_vec_init;
 use std::env;
 use std::panic;
+use std::sync::atomic::Ordering;
 use tauri::Manager;
 use tauri::WindowEvent;
 use tauri::tray::{MouseButton, TrayIconBuilder, TrayIconEvent};
@@ -110,6 +114,7 @@ pub fn run() {
             load_embedding_models,
             load_indexing_tasks,
             load_files,
+            load_config_value,
             count_indexing_tasks,
             count_files,
             set_active_platform,
@@ -128,7 +133,9 @@ pub fn run() {
             read_file_data,
             ui_mounted,
             is_embedding_model_changed,
-            get_app_dir
+            get_app_dir,
+            add_watch_path,
+            remove_watch_path
         ])
         .setup(|app| {
             let app_handle = app.handle();
@@ -168,6 +175,24 @@ pub fn run() {
                     _ => {}
                 })
                 .build(app)?;
+
+            let window = app
+                .get_webview_window("main")
+                .expect("main window not found");
+            window.on_window_event(|event| match event {
+                WindowEvent::Focused(focused) => {
+                    if *focused && UI_MOUNTED.load(Ordering::SeqCst) {
+                        tokio::spawn(async move {
+                            if let Err(error) = searcher::warmup_embedding_service().await {
+                                error!("error warming up embedding service: {}", error);
+                            } else {
+                                info!("Embedding service warmed up");
+                            }
+                        });
+                    }
+                }
+                _ => {}
+            });
             Ok(())
         })
         .on_window_event(|window, event| match event {

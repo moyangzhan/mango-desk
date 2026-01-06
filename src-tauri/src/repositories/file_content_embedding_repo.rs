@@ -3,7 +3,7 @@ use crate::repositories::RepositoryError;
 use crate::utils::app_util::get_db_path;
 use rusqlite::{Connection, Error, Result, Row, named_params};
 
-pub async fn insert(
+pub fn insert(
     file_content_embedding: &FileContentEmbedding,
 ) -> Result<Option<FileContentEmbedding>, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
@@ -44,9 +44,7 @@ pub async fn insert(
     Ok(file_content_embedding)
 }
 
-pub async fn update(
-    file_content_embedding: &FileContentEmbedding,
-) -> Result<usize, RepositoryError> {
+pub fn update(file_content_embedding: &FileContentEmbedding) -> Result<usize, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
     let mut stmt = conn.prepare(
         "update file_content_embedding set file_id=:file_id,embedding=:embedding where id = :id",
@@ -66,7 +64,7 @@ pub async fn update(
     Ok(affected)
 }
 
-pub async fn search(
+pub fn search(
     embedding: &[f32],
     max_distance: f32,
 ) -> Result<Vec<FileContentEmbedding>, RepositoryError> {
@@ -115,13 +113,28 @@ pub async fn search(
     return Ok(filtered_result);
 }
 
-pub async fn delete_by_file_id(file_id: i64) -> Result<usize, RepositoryError> {
+pub fn delete_by_file_id(file_id: i64) -> Result<usize, RepositoryError> {
     if file_id < 1 {
         return Ok(0);
     }
     let conn = Connection::open(get_db_path())?;
     let mut stmt = conn.prepare("delete from file_content_embedding where file_id = :file_id")?;
     let affected = stmt.execute(named_params! {":file_id": file_id})?;
+    Ok(affected)
+}
+
+pub fn delete_by_file_prefix_path(file_prefix_path: &str) -> Result<usize, RepositoryError> {
+    if file_prefix_path.is_empty() {
+        return Ok(0);
+    }
+    let pattern = if file_prefix_path.ends_with(std::path::MAIN_SEPARATOR) {
+        format!("{}%", file_prefix_path)
+    } else {
+        format!("{}{}%", file_prefix_path, std::path::MAIN_SEPARATOR)
+    };
+    let conn = Connection::open(get_db_path())?;
+    let mut stmt = conn.prepare("delete from file_content_embedding where file_id in (select id from file_info where path like :prefix_path)")?;
+    let affected = stmt.execute(named_params! {":prefix_path": pattern})?;
     Ok(affected)
 }
 

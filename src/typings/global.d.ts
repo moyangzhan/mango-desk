@@ -114,3 +114,8 @@ interface CommandResult {
   data?: any;
   code: number;
 }
+
+interface WatchSetting {
+  directories: string[];
+  files: string[];
+}

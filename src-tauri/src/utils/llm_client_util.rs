@@ -10,19 +10,17 @@ pub async fn init_service(
     platform_name: &str,
     base_url: Option<String>,
 ) -> (ModelPlatform, ProxyInfo) {
-    let platform = model_platform_repo::get_one(platform_name)
-        .await
-        .unwrap_or_else(|e| {
-            eprintln!("get model platform error: {e}");
-            let mut pv = ModelPlatform::default();
-            if base_url.is_some() {
-                pv.base_url = base_url.unwrap_or("".to_string());
-            }
-            if pv.base_url.is_empty() {
-                println!("base_url is empty");
-            }
-            pv
-        });
+    let platform = model_platform_repo::get_one(platform_name).unwrap_or_else(|e| {
+        eprintln!("get model platform error: {e}");
+        let mut pv = ModelPlatform::default();
+        if base_url.is_some() {
+            pv.base_url = base_url.unwrap_or("".to_string());
+        }
+        if pv.base_url.is_empty() {
+            println!("base_url is empty");
+        }
+        pv
+    });
     (platform, PROXY.read().await.clone())
 }
 

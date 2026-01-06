@@ -5,6 +5,7 @@ use rusqlite::Result as SqlResult;
 use rusqlite::types::{FromSql, FromSqlError, ToSql, ToSqlOutput};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Locale {
@@ -365,4 +366,31 @@ impl From<TrayMenuItem> for &'static str {
             TrayMenuItem::Quit => "quit",
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub enum FsEvent {
+    Rename { from: PathBuf, to: PathBuf },
+    Create(PathBuf),
+    Remove { path: PathBuf, is_file: bool },
+    Modify(PathBuf),
+    Other,
+}
+
+impl FsEvent {
+    pub fn paths(&self) -> Vec<&PathBuf> {
+        match self {
+            FsEvent::Rename { from, to } => vec![from, to],
+            FsEvent::Create(path) => vec![path],
+            FsEvent::Remove { path, is_file: _ } => vec![path],
+            FsEvent::Modify(path) => vec![path],
+            FsEvent::Other => vec![],
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PathKind {
+    File,
+    Directory,
 }

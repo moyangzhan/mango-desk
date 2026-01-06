@@ -6,7 +6,7 @@ use crate::repositories::{
 };
 use std::collections::{HashMap, HashSet};
 use std::time::Instant;
-use tokio::try_join;
+use tokio::{task, try_join};
 
 struct SearchTmp {
     file_id: i64,
@@ -31,19 +31,25 @@ pub async fn search(txt: &str) -> Result<Vec<FileInfo>, AppError> {
     let checkpoint1 = start.elapsed();
     println!("checkpoint1 {:?}", checkpoint1);
     let (content_result, meta_result) = try_join!(
-        file_content_embedding_repo::search(&embedding, -1.0),
-        file_metadata_embedding_repo::search(&embedding, -1.0)
+        task::spawn_blocking({
+            let embedding = embedding.clone();
+            move || file_content_embedding_repo::search(&embedding, -1.0).unwrap_or_default()
+        }),
+        task::spawn_blocking({
+            let embedding = embedding.clone();
+            move || file_metadata_embedding_repo::search(&embedding, -1.0).unwrap_or_default()
+        }),
     )?;
     let checkpoint2 = start.elapsed();
     println!("checkpoint2: {:?}", checkpoint2 - checkpoint1);
-    let result = merge_and_filter_results(content_result, meta_result).await;
+    let result = merge_and_filter_results(content_result, meta_result);
     let checkpoint3 = start.elapsed();
     println!("checkpoint3: {:?}", checkpoint3 - checkpoint2);
     Ok(result)
 }
 
 /// Merge and filter the results from content and meta search
-async fn merge_and_filter_results(
+fn merge_and_filter_results(
     content_result: Vec<FileContentEmbedding>,
     meta_result: Vec<FileMetaEmbedding>,
 ) -> Vec<FileInfo> {
@@ -81,9 +87,7 @@ async fn merge_and_filter_results(
 
     let file_ids: Vec<i64> = tmps.iter().map(|t| t.file_id).collect();
     println!("file_ids: {:?}", file_ids);
-    let file_infos = file_info_repo::list_by_ids(&file_ids)
-        .await
-        .unwrap_or_default();
+    let file_infos = file_info_repo::list_by_ids(&file_ids).unwrap_or_default();
     if file_infos.is_empty() {
         println!("file_infos is empty");
         return Vec::new();

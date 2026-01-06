@@ -36,3 +36,10 @@ export function emptyDownloadState() {
     status: 'success',
   }
 }
+
+export function emptyWatchSetting() {
+  return {
+    directories: [] as string[],
+    files: [] as string[],
+  }
+}

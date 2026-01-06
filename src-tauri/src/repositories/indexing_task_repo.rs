@@ -5,7 +5,7 @@ use crate::utils::datetime_util;
 use chrono::{DateTime, Local};
 use rusqlite::{Connection, Result, Row, named_params};
 
-pub async fn insert_by_paths(
+pub fn insert_by_paths(
     paths: &Vec<String>,
     embedding_model: &str,
     status: &str,
@@ -27,7 +27,7 @@ pub async fn insert_by_paths(
     Ok(entity)
 }
 
-pub async fn insert(entity: &IndexingTask) -> Result<IndexingTask, RepositoryError> {
+pub fn insert(entity: &IndexingTask) -> Result<IndexingTask, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
     let mut stmt = conn.prepare(
         "insert into indexing_task (paths, embedding_model, status, start_time, end_time, duration, total_cnt, content_indexed_success_cnt, content_indexed_failed_cnt, content_indexed_skipped_cnt, remark, config_json) values (:paths,:embedding_model,:status,:start_time,:end_time,:duration,:total_cnt,:content_indexed_success_cnt,:content_indexed_failed_cnt,:content_indexed_skipped_cnt,:remark,:config_json)"
@@ -60,7 +60,7 @@ pub async fn insert(entity: &IndexingTask) -> Result<IndexingTask, RepositoryErr
     Ok(entity)
 }
 
-pub async fn update(entity: &IndexingTask) -> Result<usize, RepositoryError> {
+pub fn update(entity: &IndexingTask) -> Result<usize, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
     let mut stmt = conn.prepare(
         "update indexing_task set paths=:paths,status=:status,start_time=:start_time,end_time=:end_time,duration=:duration,total_cnt=:total_cnt,content_processed_cnt=:content_processed_cnt,content_indexed_success_cnt=:content_indexed_success_cnt,content_indexed_failed_cnt=:content_indexed_failed_cnt,content_indexed_skipped_cnt=:content_indexed_skipped_cnt,status=:status,remark=:remark,config_json=:config_json where id = :id")?;
@@ -92,7 +92,7 @@ pub async fn update(entity: &IndexingTask) -> Result<usize, RepositoryError> {
     Ok(affected)
 }
 
-pub async fn update_status(id: i64, status: &str, remark: &str) -> Result<usize, RepositoryError> {
+pub fn update_status(id: i64, status: &str, remark: &str) -> Result<usize, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
     let mut stmt =
         conn.prepare("update indexing_task set status = :status,remark=:remark where id = :id")?;
@@ -105,7 +105,7 @@ pub async fn update_status(id: i64, status: &str, remark: &str) -> Result<usize,
     Ok(affected)
 }
 
-pub async fn update_cnt(
+pub fn update_cnt(
     id: i64,
     total_cnt: i64,
     processed_cnt: i64,
@@ -131,14 +131,14 @@ pub async fn update_cnt(
     Ok(affected)
 }
 
-pub async fn get(id: i64) -> Result<IndexingTask, RepositoryError> {
+pub fn get(id: i64) -> Result<IndexingTask, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
     let mut stmt = conn.prepare("select * from indexing_task where id = :id")?;
     let entity = stmt.query_row([id], |row| Ok(build_entity(row)?))?;
     Ok(entity)
 }
 
-pub async fn list(page: i64, page_size: i64) -> Result<Vec<IndexingTask>, RepositoryError> {
+pub fn list(page: i64, page_size: i64) -> Result<Vec<IndexingTask>, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
     let mut stmt =
         conn.prepare("select * from indexing_task order by id desc limit :limit offset :offset")?;
@@ -156,14 +156,14 @@ pub async fn list(page: i64, page_size: i64) -> Result<Vec<IndexingTask>, Reposi
     Ok(result)
 }
 
-pub async fn count() -> Result<i64, RepositoryError> {
+pub fn count() -> Result<i64, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
     let mut stmt = conn.prepare("select count(*) from indexing_task")?;
     let count = stmt.query_row([], |row| row.get(0))?;
     Ok(count)
 }
 
-pub async fn delete_by_id(id: i64) -> Result<usize, RepositoryError> {
+pub fn delete_by_id(id: i64) -> Result<usize, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
     let mut stmt = conn.prepare("delete from indexing_task where id = :id")?;
     let affected = stmt.execute(named_params! {

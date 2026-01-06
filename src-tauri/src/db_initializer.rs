@@ -303,6 +303,7 @@ pub fn init_data_v1() -> Result<()> {
         insert or ignore into config (name, value) VALUES ('indexer_setting', '{"is_private":true,"file_content_language":"en","ignore_dirs":["node_modules"],"ignore_exts":["tmp"],"ignore_files":[]}');
         insert or ignore into config (name, value) VALUES ('active_model_platform', 'openai');
         insert or ignore into config (name, value) VALUES ('active_locale', 'en-US');
+        insert or ignore into config (name, value) VALUES ('fs_watcher_setting', '{"directories":[],"files":[]}');
         "#,
     )?;
 

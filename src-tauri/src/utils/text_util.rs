@@ -1,8 +1,5 @@
-use crate::global::{
-    DOCUMENT_CHUNK_OVERLAP, DOCUMENT_CHUNK_SIZE, EN_TOKENIZER_PATH, MULTI_LANG_TOKENIZER_PATH,
-};
+use crate::global::{DOCUMENT_CHUNK_OVERLAP, DOCUMENT_CHUNK_SIZE};
 use std::error::Error;
-use std::path::Path;
 use text_splitter::{ChunkCapacity, ChunkConfig, TextSplitter};
 use tokenizers::Tokenizer;
 

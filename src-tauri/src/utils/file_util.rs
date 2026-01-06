@@ -1,5 +1,5 @@
 use crate::entities::FileInfo;
-use crate::enums::FileCategory;
+use crate::enums::{FileCategory, PathKind};
 use crate::errors::AppError;
 use crate::structs::file_metadata::FileMetadata;
 use crate::utils::datetime_util;
@@ -131,4 +131,37 @@ pub async fn get_meta_by_local(
         );
     })?;
     return Ok(file_meta);
+}
+
+pub fn guess_path_kind(path_str: &str) -> PathKind {
+    if path_str.is_empty() {
+        return PathKind::Directory;
+    }
+    // Normalize path separators (Windows / Unix)
+    let normalized = path_str.replace('\\', "/");
+    if normalized.ends_with('/') {
+        return PathKind::Directory;
+    }
+    let path = Path::new(&normalized);
+    if let Some(ext) = path.extension() {
+        if !ext.is_empty() {
+            return PathKind::File;
+        }
+    }
+    // Extract the file/directory name
+    let file_name = match path.file_name().and_then(|n| n.to_str()) {
+        Some(name) => name,
+        None => return PathKind::Directory,
+    };
+
+    // Unix-style hidden entries (.git, .ssh)
+    if file_name.starts_with('.') {
+        // Files like .env or .gitignore are typically regular files
+        if file_name.contains('.') && file_name.len() > 1 {
+            return PathKind::File;
+        }
+        return PathKind::Directory;
+    }
+
+    PathKind::Directory
 }

@@ -173,101 +173,93 @@ async function stopIndexing() {
 
 <template>
   <div>
-    <NCard :title="t('indexer.indexer')" class="mb-2">
-      <NCard
-        size="small" :bordered="true" content-style="padding: 10px; " class="mb-2"
-        :content-class="isDragOver ? 'bg-gray-200 dark:text-white dark:bg-white' : ''"
-      >
-        <div class="flex flex-col items-center justify-center space-y-2 mb-2">
-          <NIcon size="32">
-            <FolderOpenOutlined v-if="isDragOver" />
-            <FileOpenOutlined v-else />
-          </NIcon>
-          <div class="flex items-center">
-            <span>
-              {{ t('common.dragDropTip') }}
-            </span>
-            <div class="flex space-x-2">
-              <span class="mx-2">{{ t('common.or') }}</span>
-              <div class="mr-2">
-                <NButton text @click="openDirDialog">
-                  <NText type="success" underline>
-                    {{ t('common.selectFolder')
-                    }}
-                  </NText>
-                </NButton>
-              </div>
-              <NButton text @click="openFileDialog">
+    <NCard size="small" :bordered="true" content-style="padding: 10px; " class="mb-2"
+      :content-class="isDragOver ? 'bg-gray-200 dark:text-white dark:bg-white' : ''">
+      <div class="flex flex-col items-center justify-center space-y-2 mb-2">
+        <NIcon size="32">
+          <FolderOpenOutlined v-if="isDragOver" />
+          <FileOpenOutlined v-else />
+        </NIcon>
+        <div class="flex items-center">
+          <span>
+            {{ t('common.dragDropTip') }}
+          </span>
+          <div class="flex space-x-2">
+            <span class="mx-2">{{ t('common.or') }}</span>
+            <div class="mr-2">
+              <NButton text @click="openDirDialog">
                 <NText type="success" underline>
-                  {{ t('common.selectFile')
+                  {{ t('common.selectFolder')
                   }}
                 </NText>
               </NButton>
             </div>
+            <NButton text @click="openFileDialog">
+              <NText type="success" underline>
+                {{ t('common.selectFile')
+                }}
+              </NText>
+            </NButton>
           </div>
         </div>
-      </NCard>
-
-      <NList bordered>
-        <template #header>
-          <div class="font-semibold">
-            {{ t('common.selctedFileAndFolder') }}
-          </div>
-        </template>
-        <template v-for="item in selectedList" :key="item.id">
-          <NListItem>
-            <div class="flex items-center justify-between px-2 py-1">
-              <div class="flex items-center gap-2">
-                <NIcon :size="20">
-                  <FolderOutlined v-if="item.type === 'directory'" />
-                  <AttachFileOutlined v-else />
-                </NIcon>
-                <span class="truncate max-w-xs" :title="item.name">{{ item.name }}</span>
-              </div>
-              <NButton quaternary type="error" size="small" @click="removePath(item.id)">
-                <template #icon>
-                  <DeleteOutlined />
-                </template>
-              </NButton>
-            </div>
-          </NListItem>
-        </template>
-        <template #footer>
-          <div class="text-xs text-gray-400 pl-2">
-            {{ t('common.total') }}: {{ selectedList.length }}
-          </div>
-        </template>
-      </NList>
-
-      <div class="flex mt-2">
-        <NButton
-          v-if="!indexProcessing" type="primary" style="margin-right: 6px"
-          :disabled="selectedList.length === 0 || indexProcessing" :loading="indexProcessing" @click="startIndexing"
-        >
-          {{ t('indexer.startIndexing') }}
-        </NButton>
-        <NPopconfirm
-          v-if="indexProcessing" :positive-text="t('common.confirm')" :negative-text="t('common.cancel')"
-          @positive-click="stopIndexing"
-        >
-          <template #trigger>
-            <NButton ghost type="error">
-              <template #icon>
-                <NIcon>
-                  <StopCircleOutlined />
-                </NIcon>
-              </template>
-              {{ t('indexer.stopIndexing') }}
-            </NButton>
-          </template>
-          {{ t('indexer.stopIndexingConfirm') }}
-        </NPopconfirm>
       </div>
-
-      <NAlert v-if="indexingMsg" type="info" class="mt-4" :title="indexingTitle">
-        {{ indexingMsg }}
-      </NAlert>
     </NCard>
+
+    <NList bordered>
+      <template #header>
+        <div class="font-semibold">
+          {{ t('common.selectedFileAndFolder') }}
+        </div>
+      </template>
+      <template v-for="item in selectedList" :key="item.id">
+        <NListItem>
+          <div class="flex items-center justify-between px-2 py-1">
+            <div class="flex items-center gap-2">
+              <NIcon :size="20">
+                <FolderOutlined v-if="item.type === 'directory'" />
+                <AttachFileOutlined v-else />
+              </NIcon>
+              <span class="truncate max-w-xs" :title="item.name">{{ item.name }}</span>
+            </div>
+            <NButton quaternary type="error" size="small" @click="removePath(item.id)">
+              <template #icon>
+                <DeleteOutlined />
+              </template>
+            </NButton>
+          </div>
+        </NListItem>
+      </template>
+      <template #footer>
+        <div class="text-xs text-gray-400 pl-2">
+          {{ t('common.total') }}: {{ selectedList.length }}
+        </div>
+      </template>
+    </NList>
+
+    <div class="flex mt-2">
+      <NButton v-if="!indexProcessing" type="primary" style="margin-right: 6px"
+        :disabled="selectedList.length === 0 || indexProcessing" :loading="indexProcessing" @click="startIndexing">
+        {{ t('indexer.startIndexing') }}
+      </NButton>
+      <NPopconfirm v-if="indexProcessing" :positive-text="t('common.confirm')" :negative-text="t('common.cancel')"
+        @positive-click="stopIndexing">
+        <template #trigger>
+          <NButton ghost type="error">
+            <template #icon>
+              <NIcon>
+                <StopCircleOutlined />
+              </NIcon>
+            </template>
+            {{ t('indexer.stopIndexing') }}
+          </NButton>
+        </template>
+        {{ t('indexer.stopIndexingConfirm') }}
+      </NPopconfirm>
+    </div>
+
+    <NAlert v-if="indexingMsg" type="info" class="mt-4" :title="indexingTitle">
+      {{ indexingMsg }}
+    </NAlert>
   </div>
 </template>
 

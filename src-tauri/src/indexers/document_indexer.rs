@@ -1,4 +1,3 @@
-use crate::embedding_service::EmbeddingService;
 use crate::entities::FileInfo;
 use crate::enums::FileCategory;
 use crate::global::{EXT_TO_DOC_LOADER, MAX_DOCUMENT_LOAD_CHARS};

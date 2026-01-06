@@ -12,7 +12,12 @@ pub struct PlainTextLoader {
 impl Default for PlainTextLoader {
     fn default() -> Self {
         Self {
-            exts: vec!["txt".to_string(), "md".to_string()],
+            exts: vec![
+                "txt".to_string(),
+                "md".to_string(),
+                "log".to_string(),
+                "mdx".to_string(),
+            ],
         }
     }
 }

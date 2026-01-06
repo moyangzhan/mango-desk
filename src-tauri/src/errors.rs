@@ -82,6 +82,11 @@ pub enum AppError {
         #[from]
         source: ndarray::ShapeError,
     },
+    #[error("join error: {source}")]
+    JoinError {
+        #[from]
+        source: tokio::task::JoinError,
+    },
 }
 unsafe impl Send for AppError {}
 unsafe impl Sync for AppError {}
@@ -298,5 +303,11 @@ impl From<AppError> for String {
 impl From<RepositoryError> for String {
     fn from(r: RepositoryError) -> Self {
         r.to_string()
+    }
+}
+
+impl From<IndexingError> for String {
+    fn from(i: IndexingError) -> Self {
+        i.to_string()
     }
 }

@@ -3,8 +3,9 @@ use crate::repositories::RepositoryError;
 use crate::utils::app_util::get_db_path;
 use crate::utils::datetime_util;
 use rusqlite::{Connection, Result, Row, named_params};
+use std::path::PathBuf;
 
-pub async fn insert(file_info: &FileInfo) -> Result<Option<FileInfo>, RepositoryError> {
+pub fn insert(file_info: &FileInfo) -> Result<Option<FileInfo>, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
     let mut stmt = conn.prepare(
         "insert into file_info(name,category,path,file_ext,file_size,content,metadata,md5,is_invalid,invalid_reason,file_create_time,file_update_time) values (:name,:category,:path,:file_ext,:file_size,:content,:metadata,:md5,:is_invalid,:invalid_reason,:file_create_time,:file_update_time)"
@@ -34,7 +35,7 @@ pub async fn insert(file_info: &FileInfo) -> Result<Option<FileInfo>, Repository
     Ok(file_info)
 }
 
-pub async fn update(file_info: &FileInfo) -> Result<usize, RepositoryError> {
+pub fn update(file_info: &FileInfo) -> Result<usize, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
     let mut stmt = conn.prepare(
         "update file_info set name =:name,path=:path,file_ext=:file_ext,file_size=:file_size,content=:content,md5=:md5,is_invalid=:is_invalid,invalid_reason=:invalid_reason,metadata=:metadata,file_update_time=:file_update_time where id = :id",
@@ -56,7 +57,7 @@ pub async fn update(file_info: &FileInfo) -> Result<usize, RepositoryError> {
     Ok(affected)
 }
 
-pub async fn update_content_meta(
+pub fn update_content_meta(
     file_id: i64,
     content: &str,
     meta: &str,
@@ -72,7 +73,7 @@ pub async fn update_content_meta(
     Ok(affected)
 }
 
-pub async fn update_invalid(
+pub fn update_invalid(
     file_id: i64,
     is_invalid: bool,
     invalid_reason: &str,
@@ -87,7 +88,7 @@ pub async fn update_invalid(
     Ok(affected)
 }
 
-pub async fn update_content_index_status(
+pub fn update_content_index_status(
     file_id: i64,
     index_status: i64,
     index_status_reason: &str,
@@ -102,7 +103,7 @@ pub async fn update_content_index_status(
     Ok(affected)
 }
 
-pub async fn update_meta_index_status(
+pub fn update_meta_index_status(
     file_id: i64,
     index_status: i64,
     index_status_reason: &str,
@@ -117,7 +118,7 @@ pub async fn update_meta_index_status(
     Ok(affected)
 }
 
-pub async fn list(page: i64, size: i64) -> Result<Vec<FileInfo>, RepositoryError> {
+pub fn list(page: i64, size: i64) -> Result<Vec<FileInfo>, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
     let mut stmt =
         conn.prepare("select * from file_info order by id desc limit :size offset :offset")?;
@@ -135,14 +136,14 @@ pub async fn list(page: i64, size: i64) -> Result<Vec<FileInfo>, RepositoryError
     Ok(result)
 }
 
-pub async fn count() -> Result<i64, RepositoryError> {
+pub fn count() -> Result<i64, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
     let mut stmt = conn.prepare("select count(*) from file_info")?;
     let count = stmt.query_row([], |row| row.get(0))?;
     Ok(count)
 }
 
-pub async fn list_unindexed_files(
+pub fn list_unindexed_files(
     min_id: i64,
     limit: i64,
     category: i64,
@@ -165,14 +166,14 @@ pub async fn list_unindexed_files(
     Ok(result)
 }
 
-pub async fn count_unindexed() -> Result<i64, RepositoryError> {
+pub fn count_unindexed() -> Result<i64, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
     let mut stmt = conn.prepare("select count(*) from file_info where content_index_status = 1")?;
     let count = stmt.query_row([], |row| row.get(0))?;
     Ok(count)
 }
 
-pub async fn count_unindexed_files(category: i64) -> Result<i64, RepositoryError> {
+pub fn count_unindexed_files(category: i64) -> Result<i64, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
     let mut stmt = conn.prepare(
         "select count(*) from file_info where content_index_status = 1 and category = :category",
@@ -181,7 +182,7 @@ pub async fn count_unindexed_files(category: i64) -> Result<i64, RepositoryError
     Ok(count)
 }
 
-pub async fn list_by_ids(ids: &[i64]) -> Result<Vec<FileInfo>, RepositoryError> {
+pub fn list_by_ids(ids: &[i64]) -> Result<Vec<FileInfo>, RepositoryError> {
     let ids_str = ids
         .iter()
         .map(|id| id.to_string())
@@ -199,7 +200,7 @@ pub async fn list_by_ids(ids: &[i64]) -> Result<Vec<FileInfo>, RepositoryError> 
     Ok(result)
 }
 
-pub async fn get_by_md5(md5: &str) -> Result<Option<FileInfo>, RepositoryError> {
+pub fn get_by_md5(md5: &str) -> Result<Option<FileInfo>, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
     let mut stmt = conn.prepare("select * from file_info where md5 = ?1 limit 1")?;
     match stmt.query_row([md5], |row: &Row<'_>| Ok(build_file_info(row)?)) {
@@ -211,7 +212,7 @@ pub async fn get_by_md5(md5: &str) -> Result<Option<FileInfo>, RepositoryError> 
     }
 }
 
-pub async fn get_by_path(path: &str) -> Result<Option<FileInfo>, RepositoryError> {
+pub fn get_by_path(path: &str) -> Result<Option<FileInfo>, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
     let mut stmt = conn.prepare("select * from file_info where path = ?1 limit 1")?;
     match stmt.query_row([path], |row: &Row<'_>| Ok(build_file_info(row)?)) {
@@ -223,11 +224,80 @@ pub async fn get_by_path(path: &str) -> Result<Option<FileInfo>, RepositoryError
     }
 }
 
-pub async fn delete_by_id(file_id: i64) -> Result<usize, RepositoryError> {
+pub fn delete_by_id(file_id: i64) -> Result<usize, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
     let mut stmt = conn.prepare("delete from file_info where id = ?1")?;
     let affected = stmt.execute([file_id])?;
     println!("delete file_info by id affected: {:?}", affected);
+    Ok(affected)
+}
+
+pub fn delete_by_path(path: &str) -> Result<usize, RepositoryError> {
+    let conn = Connection::open(get_db_path())?;
+    let mut stmt = conn.prepare("delete from file_info where path = ?1")?;
+    let affected = stmt.execute([path])?;
+    println!("delete file_info by path affected: {:?}", affected);
+    Ok(affected)
+}
+
+pub fn delete_by_prefix_path(pre_path: &str) -> Result<usize, RepositoryError> {
+    if pre_path.is_empty() {
+        return Ok(0);
+    }
+    let pattern = if pre_path.ends_with(std::path::MAIN_SEPARATOR) {
+        format!("{}%", pre_path)
+    } else {
+        format!("{}{}%", pre_path, std::path::MAIN_SEPARATOR)
+    };
+    let conn = Connection::open(get_db_path())?;
+    let affected = conn.execute(
+        "DELETE FROM file_info WHERE path = ?1 OR path LIKE ?2",
+        (pre_path, pattern),
+    )?;
+    println!("delete file_info by prefix path affected: {:?}", affected);
+    Ok(affected)
+}
+
+pub fn count_by_prefix_path(pre_path: &str) -> Result<i64, RepositoryError> {
+    if pre_path.is_empty() {
+        return Ok(0);
+    }
+    let pattern = if pre_path.ends_with(std::path::MAIN_SEPARATOR) {
+        format!("{}%", pre_path)
+    } else {
+        format!("{}{}%", pre_path, std::path::MAIN_SEPARATOR)
+    };
+    let conn = Connection::open(get_db_path())?;
+    let mut stmt = conn.prepare("select count(*) from file_info where path LIKE ?1")?;
+    let count = stmt.query_row([pattern], |row| row.get(0))?;
+    Ok(count)
+}
+
+pub fn replace_directory_prefix_path(
+    old_pre_path: &str,
+    new_pre_path: &str,
+) -> Result<usize, RepositoryError> {
+    let pattern = if old_pre_path.ends_with(std::path::MAIN_SEPARATOR) {
+        format!("{}%", old_pre_path)
+    } else {
+        format!("{}{}%", old_pre_path, std::path::MAIN_SEPARATOR)
+    };
+    let conn = Connection::open(get_db_path())?;
+    let affected = conn.execute(
+        "UPDATE file_info SET path = REPLACE(path, ?1, ?2) WHERE path LIKE ?3",
+        (old_pre_path, new_pre_path, pattern),
+    )?;
+    println!("replace file_info by prefix path affected: {:?}", affected);
+    Ok(affected)
+}
+
+pub fn rename(old_path: &str, new_path: &str, new_name: &str) -> Result<usize, RepositoryError> {
+    let conn = Connection::open(get_db_path())?;
+    let affected = conn.execute(
+        "UPDATE file_info SET path = ?1, name = ?2 WHERE path = ?3",
+        (new_path, new_name, old_path),
+    )?;
+    println!("rename file_info affected: {:?}", affected);
     Ok(affected)
 }
 

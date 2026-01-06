@@ -1,4 +1,3 @@
-use crate::embedding_service::EmbeddingService;
 use crate::entities::{AiModel, FileInfo};
 use crate::enums::{FileCategory, ModelPlatformName, ModelType};
 use crate::errors::AppError;
@@ -26,7 +25,7 @@ impl<'a> AudioIndexer {
             )
         };
         if let Ok(Some(ai_model)) =
-            ai_model_repo::get_one_by_type(platform_name.as_str(), ModelType::Asr.into()).await
+            ai_model_repo::get_one_by_type(platform_name.as_str(), ModelType::Asr.into())
         {
             let platform_service: Box<dyn AudioAnalyzer> =
                 match ModelPlatformName::from(platform_name.as_str()) {

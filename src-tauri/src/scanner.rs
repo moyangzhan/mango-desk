@@ -24,7 +24,7 @@ static UNSCANNED_DIR_COUNT: AtomicUsize = AtomicUsize::new(0);
 pub async fn start(
     paths: &Vec<String>,
     indexing_task: Arc<IndexingTask>,
-    on_event: Arc<Channel<IndexingEvent>>,
+    event_opt: Option<Arc<Channel<IndexingEvent>>>,
 ) {
     if paths.is_empty() {
         return;
@@ -48,17 +48,18 @@ pub async fn start(
             SCANNING_TOTAL.fetch_add(1, Ordering::SeqCst);
             let path_str = path.to_string();
             let task_id = indexing_task.id;
-            let file_event = on_event.clone();
+            let indexing_event = event_opt.clone();
             let task = tokio::spawn(async move {
-                frontend_util::send_to_frontend(
-                    file_event.as_ref(),
-                    IndexingEvent::Scan {
-                        task_id: task_id,
-                        msg: format!("Scanning path: {}", path_str),
-                    },
-                );
-                let indexer_setting = INDEXER_SETTING.read().await.clone();
-                let is_valid = is_valid_file(&PathBuf::from(&path_str), &indexer_setting).await;
+                if let Some(event) = indexing_event.as_ref() {
+                    frontend_util::send_to_frontend(
+                        event.as_ref(),
+                        IndexingEvent::Scan {
+                            task_id: task_id,
+                            msg: format!("Scanning path: {}", path_str),
+                        },
+                    );
+                }
+                let is_valid = is_valid_file_with(&PathBuf::from(&path_str)).await;
                 if !is_valid {
                     println!("File is not valid: {}", path_str);
                     return;
@@ -88,7 +89,7 @@ pub async fn start(
                 let Some(dir) = maybe_dir else { break; };
                 let tx_clone = sender.clone();
                 let task = indexing_task.clone();
-                let event = on_event.clone();
+                let event = event_opt.clone();
                 let task = tokio::spawn(async move {
                     let _ = scan_and_store(dir, tx_clone, task, event).await;
                 });
@@ -121,7 +122,7 @@ pub async fn scan_and_store(
     dir: String,
     sender: Sender<String>,
     task: Arc<IndexingTask>,
-    on_event: Arc<Channel<IndexingEvent>>,
+    on_event: Option<Arc<Channel<IndexingEvent>>>,
 ) -> Result<(), IndexingError> {
     if dir.is_empty() {
         return Ok(());
@@ -132,13 +133,15 @@ pub async fn scan_and_store(
     while let Some(entry) = entries.next_entry().await? {
         if STOP_INDEX_SIGNAL.load(Ordering::SeqCst) {
             println!("Scanning process was stopped.");
-            frontend_util::send_to_frontend(
-                on_event.as_ref(),
-                IndexingEvent::Stop {
-                    task_id: task.id,
-                    msg: "Scanning interrupted by stop signal.".to_string(),
-                },
-            );
+            if let Some(event) = on_event.as_ref() {
+                frontend_util::send_to_frontend(
+                    event,
+                    IndexingEvent::Stop {
+                        task_id: task.id,
+                        msg: "Scanning interrupted by stop signal.".to_string(),
+                    },
+                );
+            }
             SCANNING.store(false, Ordering::SeqCst);
             break;
         }
@@ -148,13 +151,15 @@ pub async fn scan_and_store(
         if path_str.is_empty() {
             continue;
         }
-        frontend_util::send_to_frontend(
-            on_event.as_ref(),
-            IndexingEvent::Scan {
-                task_id: task.id,
-                msg: format!("Scanning path: {}", path_str),
-            },
-        );
+        if let Some(event) = on_event.as_ref() {
+            frontend_util::send_to_frontend(
+                event,
+                IndexingEvent::Scan {
+                    task_id: task.id,
+                    msg: format!("Scanning path: {}", path_str),
+                },
+            );
+        }
         if path_buf.is_file() {
             SCANNING_TOTAL.fetch_add(1, Ordering::SeqCst);
             let is_valid = is_valid_file(&path_buf, &indexer_setting).await;
@@ -209,6 +214,11 @@ pub async fn scan_and_store(
     Ok(())
 }
 
+pub async fn is_valid_file_with(path_buf: &PathBuf) -> bool {
+    let indexer_setting = INDEXER_SETTING.read().await.clone();
+    return is_valid_file(path_buf, &indexer_setting).await;
+}
+
 async fn is_valid_file(path_buf: &PathBuf, indexer_setting: &IndexerSetting) -> bool {
     let ext_str = path_buf
         .extension()
@@ -240,7 +250,7 @@ async fn is_valid_file(path_buf: &PathBuf, indexer_setting: &IndexerSetting) -> 
     true
 }
 
-async fn add_or_update_file_info(input_path: String) -> Result<(), IndexingError> {
+pub async fn add_or_update_file_info(input_path: String) -> Result<(), IndexingError> {
     let path_str = input_path.as_str();
     let path = PathBuf::from(path_str);
     let ext = path
@@ -254,7 +264,7 @@ async fn add_or_update_file_info(input_path: String) -> Result<(), IndexingError
         .map_err(|op| AppError::CalculateMd5Error(op.to_string()))?;
 
     // Check the file by md5 hash
-    if let Some(mut file_record) = file_info_repo::get_by_md5(&md5_hash).await? {
+    if let Some(mut file_record) = file_info_repo::get_by_md5(&md5_hash)? {
         if file_record.is_invalid
             || file_record.content_index_status == FileIndexStatus::Indexing.value()
         {
@@ -265,28 +275,29 @@ async fn add_or_update_file_info(input_path: String) -> Result<(), IndexingError
         );
         if file_record.content_index_status == FileIndexStatus::Indexed.value()
             && file_record.file_update_time.ge(&modified_time)
+            && file_record.path == input_path
         {
             println!("File is already indexed: {}", path.display());
             return Ok(());
         } else {
             println!(
-                "File is not indexed, updating record for reindexing. file: {}",
+                "Updating record. file: {}",
                 path.display()
             );
             let meta = file_util::get_meta_by_record(path.as_path(), &file_record).await?;
             // Path/name/extension may have changed
             file_record.category = FileCategory::from_ext(&ext).await.value();
-            file_record.path = path_str.to_string();
+            file_record.path = input_path;
             file_record.metadata = meta.clone();
             file_record.name = file_record.metadata.name.clone();
             file_record.content_index_status = FileIndexStatus::Waiting.value();
             file_record.file_ext = ext.clone();
             file_record.file_update_time = modified_time; // Update mtime with touch command ?
-            file_info_repo::update(&file_record).await?;
+            file_info_repo::update(&file_record)?;
         }
     }
     // Check the file by path
-    else if let Some(mut file_record) = file_info_repo::get_by_path(path_str).await? {
+    else if let Some(mut file_record) = file_info_repo::get_by_path(path_str)? {
         // File has been modified: path exists but MD5 hash mismatch, updating record for reindexing
         println!(
             "File modified, path record exists but md5 hash mismatch - Path: {}, Expected MD5: {}, Actual MD5: {}",
@@ -315,7 +326,7 @@ async fn add_or_update_file_info(input_path: String) -> Result<(), IndexingError
         file_record.content_index_status_msg = "".to_string();
         file_record.meta_index_status = FileIndexStatus::Waiting.value();
         file_record.meta_index_status_msg = "".to_string();
-        file_info_repo::update(&file_record).await?;
+        file_info_repo::update(&file_record)?;
     }
     // New file
     else {
@@ -338,7 +349,7 @@ async fn add_or_update_file_info(input_path: String) -> Result<(), IndexingError
         new_file_record.file_create_time = new_meta.created;
         new_file_record.file_update_time = new_meta.modified;
         new_file_record.metadata = meta.clone();
-        match file_info_repo::insert(&new_file_record).await {
+        match file_info_repo::insert(&new_file_record) {
             Ok(Some(new_file_record)) => {
                 println!("New file record created: {}", new_file_record.id);
             }

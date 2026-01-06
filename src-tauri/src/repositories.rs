@@ -13,6 +13,8 @@ use thiserror::Error;
 pub enum RepositoryError {
     #[error("DateTime parse error: {0}")]
     DateTimeParse(String),
+    #[error("Invalid input: {0}")]
+    InvalidInput(String),
     #[error("Database error: {0}")]
     Database(rusqlite::Error),
 }
@@ -42,6 +44,7 @@ impl From<RepositoryError> for rusqlite::Error {
     fn from(err: RepositoryError) -> Self {
         match err {
             RepositoryError::Database(e) => e,
+            RepositoryError::InvalidInput(msg) => rusqlite::Error::InvalidParameterName(msg),
             RepositoryError::DateTimeParse(msg) => rusqlite::Error::InvalidColumnType(
                 0,
                 format!("datetime parse error: {}", msg),

@@ -35,7 +35,7 @@ pub fn exit_app(app: &AppHandle) {
     }
     STOP_INDEX_SIGNAL.store(true, Ordering::SeqCst);
     EXIT_APP_SIGNAL.store(true, Ordering::SeqCst);
-    std::thread::sleep(std::time::Duration::from_millis(200));
+    std::thread::sleep(std::time::Duration::from_millis(500));
     let windows = app.webview_windows();
     for (_, window) in windows {
         let _ = window.destroy();

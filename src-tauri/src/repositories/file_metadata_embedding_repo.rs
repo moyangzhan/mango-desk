@@ -2,8 +2,9 @@ use crate::entities::FileMetaEmbedding;
 use crate::repositories::RepositoryError;
 use crate::utils::app_util::get_db_path;
 use rusqlite::{Connection, Result, Row, named_params};
+use std::path::PathBuf;
 
-pub async fn insert(
+pub fn insert(
     file_metadata_embedding: &FileMetaEmbedding,
 ) -> Result<Option<FileMetaEmbedding>, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
@@ -38,7 +39,7 @@ pub async fn insert(
     Ok(file_metadata_embedding)
 }
 
-pub async fn update(file_metadata_embedding: &FileMetaEmbedding) -> Result<usize, RepositoryError> {
+pub fn update(file_metadata_embedding: &FileMetaEmbedding) -> Result<usize, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
     let mut stmt = conn.prepare(
         "update file_metadata_embedding set file_id=:file_id,embedding=:embedding where id = :id",
@@ -58,7 +59,7 @@ pub async fn update(file_metadata_embedding: &FileMetaEmbedding) -> Result<usize
     Ok(affected)
 }
 
-pub async fn search(
+pub fn search(
     embedding: &[f32],
     max_distance: f32,
 ) -> Result<Vec<FileMetaEmbedding>, RepositoryError> {
@@ -106,13 +107,29 @@ pub async fn search(
     return Ok(filtered_result);
 }
 
-pub async fn delete_by_file_id(file_id: i64) -> Result<usize, RepositoryError> {
+pub fn delete_by_file_id(file_id: i64) -> Result<usize, RepositoryError> {
     if file_id < 1 {
         return Ok(0);
     }
     let conn = Connection::open(get_db_path())?;
     let mut stmt = conn.prepare("delete from file_metadata_embedding where file_id = :file_id")?;
     let affected = stmt.execute(named_params! {":file_id": file_id})?;
+    Ok(affected)
+}
+
+pub fn delete_by_file_prefix_path(pre_path: &str) -> Result<usize, RepositoryError> {
+    if pre_path.is_empty() {
+        return Ok(0);
+    }
+    let pattern = if pre_path.ends_with(std::path::MAIN_SEPARATOR) {
+        format!("{}%", pre_path)
+    } else {
+        format!("{}{}%", pre_path, std::path::MAIN_SEPARATOR)
+    };
+    let conn = Connection::open(get_db_path())?;
+    let mut stmt =
+        conn.prepare("delete from file_metadata_embedding where file_id in ( select id from file_info where path like :prefix_path )")?;
+    let affected = stmt.execute(named_params! {":prefix_path": pattern})?;
     Ok(affected)
 }
 

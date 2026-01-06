@@ -55,6 +55,7 @@ derive_builder = "0.20.2"
 lopdf = "0.38.0"
 md-5 = "0.10.6"
 chrono = "0.4.42"
+notify = "8.2.0"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-single-instance = "2"

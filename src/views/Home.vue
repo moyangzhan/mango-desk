@@ -208,7 +208,7 @@ onUnmounted(() => {
         >
           <div class="flex justify-center items-center">
             <NImage v-if="file.file_data" width="100" height="100" :src="file.file_data" />
-            <div v-else-if="!file.file_data && !extIcons.includes(file.file_ext.toLowerCase())">
+            <div v-else-if="!file.file_data && !extIcons.includes(file.file_ext.toLowerCase())" class="w-[50px] h-[50px] flex justify-center items-center text-xl font-bold" style="opacity: 0.7;filter: saturate(0.5)">
               {{
                 file.file_ext.toUpperCase()
               }}

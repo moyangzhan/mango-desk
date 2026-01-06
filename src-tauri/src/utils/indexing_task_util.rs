@@ -9,8 +9,12 @@ pub async fn task_new(
     embedding_model: &str,
 ) -> Result<crate::entities::IndexingTask, crate::repositories::RepositoryError> {
     let now = Local::now();
-    let task = indexing_task_repo::insert_by_paths(paths, embedding_model, IndexingTaskStatus::Running.into(), &now)
-        .await?;
+    let task = indexing_task_repo::insert_by_paths(
+        paths,
+        embedding_model,
+        IndexingTaskStatus::Running.into(),
+        &now,
+    )?;
 
     let mut summary = IndexingSummary::default();
     summary.task_id = task.id;
@@ -21,13 +25,13 @@ pub async fn task_new(
 }
 
 pub async fn task_done() -> Result<usize, String> {
-    let (task_id) = {
+    let task_id = {
         let mut summary = INDEXING_SUMMARY.write().await;
         summary.end_time = Local::now();
         summary.duration = summary.end_time.timestamp() - summary.start_time.timestamp();
         summary.task_id
     };
-    let mut task = indexing_task_repo::get(task_id).await?;
+    let mut task = indexing_task_repo::get(task_id)?;
 
     let summary = INDEXING_SUMMARY.read().await;
     let embedding_progress = summary.calculate_all_embedding();
@@ -39,7 +43,7 @@ pub async fn task_done() -> Result<usize, String> {
     task.content_indexed_success_cnt = embedding_progress.success;
     task.content_indexed_failed_cnt = embedding_progress.failed;
     task.content_indexed_skipped_cnt = summary.total - embedding_progress.total;
-    let resut = indexing_task_repo::update(&task).await?;
+    let resut = indexing_task_repo::update(&task)?;
 
     Ok(resut)
 }
@@ -56,7 +60,6 @@ pub async fn summary_to_db() {
         embedding_progress.skipped,
         summary.duration,
     )
-    .await
     .unwrap_or_else(|e| {
         println!("update_cnt error:{}", e);
         0

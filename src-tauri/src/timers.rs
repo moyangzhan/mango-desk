@@ -1,12 +1,13 @@
 use crate::embedding_service_manager::embedding_service_manager;
 use crate::global::EXIT_APP_SIGNAL;
-use log::{info, warn};
+use log::info;
 use std::sync::atomic::Ordering;
 use std::time::Instant;
 use tokio::time::Duration;
 
 pub fn start_after_ui_mounted() {
     let _ = tokio::spawn(async {
+        log::info!("Starting timer");
         embedding_service_cleanup().await;
         // match catch_unwind(AssertUnwindSafe(|| {
         //     tokio::task::block_in_place(|| {
@@ -36,7 +37,7 @@ async fn embedding_service_cleanup() {
                     guard.remove_if_expired();
                 }
                 Err(_) => {
-                    warn!("Failed to acquire write lock on service manager");
+                    println!("Failed to acquire write lock on service manager");
                 }
             }
         }
