@@ -1,15 +1,23 @@
 import { defineStore } from 'pinia'
+import { emptyIndexerSetting } from '@/utils/functions'
 
 export const useIndexerStore = defineStore('indexer-store', {
   state: () => ({
-    indexPaths: [] as string[],
+    indexerSetting: emptyIndexerSetting(),
   }),
-  getters: {
-    indexPaths: state => state.indexPaths,
-  },
+  getters: {},
   actions: {
-    add(path: string) {
-      this.indexPaths.push(path)
+    setIndexerSetting(setting: IndexerSetting) {
+      this.indexerSetting = setting
     },
+    setDocumentParsedContent(value: boolean) {
+      this.indexerSetting.save_parsed_content.document = value
+    },
+    setImageParsedContent(value: boolean) {
+      this.indexerSetting.save_parsed_content.image = value
+    },
+    setAudioParsedContent(value: boolean) {
+      this.indexerSetting.save_parsed_content.video = value
+    }
   },
 })

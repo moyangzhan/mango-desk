@@ -25,6 +25,12 @@ export function emptyIndexerSetting() {
     ignore_dirs: [] as string[],
     ignore_exts: [] as string[],
     ignore_files: [] as string[],
+    save_parsed_content: {
+      document: false,
+      image: true,
+      video: true,
+      audio: true,
+    },
   }
 }
 

@@ -299,8 +299,8 @@ pub fn init_data_v1() -> Result<()> {
         -- Customize mapping, file type => file extensioin, e.g., {"plain_text":["txt", "my_own_txt"],"markdown":["md","mdx"]}
         insert or ignore into config (name, value) VALUES ('file_type_ext_mapping', '{"plain_text":[]}');
         
-        -- is_private: local or remote llm(file parser)
-        insert or ignore into config (name, value) VALUES ('indexer_setting', '{"is_private":true,"file_content_language":"en","ignore_dirs":["node_modules"],"ignore_exts":["tmp"],"ignore_files":[]}');
+        -- is_private: Indicates whether the LLM(file parser) is running locally or remotely
+        insert or ignore into config (name, value) VALUES ('indexer_setting', '{"is_private":true,"file_content_language":"en","ignore_dirs":["node_modules"],"ignore_exts":["tmp"],"ignore_files":[],"save_parsed_content": {"document":false,"image":true,"audio":true,"video":true}}');
         insert or ignore into config (name, value) VALUES ('active_model_platform', 'openai');
         insert or ignore into config (name, value) VALUES ('active_locale', 'en-US');
         insert or ignore into config (name, value) VALUES ('fs_watcher_setting', '{"directories":[],"files":[]}');

@@ -2,7 +2,7 @@ use crate::embedding_service_manager::embedding_service_manager;
 use crate::entities::{FileContentEmbedding, FileInfo, FileMetaEmbedding, IndexingTask};
 use crate::enums::{FileCategory, FileIndexStatus, IndexingEvent};
 use crate::errors::{AppError, IndexingError};
-use crate::global::STOP_INDEX_SIGNAL;
+use crate::global::{INDEXER_SETTING, STOP_INDEX_SIGNAL};
 use crate::repositories::{
     file_content_embedding_repo, file_info_repo, file_metadata_embedding_repo,
 };
@@ -108,9 +108,25 @@ pub trait IndexingTemplate {
         let path_str = file_info.path.as_str();
         let path = Path::new(path_str);
         let file_meta = file_util::get_meta_by_record(path, &file_info).await?;
-        let _ =
-            file_info_repo::update_content_meta(file_id, &filtered_content, &file_meta.to_json())?;
-        println!("File metadata loaded: {}", file_meta.to_text());
+
+        let save_parsed_content = INDEXER_SETTING
+            .read()
+            .await
+            .save_parsed_content
+            .need_store(self.category());
+        if save_parsed_content {
+            let _ = file_info_repo::update_content_meta(
+                file_id,
+                &filtered_content,
+                &file_meta.to_json(),
+            )?;
+        } else {
+            // Only store file metadata without content to:
+            // 1. Reduce storage space - no need to store large text content
+            // 2. Improve query performance - smaller documents mean faster database operations
+            // 3. Lower memory usage - less data to load and process
+            let _ = file_info_repo::update_content_meta(file_id, "", &file_meta.to_json())?;
+        }
 
         //Remove old index
         file_content_embedding_repo::delete_by_file_id(file_id)?;

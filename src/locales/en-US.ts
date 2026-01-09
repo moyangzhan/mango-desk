@@ -54,7 +54,8 @@ export default {
     theme: 'Theme',
     themeSetting: 'Theme Setting',
     languageSetting: 'Language Setting',
-    languageSettingWarning: 'This setting determines the language for both the user interface and AI model prompts.',
+    languageSettingWarning:
+      'This setting determines the language for both the user interface and AI model prompts.',
     english: 'English',
     chinese: 'Chinese',
     multilingual: 'Multilingual',
@@ -62,7 +63,8 @@ export default {
     notSupportedYet: 'Not Supported Yet',
     nothing: 'Nothing',
     none: 'None',
-    privacySetting: 'Privacy Setting',
+    privacy: 'Privacy',
+    storage: 'Storage',
     light: 'Light',
     dark: 'Dark',
     overview: 'Overview',
@@ -112,6 +114,7 @@ export default {
     navigateTip: 'Navigate results',
     openTip: 'Open selected',
     clearTip: 'Clear selection',
+    fileContent: 'File Content',
   },
   proxy: {
     enable: 'Proxy Enable',
@@ -133,13 +136,17 @@ export default {
     setting: 'Indexer Setting',
     indexer: 'Indexer',
     privateMode: 'Private Mode',
-    privateModeDesc: 'All data processing is done locally without uploading to any external servers.',
+    privateModeDesc:
+      'All data processing is done locally without uploading to any external servers.',
     cloudMode: 'Cloud Mode',
-    cloudModeDesc: 'Images and audio need to be uploaded to remote servers for content recognition.',
+    cloudModeDesc:
+      'Images and audio need to be uploaded to remote servers for content recognition.',
     cloudModeSetting: 'Cloud Mode Setting',
-    cloudModeDescDynamic: 'Images and audio need to be uploaded to {modelPlatform} for content recognition.',
+    cloudModeDescDynamic:
+      'Images and audio need to be uploaded to {modelPlatform} for content recognition.',
     localParser: 'Local Parser',
-    localParserDesc: 'All parsing is done locally without uploading to any external servers.',
+    localParserDesc:
+      'All parsing is done locally without uploading to any external servers.',
     cloudParser: 'Cloud Parser',
     cloudParserDesc: 'Processes images and audio on remote servers.',
     documentParser: 'Document Parser',
@@ -155,21 +162,29 @@ export default {
     ignoreFileExtensions: 'Ignore File Extensions',
     ignoreFiles: 'Ignore Files',
     ignoreHiddenFiles: 'Ignore Hidden Files',
-    hiddenFileDesc: 'Whether to ignore hidden files (files starting with .) during indexing.',
+    hiddenFileDesc:
+      'Whether to ignore hidden files (files starting with .) during indexing.',
     ignoreHiddenFolders: 'Ignore Hidden Folders',
-    hiddenDirectoryDesc: 'Whether to ignore hidden folders (folder starting with .) during indexing.',
+    hiddenDirectoryDesc:
+      'Whether to ignore hidden folders (folder starting with .) during indexing.',
     disabledByPrivateMode: 'Disabled by Private Mode',
     indexFileMetadata: 'Index File Metadata',
-    indexFileMetadataDesc: 'Whether to index file metadata (such as file name, creation time, etc.) together.',
+    indexFileMetadataDesc:
+      'Whether to index file metadata (such as file name, creation time, etc.) together.',
     indexFileContent: 'Index File Content',
     indexFileContentDesc: 'Whether to index the actual content of the files.',
     embeddingModel: 'Embedding Model',
     fileContentLanguage: 'File Content Language',
-    fileContentLanguageDesc: 'Language option for document, image, and audio content. It determines which embedding model to use.',
-    multilingualEmbeddingModeSettingTip: 'Use <strong>Multilingual Embedding Model</strong> to process multilingual content.',
-    fileContentLanguageWarning2: 'If the file content language is English, the English embedding model will be used; otherwise, the Multilingual embedding model will be used.',
-    downloadMultilingualEmbeddingModelBtn: 'Click here to download the multilingual embedding model',
-    downloadMultiligualEmbeddingModelTip: 'Download the multilingual embedding model.',
+    fileContentLanguageDesc:
+      'Language option for document, image, and audio content. It determines which embedding model to use.',
+    multilingualEmbeddingModeSettingTip:
+      'Use <strong>Multilingual Embedding Model</strong> to process multilingual content.',
+    fileContentLanguageWarning2:
+      'If the file content language is English, the English embedding model will be used; otherwise, the Multilingual embedding model will be used.',
+    downloadMultilingualEmbeddingModelBtn:
+      'Click here to download the multilingual embedding model',
+    downloadMultiligualEmbeddingModelTip:
+      'Download the multilingual embedding model.',
     downloading: 'Downloading...',
     retryDownload: 'Click to continue downloading.',
     noFileSelected: 'No File Selected',
@@ -183,24 +198,38 @@ export default {
     indexing: 'Indexing',
     indexed: 'Indexed',
     embeddingModelChanged: 'Embedding Model Changed',
-    embeddingModelChangedTip: 'The embedding model has been changed. Please re-index the files.',
+    embeddingModelChangedTip:
+      'The embedding model has been changed. Please re-index the files.',
     fileWatch: 'Watched Folders And Files',
     autoIndexWhenChanged: 'Automatically index files when they are changed',
     selectedFolderAndFileToWatch: 'Select folders and files to watch',
     unwatch: 'Unwatch',
+    saveParsedContentTip:
+      'Store parsed content during indexing to enable instant file preview',
+    saveParsedContentWarn:
+      'Note: This will use significant disk space. Enable only when you have sufficient storage.',
+    saveDocumentParsedContent: 'Save Document Parsed Content',
+    saveImageParsedContent: 'Save Image Recognition Text',
+    saveAudioParsedContent: 'Save Audio Recognition Text',
+    saveVideoParsedContent: 'Save Video Recognition Text',
+    recognitionText: 'Recognition Text',
+    parsedContent: 'Parsed Content',
   },
   message: {
     downloadFailed: 'Download failed, retry or download manually',
-    downloadModelManualTip: 'Download failed? Copy the link to your browser or download manager to try again',
+    downloadModelManualTip:
+      'Download failed? Copy the link to your browser or download manager to try again',
     moveModelTip: 'Move model.onnx and tokenizer.json to: {modelPath}',
     downloadLinks: 'Download Links',
     downloadModelLink: 'model.onnx: {link} ',
     downloadTokenizerLink: 'tokenizer.json: {link}',
-    indexingAlreadyStarted: 'An indexing task is already running. Please wait for it to complete.',
+    indexingAlreadyStarted:
+      'An indexing task is already running. Please wait for it to complete.',
     inputEmpty: 'Input cannot be empty',
   },
   about: {
-    description: 'Mango Desk is an AI-powered desktop app for content-based local file search, including documents, images, and audio.',
+    description:
+      'Mango Desk is an AI-powered desktop app for content-based local file search, including documents, images, and audio.',
     moreDetail: 'More details or contribute code',
   },
 }

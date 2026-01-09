@@ -38,12 +38,20 @@ interface ProxyInfo {
   port: number;
 }
 
+interface SaveParsedContent {
+  document: boolean;
+  image: boolean;
+  audio: boolean;
+  video: boolean;
+}
+
 interface IndexerSetting {
   is_private: boolean;
   file_content_language: string;
   ignore_dirs: string[];
   ignore_exts: string[];
   ignore_files: string[];
+  save_parsed_content: SaveParsedContent;
 }
 
 interface DownloadState {

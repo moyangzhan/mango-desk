@@ -50,7 +50,8 @@ export default {
     setting: '设置',
     language: '语言',
     languageSetting: '语言设置',
-    languageSettingWarning: '本设置除了设置软件界面上显示的语言，同时也设置了模型提示词所使用的语言',
+    languageSettingWarning:
+      '本设置除了设置软件界面上显示的语言，同时也设置了模型提示词所使用的语言',
     commonSetting: '通用设置',
     displaySetting: '显示设置',
     theme: '主题',
@@ -62,7 +63,8 @@ export default {
     notSupportedYet: '暂不支持',
     nothing: '无',
     none: '无',
-    privacySetting: '隐私设置',
+    privacy: '隐私',
+    storage: '存储',
     light: '浅色',
     dark: '深色',
     overview: '概览',
@@ -112,6 +114,8 @@ export default {
     navigateTip: '上下导航',
     openTip: '打开文件',
     clearTip: '取消选中',
+    fileContent: '文件内容',
+    recognitionText: '识别文本',
   },
   proxy: {
     enable: '启用代理',
@@ -160,14 +164,18 @@ export default {
     hiddenDirectoryDesc: '是否在索引时忽略隐藏目录（以 . 开头的目录）',
     disabledByPrivateMode: '不可用（隐私模式下禁用）',
     indexFileMetadata: '索引文件元数据',
-    indexFileMetadataDesc: '是否将文件的元数据（如文件名、创建时间等）一并进行索引。',
+    indexFileMetadataDesc:
+      '是否将文件的元数据（如文件名、创建时间等）一并进行索引。',
     indexFileContent: '索引文件内容',
     indexFileContentDesc: '是否将文件的实际内容进行索引。',
     embeddingModel: '嵌入模型',
     fileContentLanguage: '文件内容语言',
-    fileContentLanguageDesc: '文档、图片、音频内容的语言选项。该选项决定了文本向量化时使用的嵌入模型。',
-    multilingualEmbeddingModeSettingTip: '本设置需要 <strong>多语言嵌入模型</strong> 来为多语言内容进行向量化。',
-    fileContentLanguageWarning2: '如果文件内容为英文，则使用英文嵌入模型；否则使用多语言嵌入模型。',
+    fileContentLanguageDesc:
+      '文档、图片、音频内容的语言选项。该选项决定了文本向量化时使用的嵌入模型。',
+    multilingualEmbeddingModeSettingTip:
+      '本设置需要 <strong>多语言嵌入模型</strong> 来为多语言内容进行向量化。',
+    fileContentLanguageWarning2:
+      '如果文件内容为英文，则使用英文嵌入模型；否则使用多语言嵌入模型。',
     downloadMultilingualEmbeddingModelBtn: '点此下载多语言版本的嵌入模型',
     downloadMultiligualEmbeddingModelTip: '点击下载多语言版本的嵌入模型',
     downloading: '下载中...',
@@ -188,10 +196,21 @@ export default {
     autoIndexWhenChanged: '文件或目录发生变化时自动索引',
     selectedFolderAndFileToWatch: '选择要监听的目录和文件',
     unwatch: '取消监听',
+    saveParsedContentTip:
+      '设置是否保存索引过程中解析出的文本内容，方便文件内容预览',
+    saveParsedContentWarn:
+      '建议：此举会占用大量磁盘空间，建议磁盘空间充足时使用',
+    saveDocumentParsedContent: '保存文档的解析内容',
+    saveImageParsedContent: '保存图片识别的内容',
+    saveAudioParsedContent: '保存音频转录的文本',
+    saveVideoParsedContent: '保存视频的解析内容',
+    recognitionText: '已识别文本',
+    parsedContent: '已解析内容',
   },
   message: {
     downloadFailed: '下载失败，可点击按钮重试',
-    downloadModelManualTip: '如遇下载问题，可复制链接到浏览器或其他下载工具进行下载',
+    downloadModelManualTip:
+      '如遇下载问题，可复制链接到浏览器或其他下载工具进行下载',
     moveModelTip: '将 model.onnx 和 tokenizer.json 移动至：{modelPath}',
     downloadLinks: '下载链接',
     downloadModelLink: 'model.onnx: {link} ',
@@ -200,7 +219,8 @@ export default {
     inputEmpty: '输入不能为空',
   },
   about: {
-    description: 'MangoDesk 是一个由 AI 驱动的智能文件搜索工具，支持对文档、图片、音频等多种文件类型进行内容搜索。',
+    description:
+      'MangoDesk 是一个由 AI 驱动的智能文件搜索工具，支持对文档、图片、音频等多种文件类型进行内容搜索。',
     moreDetail: '了解更多或贡献代码',
   },
 }

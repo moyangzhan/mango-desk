@@ -62,10 +62,14 @@ onMounted(() => {
       </div>
     </NCard>
     <FileWatcher />
-    <NModal v-model:show="showTasks" preset="card" :title="t('indexer.indexingTaskHistory')"
-      style="width: 80%; height:80%; max-width: 1200px;">
-      <NDataTable remote :columns="taskColumns" :data="tasks" :pagination="taskPageReactive" :bordered="true" striped
-        scroll-x="1300" :max-height="height - 250" @update:page="handleTaskPageChange" />
+    <NModal
+      v-model:show="showTasks" preset="card" :title="t('indexer.indexingTaskHistory')"
+      style="width: 80%; height:80%; max-width: 1200px;"
+    >
+      <NDataTable
+        remote :columns="taskColumns" :data="tasks" :pagination="taskPageReactive" :bordered="true" striped
+        scroll-x="1300" :max-height="height - 250" @update:page="handleTaskPageChange"
+      />
     </NModal>
   </div>
 </template>

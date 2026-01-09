@@ -3,7 +3,8 @@ use crate::repositories::RepositoryError;
 use crate::utils::app_util::get_db_path;
 use crate::utils::datetime_util;
 use rusqlite::{Connection, Result, Row, named_params};
-use std::path::PathBuf;
+
+const ALL_COLUMNS_EXCEPT_CONTENT: &str = "id, name, category, path, file_ext, file_size, content, content_index_status, content_index_status_msg, meta_index_status, meta_index_status_msg, is_invalid, invalid_reason, md5, metadata, file_create_time, file_update_time, create_time, update_time";
 
 pub fn insert(file_info: &FileInfo) -> Result<Option<FileInfo>, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
@@ -149,8 +150,12 @@ pub fn list_unindexed_files(
     category: i64,
 ) -> Result<Vec<FileInfo>, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
-    let mut stmt =
-        conn.prepare("select * from file_info where id > :min_id and content_index_status = 1 and category = :category order by id asc limit :limit")?;
+    let sql = format!(
+        "select {} from file_info where id > :min_id and content_index_status = 1 and category = :category order by id asc limit :limit",
+        ALL_COLUMNS_EXCEPT_CONTENT
+    );
+    // File content is not included in the result
+    let mut stmt = conn.prepare(sql.as_str())?;
     let rows = stmt.query_map(
         named_params! {
             ":min_id": min_id,
@@ -190,14 +195,31 @@ pub fn list_by_ids(ids: &[i64]) -> Result<Vec<FileInfo>, RepositoryError> {
         .join("','");
 
     let conn = Connection::open(get_db_path())?;
-    let mut stmt =
-        conn.prepare(format!("select * from file_info where id in ('{}')", ids_str).as_str())?;
+    let mut stmt = conn.prepare(
+        format!(
+            "select {} from file_info where id in ('{}')",
+            ALL_COLUMNS_EXCEPT_CONTENT, ids_str
+        )
+        .as_str(),
+    )?;
     let rows = stmt.query_map([], |row| Ok(build_file_info(row)?))?;
     let mut result = Vec::new();
     for item in rows {
         result.push(item?);
     }
     Ok(result)
+}
+
+pub fn get_by_id(file_id: i64) -> Result<Option<FileInfo>, RepositoryError> {
+    let conn = Connection::open(get_db_path())?;
+    let mut stmt = conn.prepare("select * from file_info where id = ?1")?;
+    match stmt.query_row([file_id], |row: &Row<'_>| Ok(build_file_info(row)?)) {
+        Ok(hit) => return Ok(Some(hit)),
+        Err(e) => {
+            println!("file_info_repo.get_by_md5() Error: {}", e.to_string());
+            return Ok(None);
+        }
+    }
 }
 
 pub fn get_by_md5(md5: &str) -> Result<Option<FileInfo>, RepositoryError> {
@@ -307,6 +329,7 @@ fn build_file_info(row: &Row<'_>) -> Result<FileInfo, RepositoryError> {
     let create_time_str: String = row.get("create_time")?;
     let update_time_str: String = row.get("update_time")?;
     let meta: String = row.get("metadata")?;
+    let content = row.get("content").unwrap_or_default();
     return Ok(FileInfo {
         id: row.get("id")?,
         name: row.get("name")?,
@@ -314,7 +337,7 @@ fn build_file_info(row: &Row<'_>) -> Result<FileInfo, RepositoryError> {
         path: row.get("path")?,
         file_ext: row.get("file_ext")?,
         file_size: row.get("file_size")?,
-        content: row.get("content")?,
+        content: content,
         content_index_status: row.get("content_index_status")?,
         content_index_status_msg: row.get("content_index_status_msg")?,
         meta_index_status: row.get("meta_index_status")?,

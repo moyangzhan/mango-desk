@@ -256,6 +256,12 @@ pub fn delete_indexing_task(task_id: i64) -> Result<(), String> {
 }
 
 #[command]
+pub async fn load_file_detail(file_id: i64) -> Result<Option<FileInfo>, String> {
+    let file = file_info_repo::get_by_id(file_id)?;
+    Ok(file)
+}
+
+#[command]
 pub async fn delete_file(file_id: i64) -> Result<(), String> {
     file_content_embedding_repo::delete_by_file_id(file_id)?;
     file_metadata_embedding_repo::delete_by_file_id(file_id)?;

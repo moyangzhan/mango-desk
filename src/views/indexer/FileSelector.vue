@@ -173,8 +173,10 @@ async function stopIndexing() {
 
 <template>
   <div>
-    <NCard size="small" :bordered="true" content-style="padding: 10px; " class="mb-2"
-      :content-class="isDragOver ? 'bg-gray-200 dark:text-white dark:bg-white' : ''">
+    <NCard
+      size="small" :bordered="true" content-style="padding: 10px; " class="mb-2"
+      :content-class="isDragOver ? 'bg-gray-200 dark:text-white dark:bg-white' : ''"
+    >
       <div class="flex flex-col items-center justify-center space-y-2 mb-2">
         <NIcon size="32">
           <FolderOpenOutlined v-if="isDragOver" />
@@ -237,12 +239,16 @@ async function stopIndexing() {
     </NList>
 
     <div class="flex mt-2">
-      <NButton v-if="!indexProcessing" type="primary" style="margin-right: 6px"
-        :disabled="selectedList.length === 0 || indexProcessing" :loading="indexProcessing" @click="startIndexing">
+      <NButton
+        v-if="!indexProcessing" type="primary" style="margin-right: 6px"
+        :disabled="selectedList.length === 0 || indexProcessing" :loading="indexProcessing" @click="startIndexing"
+      >
         {{ t('indexer.startIndexing') }}
       </NButton>
-      <NPopconfirm v-if="indexProcessing" :positive-text="t('common.confirm')" :negative-text="t('common.cancel')"
-        @positive-click="stopIndexing">
+      <NPopconfirm
+        v-if="indexProcessing" :positive-text="t('common.confirm')" :negative-text="t('common.cancel')"
+        @positive-click="stopIndexing"
+      >
         <template #trigger>
           <NButton ghost type="error">
             <template #icon>

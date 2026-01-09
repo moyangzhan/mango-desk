@@ -60,35 +60,34 @@ async function removePath(path: string) {
   const idx2 = watchSetting.value.files.findIndex(item => item === path)
   if (idx2 !== -1)
     watchSetting.value.files.splice(idx2, 1)
-  let resp = await invoke('remove_watch_path', { path })
+  const resp = await invoke('remove_watch_path', { path })
   console.log('remove path', resp)
 }
 
 onMounted(async () => {
   invoke('load_config_value', { configName: 'fs_watcher_setting' }).then((resp) => {
-    let str = resp as string
-    const parsed = JSON.parse(str);
+    const str = resp as string
+    const parsed = JSON.parse(str)
     watchSetting.value = parsed as WatchSetting
     console.log('load file watcher setting', watchSetting.value)
   })
 })
-
 </script>
 
 <template>
   <div>
     <NCard :title="t('indexer.fileWatch')" class="mb-2" :subtitle="t('indexer.autoIndexWhenChanged')">
       <template #header-extra>
-        <n-text depth="3" class="text-xs">
+        <NText depth="3" class="text-xs">
           {{ t('indexer.autoIndexWhenChanged') }}
-        </n-text>
+        </NText>
       </template>
-      <div class="mb-2" v-if="watchSetting.directories.length != 0 || watchSetting.files.length != 0">
+      <div v-if="watchSetting.directories.length !== 0 || watchSetting.files.length !== 0" class="mb-2">
         <NButton ghost @click="openDirDialog">
           {{ t('common.selectFolder')
           }}
         </NButton>
-        <NButton ghost @click="openFileDialog" style="margin-left: 8px">
+        <NButton ghost style="margin-left: 8px" @click="openFileDialog">
           {{ t('common.selectFile')
           }}
         </NButton>

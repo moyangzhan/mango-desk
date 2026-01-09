@@ -113,7 +113,7 @@ pub async fn start_indexing(
     let _ = document_indexer
         .process(task.clone(), Some(event.clone()))
         .await
-        .unwrap_or_else(|e| println!("Document indexing error,{}", e));
+        .unwrap_or_else(|e| log::error!("start_indexing => Document indexing error,{}", e));
     println!(
         "Document indexing done,status:{}",
         serde_json::json!(document_indexer.status)
