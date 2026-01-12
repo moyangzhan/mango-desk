@@ -56,6 +56,18 @@ Mango Desk is especially useful in scenarios where you have **a large amount of 
 - 🔒 **Private by default**
   - All data stays on your device, ensuring your privacy
 
+### architecture
+
+**Indexing**
+
+![indexing](./screenshots/mango-desk-indexing.png)
+
+`The self-hosted model part is under development and will be integrated according to the ollama interface.`
+
+**Search**
+
+![search](./screenshots/mango-desk-search.png)
+
 ### 🛠️ Technology Stack
 
 * Frontend
@@ -123,6 +135,49 @@ pnpm tauri build
 After building, the executable file is usually located in `src-tauri/target/release/`.
 
 windows: `src-tauri/target/release/bundle/msi/Mango Desk_0.1.0_x64_en-US.msi`
+
+## ❓ FAQ
+### Q: How does Mango Desk ensure data privacy?
+
+A: Mango Desk follows a local-first architecture to ensure data privacy:
+
+#### Local Data Processing
+- All document indexing and search operations are performed locally on your device
+- No data is transmitted to external servers during normal operation
+
+#### Exception Cases
+- Only when processing images or audio files, remote models may be used (if enabled)
+- These remote models are disabled by default and must be manually enabled by users
+
+#### Data storage
+- All user data remains on the local device by default
+
+#### Architecture Details
+As shown in the architecture diagram above, the entire processing pipeline is designed to keep data local, ensuring maximum privacy and security.
+
+### Q: Why are so many models used in the code?
+
+A: The codebase includes multiple models serving different purposes:
+
+#### 1. Active Local Models (Enabled by Default)
+- `all-minilm-l6-v2` or `paraphrase-multilingual-MiniLM-L12-v2`
+- These models run locally on users' computers for basic document processing
+- Prioritized for privacy and performance
+
+#### 2. Remote Models (Optional)
+- `gpt-5-mini` and `gpt-4o-mini-transcribe`
+- Designed for image and audio parsing
+- Disabled by default, can be enabled if needed
+- Note: We plan to replace these with local alternatives when available
+- Kept as optional features for self-hosting scenarios
+
+#### 3. Reserved Models (Future Features)
+- `qwen-turbo`, `deepseek-chat`, and `deepseek-reasoner`
+- Prepared for upcoming features like:
+  - Knowledge graph generation
+  - Advanced document analysis
+- Also serves as a foundation for developers who want to customize with these models
+- Maintains flexibility for future feature expansion
 
 ## 📝 License
 
