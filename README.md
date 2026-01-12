@@ -56,7 +56,7 @@ Mango Desk is especially useful in scenarios where you have **a large amount of 
 - 🔒 **Private by default**
   - All data stays on your device, ensuring your privacy
 
-### architecture
+### 🏗️ Architecture
 
 **Indexing**
 
