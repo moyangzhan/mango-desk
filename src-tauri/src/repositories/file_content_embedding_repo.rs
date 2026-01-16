@@ -153,3 +153,10 @@ fn build_file_content_embedding(row: &Row<'_>) -> Result<FileContentEmbedding, R
         distance: row.get("distance")?,
     });
 }
+
+pub fn count() -> Result<i64, RepositoryError> {
+    let conn = Connection::open(get_db_path())?;
+    let mut stmt = conn.prepare("SELECT COUNT(*) FROM file_content_embedding")?;
+    let count: i64 = stmt.query_row([], |row| row.get(0))?;
+    return Ok(count);
+}

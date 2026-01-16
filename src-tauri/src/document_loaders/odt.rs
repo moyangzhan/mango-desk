@@ -1,4 +1,5 @@
 use super::open_doc;
+use crate::global::ODT_EXTS;
 use crate::traits::document_loader::DocumentLoader;
 use std::io;
 use std::path::Path;
@@ -12,7 +13,7 @@ pub struct OdtLoader {
 impl Default for OdtLoader {
     fn default() -> Self {
         Self {
-            exts: vec!["odt".to_string()],
+            exts: ODT_EXTS.iter().map(|s| s.to_string()).collect(),
         }
     }
 }

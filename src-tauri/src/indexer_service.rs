@@ -259,7 +259,7 @@ pub async fn index_file(path: &str) -> Result<(), String> {
     let Some(file_info) = file_info_repo::get_by_path(path)? else {
         return Ok(());
     };
-    let category = FileCategory::from_ext(&ext).await;
+    let category = FileCategory::from_ext(&ext);
     match category {
         FileCategory::Document => {
             let document_indexer = indexers::document_indexer::DocumentIndexer::new();

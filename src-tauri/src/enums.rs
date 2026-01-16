@@ -1,10 +1,10 @@
 use crate::global::{
-    SUPPORTED_AUDIO_EXTS, SUPPORTED_IMAGE_EXTS, SUPPORTED_VIDEO_EXTS, supported_doc_exts,
+    SUPPORTED_AUDIO_EXTS, SUPPORTED_DOCS_EXTS, SUPPORTED_IMAGE_EXTS, SUPPORTED_VIDEO_EXTS,
 };
 use rusqlite::Result as SqlResult;
 use rusqlite::types::{FromSql, FromSqlError, ToSql, ToSqlOutput};
 use serde::{Deserialize, Serialize};
-use std::fmt::{Display, Formatter};
+use std::fmt::Display;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -142,11 +142,11 @@ impl FileCategory {
         self as i64
     }
 
-    pub async fn from_ext(ext: &str) -> Self {
+    pub fn from_ext(ext: &str) -> Self {
         if ext.is_empty() {
             return FileCategory::Other;
         }
-        if supported_doc_exts().await.contains(&ext.to_string()) {
+        if SUPPORTED_DOCS_EXTS.contains(&ext) {
             FileCategory::Document
         } else if SUPPORTED_IMAGE_EXTS.contains(&ext) {
             FileCategory::Image
@@ -393,4 +393,18 @@ impl FsEvent {
 pub enum PathKind {
     File,
     Directory,
+}
+
+#[derive(Debug)]
+pub enum QueryIntent {
+    PathOnly,
+    SemanticOnly,
+    Hybrid,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase", rename_all_fields = "camelCase")]
+pub enum SearchSource {
+    Path,
+    Semantic,
 }

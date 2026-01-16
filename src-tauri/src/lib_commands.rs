@@ -1,3 +1,4 @@
+use crate::embedding_service_manager::get_manager;
 use crate::entities::{FileInfo, IndexingTask, ModelPlatform};
 use crate::enums::CommandResultCode;
 use crate::enums::{DownloadEvent, IndexingEvent, Locale, ModelPlatformName};
@@ -16,6 +17,7 @@ use crate::repositories::{
 use crate::searcher;
 use crate::structs::command_result::CommandResult;
 use crate::structs::proxy_setting::ProxyInfo;
+use crate::structs::search_result::SearchResult;
 use crate::traits::chat_capable::ChatCapable;
 use crate::utils::{app_util, download_util};
 use rust_i18n::t;
@@ -271,14 +273,33 @@ pub async fn delete_file(file_id: i64) -> Result<(), String> {
 
 #[command]
 pub async fn quick_search(query: &str) -> Result<(), String> {
-    searcher::warmup_embedding_service().await?;
+    match get_manager().try_write() {
+        Ok(mut manager) => {
+            manager.warmup().await.map_err(|e| e.to_string())?;
+        }
+        Err(_) => {
+            println!("Failed to get manager lock")
+        }
+    }
     // let results = searcher::quick_search(query).await?; // todo
     Ok(())
 }
 
 #[command]
-pub async fn search(query: &str) -> Result<Vec<FileInfo>, String> {
-    let results = searcher::search(query).await?;
+pub async fn search(query: &str) -> Result<Vec<SearchResult>, String> {
+    let results = searcher::search_with_intent(query).await;
+    Ok(results)
+}
+
+#[command]
+pub async fn path_search(query: &str) -> Result<Vec<SearchResult>, String> {
+    let results = searcher::path_search(query).await;
+    Ok(results)
+}
+
+#[command]
+pub async fn semantic_search(query: &str) -> Result<Vec<SearchResult>, String> {
+    let results = searcher::semantic_search(query).await;
     Ok(results)
 }
 
@@ -331,11 +352,16 @@ pub async fn ui_mounted(app: AppHandle) -> Result<(), String> {
             .unwrap_or_else(|error| {
                 log::error!("init file watch error:{}", error);
             }); // File watcher start
-        searcher::warmup_embedding_service()
-            .await
-            .unwrap_or_else(|error| {
-                log::error!("first warming up embedding service error: {}", error);
-            });
+        if file_content_embedding_repo::count().unwrap_or(0) > 0 {
+            searcher::semantic_search_engine::warmup_embedding_service()
+                .await
+                .unwrap_or_else(|error| {
+                    log::error!("first warming up embedding service error: {}", error);
+                });
+        }
+    });
+    tokio::spawn(async {
+        searcher::path_search_engine::init().await;
     });
     Ok(())
 }

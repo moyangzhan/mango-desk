@@ -44,8 +44,11 @@ Mango Desk is especially useful in scenarios where you have **a large amount of 
 
 ### ✨ Features
 
-- 🔍 **Search by meaning, not file names**
+- 💭 **Search by meaning, not file names**
   - Find documents by describing what you remember, even if you don’t recall exact titles or locations
+
+- 📍 **Search by path**
+  - Find documents by multiple keywords if you remember some pecific parts of the file path
 
 - 📂 **Works with your existing local files**
   - No need to reorganize folders or rename files — Mango Desk works with what you already have

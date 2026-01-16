@@ -27,10 +27,12 @@ use crate::lib_commands::{
     delete_indexing_task, download_multilingual_model, get_app_dir, is_embedding_model_changed,
     load_active_locale, load_active_platform, load_config_value, load_embedding_models,
     load_file_detail, load_files, load_indexer_setting, load_indexing_tasks, load_model_by_type,
-    load_model_platforms, load_proxy_info, quick_search, read_file_data, remove_watch_path, search,
-    set_active_locale, set_active_platform, start_indexing, stop_indexing, ui_mounted,
-    update_indexer_setting, update_model_platform, update_proxy_info,
+    load_model_platforms, load_proxy_info, path_search, quick_search, read_file_data,
+    remove_watch_path, search, semantic_search, set_active_locale, set_active_platform,
+    start_indexing, stop_indexing, ui_mounted, update_indexer_setting, update_model_platform,
+    update_proxy_info,
 };
+use crate::repositories::file_content_embedding_repo;
 use crate::utils::app_util;
 use global::TRAY_ID;
 use log::{error, info};
@@ -77,7 +79,8 @@ pub fn run() {
             None
         }
     };
-    #[cfg(desktop)]
+    #[cfg(not(target_os = "android"))]
+    #[cfg(not(target_os = "ios"))]
     {
         builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
             let _ = app
@@ -136,7 +139,9 @@ pub fn run() {
             is_embedding_model_changed,
             get_app_dir,
             add_watch_path,
-            remove_watch_path
+            remove_watch_path,
+            path_search,
+            semantic_search
         ])
         .setup(|app| {
             let app_handle = app.handle();
@@ -182,13 +187,19 @@ pub fn run() {
                 .expect("main window not found");
             window.on_window_event(|event| match event {
                 WindowEvent::Focused(focused) => {
-                    if *focused && UI_MOUNTED.load(Ordering::SeqCst) {
+                    if *focused
+                        && UI_MOUNTED.load(Ordering::SeqCst)
+                        && file_content_embedding_repo::count().unwrap_or(0) > 0
+                    {
                         tokio::spawn(async move {
-                            if let Err(error) = searcher::warmup_embedding_service().await {
-                                error!("error warming up embedding service: {}", error);
-                            } else {
-                                info!("Embedding service warmed up");
-                            }
+                            searcher::semantic_search_engine::warmup_embedding_service()
+                                .await
+                                .unwrap_or_else(|error| {
+                                    log::error!(
+                                        "first warming up embedding service error: {}",
+                                        error
+                                    );
+                                });
                         });
                     }
                 }

@@ -3,6 +3,7 @@ use crate::fs_watcher::fs_event_normalizer::FsEventNormalizer;
 use crate::global::{CONFIG_NAME_WATCHER_SETTING, EXIT_APP_SIGNAL, FS_WATCHER_SETTING};
 use crate::indexer_service;
 use crate::repositories::{config_repo, file_info_repo};
+use crate::searcher::path_search_engine;
 use anyhow::Result;
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::Path;
@@ -232,11 +233,21 @@ fn flush_pending(pending: &mut HashMap<PathBuf, FsEvent>) {
                         log::error!("Failed to remove directory index: {}", error);
                     })
                 }
+                tokio::task::spawn(async move {
+                    path_search_engine::remove_from_index(&path, is_file).await;
+                });
             }
             FsEvent::Rename { from, to } => {
                 let from_path = from.to_string_lossy().to_string();
+                let is_file = to.is_file();
+                tokio::task::spawn({
+                    let delete_path = from_path.clone();
+                    async move {
+                        path_search_engine::remove_from_index(&delete_path, is_file).await;
+                    }
+                });
                 let target_path = to.to_string_lossy().to_string();
-                if to.is_file() {
+                if is_file {
                     println!("Rename file: {} -> {}", from_path, target_path);
                     let file_info = file_info_repo::get_by_path(&from_path).unwrap_or(None);
                     match file_info {

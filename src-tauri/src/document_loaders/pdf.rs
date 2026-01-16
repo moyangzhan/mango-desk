@@ -1,3 +1,4 @@
+use crate::global::PDF_EXTS;
 use crate::traits::document_loader::DocumentLoader;
 use lopdf::{Document, Object};
 use serde::{Deserialize, Serialize};
@@ -119,7 +120,7 @@ fn get_pdf_text(doc: &Document, max_load_chars: usize) -> Result<PdfText, Error>
 impl Default for PdfLoader {
     fn default() -> Self {
         Self {
-            exts: vec!["pdf".to_string()],
+            exts: PDF_EXTS.iter().map(|s| s.to_string()).collect(),
         }
     }
 }

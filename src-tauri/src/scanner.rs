@@ -263,61 +263,28 @@ pub async fn add_or_update_file_info(input_path: String) -> Result<(), IndexingE
         .await
         .map_err(|op| AppError::CalculateMd5Error(op.to_string()))?;
 
-    // Check the file by md5 hash
-    if let Some(mut file_record) = file_info_repo::get_by_md5(&md5_hash)? {
-        if file_record.is_invalid
-            || file_record.content_index_status == FileIndexStatus::Indexing.value()
-        {
-            return Ok(());
-        }
+    // Check the file by path
+    if let Some(mut file_record) = file_info_repo::get_by_path(path_str)? {
         let modified_time = datetime_util::systemtime_to_datetime(
             (&file_handle).metadata().await?.modified()?.into(),
         );
         if file_record.content_index_status == FileIndexStatus::Indexed.value()
             && file_record.file_update_time.ge(&modified_time)
-            && file_record.path == input_path
         {
             println!("File is already indexed: {}", path.display());
             return Ok(());
-        } else {
-            println!(
-                "Updating record. file: {}",
-                path.display()
-            );
-            let meta = file_util::get_meta_by_record(path.as_path(), &file_record).await?;
-            // Path/name/extension may have changed
-            file_record.category = FileCategory::from_ext(&ext).await.value();
-            file_record.path = input_path;
-            file_record.metadata = meta.clone();
-            file_record.name = file_record.metadata.name.clone();
-            file_record.content_index_status = FileIndexStatus::Waiting.value();
-            file_record.file_ext = ext.clone();
-            file_record.file_update_time = modified_time; // Update mtime with touch command ?
-            file_info_repo::update(&file_record)?;
         }
-    }
-    // Check the file by path
-    else if let Some(mut file_record) = file_info_repo::get_by_path(path_str)? {
-        // File has been modified: path exists but MD5 hash mismatch, updating record for reindexing
-        println!(
-            "File modified, path record exists but md5 hash mismatch - Path: {}, Expected MD5: {}, Actual MD5: {}",
-            path.display(),
-            file_record.md5,
-            md5_hash
-        );
         let mut meta = file_util::get_meta_by_record(path.as_path(), &file_record).await?;
+        let file_category = FileCategory::from_ext(&ext);
         meta.extension = ext.clone();
-        meta.category = FileCategory::from_ext(&meta.extension)
-            .await
-            .to_text()
-            .to_string();
+        meta.category = file_category.to_text().to_string();
         let new_meta = meta.clone();
         file_record.name = new_meta.name.clone();
         file_record.md5 = md5_hash;
         file_record.is_invalid = false;
         file_record.invalid_reason = "".to_string();
-        file_record.category = FileCategory::from_ext(&file_record.file_ext).await.value();
-        file_record.file_ext = ext.clone();
+        file_record.category = file_category.value();
+        file_record.file_ext = ext;
         file_record.file_size = new_meta.size;
         file_record.file_create_time = new_meta.created;
         file_record.file_update_time = new_meta.modified;
@@ -332,19 +299,17 @@ pub async fn add_or_update_file_info(input_path: String) -> Result<(), IndexingE
     else {
         println!("New file: {}, create record for indexing", path.display());
         let mut meta = file_util::get_meta_by_local(path.as_path(), &file_handle).await?;
+        let file_category = FileCategory::from_ext(&ext);
         meta.extension = ext.clone();
-        meta.category = FileCategory::from_ext(&meta.extension)
-            .await
-            .to_text()
-            .to_string();
+        meta.category = file_category.to_text().to_string();
         let new_meta = meta.clone();
         let mut new_file_record = FileInfo::default();
         new_file_record.name = new_meta.name.clone();
-        new_file_record.category = FileCategory::from_ext(&ext).await.value();
+        new_file_record.category = file_category.value();
         new_file_record.path = path_str.to_string();
         new_file_record.md5 = md5_hash;
         new_file_record.path = path_str.to_string();
-        new_file_record.file_ext = ext.clone();
+        new_file_record.file_ext = ext;
         new_file_record.file_size = new_meta.size;
         new_file_record.file_create_time = new_meta.created;
         new_file_record.file_update_time = new_meta.modified;

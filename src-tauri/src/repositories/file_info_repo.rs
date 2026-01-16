@@ -2,6 +2,7 @@ use crate::entities::FileInfo;
 use crate::repositories::RepositoryError;
 use crate::utils::app_util::get_db_path;
 use crate::utils::datetime_util;
+use chrono::{DateTime, Local};
 use rusqlite::{Connection, Result, Row, named_params};
 
 const ALL_COLUMNS_EXCEPT_CONTENT: &str = "id, name, category, path, file_ext, file_size, content, content_index_status, content_index_status_msg, meta_index_status, meta_index_status_msg, is_invalid, invalid_reason, md5, metadata, file_create_time, file_update_time, create_time, update_time";
@@ -137,11 +138,61 @@ pub fn list(page: i64, size: i64) -> Result<Vec<FileInfo>, RepositoryError> {
     Ok(result)
 }
 
+pub fn list_in_columns(
+    select_columns: &str,
+    page: i64,
+    size: i64,
+) -> Result<Vec<FileInfo>, RepositoryError> {
+    if select_columns.is_empty() {
+        return Err(RepositoryError::InvalidParam(
+            "select_columns is empty".to_string(),
+        ));
+    }
+    let conn = Connection::open(get_db_path())?;
+    let mut stmt = conn.prepare(
+        format!(
+            "select {} from file_info limit :size offset :offset",
+            select_columns
+        )
+        .as_str(),
+    )?;
+    let rows = stmt.query_map(
+        named_params! {
+            ":size": size,
+            ":offset": (page - 1) * size,
+        },
+        |row| Ok(build_file_info(row)?),
+    )?;
+    let mut result = Vec::new();
+    for item in rows {
+        result.push(item?);
+    }
+    Ok(result)
+}
+
 pub fn count() -> Result<i64, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
     let mut stmt = conn.prepare("select count(*) from file_info")?;
     let count = stmt.query_row([], |row| row.get(0))?;
     Ok(count)
+}
+
+pub fn list_paths(page: i64, size: i64) -> Result<Vec<String>, RepositoryError> {
+    let conn = Connection::open(get_db_path())?;
+    let mut stmt =
+        conn.prepare("select path from file_info order by id asc limit :size offset :offset")?;
+    let rows = stmt.query_map(
+        named_params! {
+            ":size": size,
+            ":offset": (page - 1) * size,
+        },
+        |row| row.get(0),
+    )?;
+    let mut result = Vec::new();
+    for item in rows {
+        result.push(item?);
+    }
+    Ok(result)
 }
 
 pub fn list_unindexed_files(
@@ -210,6 +261,59 @@ pub fn list_by_ids(ids: &[i64]) -> Result<Vec<FileInfo>, RepositoryError> {
     Ok(result)
 }
 
+pub fn list_by_min_update_time(
+    select_columns: &str,
+    min_update_time: &DateTime<Local>,
+    page: i64,
+    size: i64,
+) -> Result<Vec<FileInfo>, RepositoryError> {
+    let update_time = datetime_util::datetime_to_str(min_update_time);
+    let conn = Connection::open(get_db_path())?;
+    let mut stmt = conn.prepare(
+        format!(
+            "select {} from file_info where update_time > :min_update_time order by id desc limit :size offset :offset",
+            select_columns
+        )
+        .as_str(),
+    )?;
+    let rows = stmt.query_map(named_params! {":min_update_time": update_time, ":size": size, ":offset": (page - 1) * size, }, |row| Ok(build_file_info(row)?))?;
+    let mut result = Vec::new();
+    for item in rows {
+        result.push(item?);
+    }
+    Ok(result)
+}
+
+pub fn list_paths_by_min_update_time(
+    min_update_time: &DateTime<Local>,
+    page: i64,
+    size: i64,
+) -> Result<Vec<String>, RepositoryError> {
+    let update_time = datetime_util::datetime_to_str(min_update_time);
+    println!("update_time: {}", update_time);
+    let conn = Connection::open(get_db_path())?;
+    let mut stmt = conn.prepare(
+        "select path from file_info where update_time > :min_update_time order by id desc limit :size offset :offset",
+    )?;
+    let rows = stmt.query_map(named_params! {":min_update_time": update_time, ":size": size, ":offset": (page - 1) * size, }, |row| row.get(0))?;
+    let mut result = Vec::new();
+    for item in rows {
+        result.push(item?);
+    }
+    Ok(result)
+}
+
+pub fn count_by_min_update_time(min_update_time: &DateTime<Local>) -> Result<i64, RepositoryError> {
+    let update_time = datetime_util::datetime_to_str(min_update_time);
+    let conn = Connection::open(get_db_path())?;
+    let mut stmt =
+        conn.prepare("select count(*) from file_info where update_time > :min_update_time")?;
+    let count = stmt.query_row(named_params! {":min_update_time": update_time}, |row| {
+        row.get(0)
+    })?;
+    Ok(count)
+}
+
 pub fn get_by_id(file_id: i64) -> Result<Option<FileInfo>, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
     let mut stmt = conn.prepare("select * from file_info where id = ?1")?;
@@ -240,7 +344,6 @@ pub fn get_by_path(path: &str) -> Result<Option<FileInfo>, RepositoryError> {
     match stmt.query_row([path], |row: &Row<'_>| Ok(build_file_info(row)?)) {
         Ok(hit) => return Ok(Some(hit)),
         Err(e) => {
-            println!("file_info_repo.get_by_path() Error: {}", e.to_string());
             return Ok(None);
         }
     }
@@ -324,27 +427,27 @@ pub fn rename(old_path: &str, new_path: &str, new_name: &str) -> Result<usize, R
 }
 
 fn build_file_info(row: &Row<'_>) -> Result<FileInfo, RepositoryError> {
-    let file_create_time: String = row.get("file_create_time")?;
-    let file_update_time: String = row.get("file_update_time")?;
-    let create_time_str: String = row.get("create_time")?;
-    let update_time_str: String = row.get("update_time")?;
+    let file_create_time: String = row.get("file_create_time").unwrap_or_default();
+    let file_update_time: String = row.get("file_update_time").unwrap_or_default();
+    let create_time_str: String = row.get("create_time").unwrap_or_default();
+    let update_time_str: String = row.get("update_time").unwrap_or_default();
     let meta: String = row.get("metadata")?;
     let content = row.get("content").unwrap_or_default();
     return Ok(FileInfo {
         id: row.get("id")?,
-        name: row.get("name")?,
-        category: row.get("category")?,
-        path: row.get("path")?,
-        file_ext: row.get("file_ext")?,
-        file_size: row.get("file_size")?,
+        name: row.get("name").unwrap_or_default(),
+        category: row.get("category").unwrap_or_default(),
+        path: row.get("path").unwrap_or_default(),
+        file_ext: row.get("file_ext").unwrap_or_default(),
+        file_size: row.get("file_size").unwrap_or_default(),
         content: content,
-        content_index_status: row.get("content_index_status")?,
-        content_index_status_msg: row.get("content_index_status_msg")?,
-        meta_index_status: row.get("meta_index_status")?,
-        meta_index_status_msg: row.get("meta_index_status_msg")?,
-        is_invalid: row.get("is_invalid")?,
-        invalid_reason: row.get("invalid_reason")?,
-        md5: row.get("md5")?,
+        content_index_status: row.get("content_index_status").unwrap_or_default(),
+        content_index_status_msg: row.get("content_index_status_msg").unwrap_or_default(),
+        meta_index_status: row.get("meta_index_status").unwrap_or_default(),
+        meta_index_status_msg: row.get("meta_index_status_msg").unwrap_or_default(),
+        is_invalid: row.get("is_invalid").unwrap_or_default(),
+        invalid_reason: row.get("invalid_reason").unwrap_or_default(),
+        md5: row.get("md5").unwrap_or_default(),
         metadata: crate::structs::file_metadata::FileMetadata::from_json(&meta),
         file_create_time: datetime_util::str_to_micro_datetime(file_create_time.as_str())?,
         file_update_time: datetime_util::str_to_micro_datetime(file_update_time.as_str())?,

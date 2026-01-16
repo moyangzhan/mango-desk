@@ -165,3 +165,20 @@ pub fn guess_path_kind(path_str: &str) -> PathKind {
 
     PathKind::Directory
 }
+
+pub fn get_name_ext(path: &str) -> (String, String) {
+    let file = Path::new(path);
+    let file_ext = file
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .map(|s| s.to_lowercase())
+        .unwrap_or_default();
+
+    let file_name = file
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or_default()
+        .to_string();
+
+    (file_name, file_ext)
+}

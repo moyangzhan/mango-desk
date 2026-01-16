@@ -1,3 +1,4 @@
+use crate::global::PLAIN_TEXT_EXTS;
 use crate::traits::document_loader::DocumentLoader;
 use std::fs::File;
 use std::io;
@@ -12,12 +13,7 @@ pub struct PlainTextLoader {
 impl Default for PlainTextLoader {
     fn default() -> Self {
         Self {
-            exts: vec![
-                "txt".to_string(),
-                "md".to_string(),
-                "log".to_string(),
-                "mdx".to_string(),
-            ],
+            exts: PLAIN_TEXT_EXTS.iter().map(|s| s.to_string()).collect(),
         }
     }
 }

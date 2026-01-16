@@ -1,3 +1,4 @@
+use crate::global::EXCEL_EXTS;
 use crate::traits::document_loader::DocumentLoader;
 use calamine::Reader;
 use calamine::open_workbook_auto;
@@ -13,15 +14,7 @@ pub struct ExcelLoader {
 impl Default for ExcelLoader {
     fn default() -> Self {
         Self {
-            exts: vec![
-                "xlsx".to_string(),
-                "xls".to_string(),
-                "xlsm".to_string(),
-                "xlsb".to_string(),
-                "xla".to_string(),
-                "xlam".to_string(),
-                "ods".to_string(),
-            ],
+            exts: EXCEL_EXTS.iter().map(|s| s.to_string()).collect(),
         }
     }
 }

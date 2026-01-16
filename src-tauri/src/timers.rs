@@ -1,4 +1,4 @@
-use crate::embedding_service_manager::embedding_service_manager;
+use crate::embedding_service_manager::get_manager;
 use crate::global::EXIT_APP_SIGNAL;
 use log::info;
 use std::sync::atomic::Ordering;
@@ -30,14 +30,17 @@ async fn embedding_service_cleanup() {
         }
         interval.tick().await;
         if last_service_check.elapsed() >= Duration::from_secs(30) {
-            let manager = embedding_service_manager();
+            let manager = get_manager();
             match manager.try_write() {
                 Ok(mut guard) => {
                     last_service_check = Instant::now();
                     guard.remove_if_expired();
                 }
                 Err(_) => {
-                    println!("Failed to acquire write lock on service manager");
+                    println!(
+                        "Failed to acquire write lock on service manager, try again 1 sec later"
+                    );
+                    last_service_check = Instant::now() - Duration::from_secs(29);
                 }
             }
         }

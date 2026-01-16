@@ -28,6 +28,11 @@ pub fn check_and_move(file_path: &str, dest_path: &str) -> Result<()> {
     Ok(())
 }
 
+pub fn append_seperator(path: &mut String) {
+    if !path.ends_with(std::path::MAIN_SEPARATOR) {
+        path.push(std::path::MAIN_SEPARATOR);
+    }
+}
 mod test {
     use super::*;
     use crate::utils::app_util;

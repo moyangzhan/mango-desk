@@ -5,3 +5,4 @@ pub mod fs_watcher_setting;
 pub mod indexer_setting;
 pub mod indexing_summary;
 pub mod proxy_setting;
+pub mod search_result;

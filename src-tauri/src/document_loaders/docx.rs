@@ -1,3 +1,4 @@
+use crate::global::DOCX_EXTS;
 use crate::traits::document_loader::DocumentLoader;
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
@@ -15,7 +16,7 @@ pub struct DocxLoader {
 impl Default for DocxLoader {
     fn default() -> Self {
         Self {
-            exts: vec!["docx".to_string()],
+            exts: DOCX_EXTS.iter().map(|s| s.to_string()).collect(),
         }
     }
 }

@@ -9,7 +9,7 @@ import { useIndexerStore } from '@/stores/indexer'
 
 const extIcons = ['csv', 'doc', 'docx', 'html', 'json', 'mp3', 'mp4', 'pdf', 'ppt', 'pptx', 'psd', 'rar', 'txt', 'xls', 'xlsx']
 const query = ref('')
-const files = ref<FileInfo[]>([])
+const searchResults = ref<SearchResult[]>([])
 const searching = ref(false)
 const selectedIndex = ref(-1)
 const inputRef = ref<HTMLInputElement | null>(null)
@@ -27,12 +27,9 @@ const blurInput = () => {
 }
 
 const quickSearch = useDebounceFn(async () => {
-  if (query.value !== '') {
-    invoke('quick_search', { query: query.value }).then((res) => {
-      console.log(res)
-    })
-  }
-}, 300)
+  console.log('quick search', query.value.length)
+  search()
+}, 500)
 
 function openFile(path = '') {
   openPath(path).then((res) => {
@@ -55,46 +52,54 @@ async function loadFileDetail(id = 0) {
 
 function onClear() {
   query.value = ''
-  files.value = []
+  searchResults.value = []
   selectedIndex.value = -1
   focusInput()
 }
 
 async function search() {
   if (searching.value || !query.value) {
-    window.$message.warning(t('message.inputEmpty'))
+    searchResults.value = []
     return
   }
-  selectedIndex.value = -1
-  searching.value = true
   try {
-    const res = await invoke('search', { query: query.value })
-    files.value = res as FileInfo[]
-    if (files.value.length === 0)
+    let query_txt = query.value.trim()
+    let search_name = 'semantic_search'
+    if (query.value.startsWith('/')) {
+      search_name = 'path_search'
+      query_txt = query.value.substring(1)
+    }
+    if (query_txt.length <= 2) {
+      return
+    }
+    selectedIndex.value = -1
+    searching.value = true
+    const res = await invoke<SearchResult[]>(search_name, { query: query_txt })
+    if (res.length === 0) {
       window.$message.warning(t('common.noData'))
-
-    // Test data
-    // if (files.value.length > 0) {
-    //   files.value[0].category = 2
-    //   files.value[0].path = 'D:\\data\\test\\images\\屏幕截图_15-10-2025_162154.jpeg'
-    //   files.value[1].category = 2
-    //   files.value[1].path = 'D:\\data\\test\\images\\111.webp'
-    // }
-    files.value.forEach((file) => {
-      if (file.category !== 2)
+      searchResults.value = []
+      return
+    }
+    searchResults.value = res
+    searchResults.value.forEach((item) => {
+      item.file_info.html_path = item.file_info.path
+      if (item.source === 'path' && item.matched_keywords.length > 0) {
+        for (let i = 0; i < item.matched_keywords.length; i++) {
+          item.file_info.html_path = item.file_info.html_path.replaceAll(item.matched_keywords[i], `<span class="font-bold text-gray-600 dark:text-gray-400">${item.matched_keywords[i]}</span>`)
+        }
+      }
+      if (item.file_info.category !== 2)
         return
 
       // Load image data for display
-      invoke('read_file_data', { path: file.path }).then((resp) => {
+      invoke('read_file_data', { path: item.file_info.path }).then((resp) => {
         if (!resp)
           throw new Error('No image data received')
-
-        console.log('imageData length:', resp)
-        const mimeType = file.file_ext.toLowerCase() === 'png' ? 'image/png' : 'image/jpeg'
+        const mimeType = item.file_info.file_ext.toLowerCase() === 'png' ? 'image/png' : 'image/jpeg'
         const uint8Array = new Uint8Array(resp as ArrayBuffer)
         const blob = new Blob([uint8Array], { type: mimeType })
         const imageUrl = URL.createObjectURL(blob)
-        file.file_data = imageUrl
+        item.file_info.file_data = imageUrl
       })
     })
   } catch (e) {
@@ -105,24 +110,34 @@ async function search() {
 }
 
 const keyDown = (e: any) => {
-  if (e.key === 'Enter') {
+  if (e.ctrlKey && e.key === 'Tab') {
+    query.value = query.value.trim()
+    if (query.value.startsWith('/')) {
+      query.value = query.value.substring(1)
+    } else {
+      query.value = '/' + query.value
+    }
+    focusInput()
+    quickSearch()
+    return
+  } else if (e.key === 'Enter') {
     if (!isFocused.value && selectedIndex.value > -1)
-      openFile(files.value[selectedIndex.value].path)
+      openFile(searchResults.value[selectedIndex.value].file_info.path)
     else
-      search()
+      quickSearch()
   } else if (e.key === 'ArrowUp') {
     if (selectedIndex.value === 0) {
       focusInput()
       selectedIndex.value = -1
       return
     } else if (selectedIndex.value === -1) {
-      selectedIndex.value = files.value.length - 1
+      selectedIndex.value = searchResults.value.length - 1
       return
     }
     blurInput()
     selectedIndex.value = Math.max(0, selectedIndex.value - 1)
   } else if (e.key === 'ArrowDown') {
-    if (selectedIndex.value === files.value.length - 1) {
+    if (selectedIndex.value === searchResults.value.length - 1) {
       focusInput()
       selectedIndex.value = -1
       return
@@ -132,7 +147,7 @@ const keyDown = (e: any) => {
       return
     }
     blurInput()
-    selectedIndex.value = Math.min(files.value.length - 1, selectedIndex.value + 1)
+    selectedIndex.value = Math.min(searchResults.value.length - 1, selectedIndex.value + 1)
   } else if (e.key === 'Escape') {
     if (isFocused.value) {
       onClear()
@@ -155,7 +170,7 @@ onUnmounted(() => {
 
 <template>
   <div class="h-full flex flex-col items-center p-4 text-center">
-    <div v-if="files.length === 0" class="mb-4 flex items-center">
+    <div v-if="searchResults.length === 0" class="mb-4 flex items-center">
       <NImage src="/mango-desk.png" alt="MangoDesk" width="100" height="100"
         class="transition-all duration-300 hover:scale-105" style="opacity: 0.8; filter: saturate(0.9)"
         preview-disabled />
@@ -163,29 +178,40 @@ onUnmounted(() => {
         Awake your data
       </div>
     </div>
-    <div class="flex w-full justify-center space-x-2 max-w-[80%]">
+    <div class="flex flex-col w-full justify-center space-x-2 max-w-[80%]">
       <NInput ref="inputRef" v-model:value="query" class="flex-1 min-w-[100px] text-left" clearable
-        :placeholder="t('common.sematicSearch')" @input="quickSearch" @focus="isFocused = true"
-        @blur="isFocused = false" @clear="onClear" />
-      <NButton :loading="searching" @click="search">
-        {{ t('common.search') }}
-      </NButton>
+        :placeholder="query.startsWith('/') ? t('common.pathSearchTip.title') : t('common.semanticSearch')"
+        @input="quickSearch" @focus="isFocused = true" @blur="isFocused = false" @clear="onClear">
+        <template #prefix>
+          <span v-if="!query.startsWith('/')" class="text-gray-300 dark:text-gray-600">
+            {{ t('common.content') }}
+          </span>
+          <span v-else class="text-gray-300 dark:text-gray-600">
+            {{ t('common.path') }}
+          </span>
+        </template>
+      </NInput>
+      <div v-if="searchResults.length === 0" class="mt-2 text-xs text-gray-400 w-full text-left">
+        <div>{{ t('common.semanticSearchTip.title') }}：{{ t('common.semanticSearchTip.description') }}</div>
+        <div>{{ t('common.pathSearchTip.title') }}：{{ t('common.pathSearchTip.description') }}, {{
+          t('common.pathSearchTip.example') }}</div>
+      </div>
     </div>
     <div class="flex-1 flex flex-col w-full items-center justify-start mt-4"
-      :class="files.length > 0 ? 'border-t border-(--border-color)' : ''">
-      <div v-if="files.length === 0" class="flex flex-col mt-8 h-full space-y-4">
+      :class="searchResults.length > 0 ? 'border-t border-(--border-color)' : ''">
+      <div v-if="searchResults.length === 0" class="flex flex-col mt-8 h-full space-y-4">
         <!-- Keyborad Shortcuts -->
         <div class="text text-sm text-gray-400 text-left">
           {{ t('common.searchKeyboradShortcuts') }}
         </div>
         <div class="flex space-x-2 text-sm text-gray-500">
-          <div class="w-[50px] text-left">
-            <kbd class="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-300 rounded">Enter</kbd>
+          <div class="w-[65px] text-left">
+            <kbd class="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-300 rounded">Ctrl+Tab</kbd>
           </div>
-          <span>{{ t('common.searchTip') }}</span>
+          <span>{{ t('common.switchSearchMode') }}</span>
         </div>
         <div class="flex space-x-2 text-sm text-gray-500">
-          <div class="w-[50px] text-left">
+          <div class="w-[65px] text-left">
             <kbd class="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-300 rounded">Esc</kbd>
           </div>
           <span>{{ t('common.searchClearTip') }}</span>
@@ -194,19 +220,19 @@ onUnmounted(() => {
           {{ t('common.resultKeyboradShortcuts') }}
         </div>
         <div class="flex space-x-2 text-sm text-gray-500">
-          <div class="w-[50px] text-left">
+          <div class="w-[65px] text-left">
             <kbd class="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-300 rounded">↑↓</kbd>
           </div>
           <span>{{ t('common.navigateTip') }}</span>
         </div>
         <div class="flex space-x-2 text-sm text-gray-500">
-          <div class="w-[50px] text-left">
+          <div class="w-[65px] text-left">
             <kbd class="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-300 rounded">Enter</kbd>
           </div>
           <span>{{ t('common.openTip') }}</span>
         </div>
         <div class="flex space-x-2 text-sm text-gray-500">
-          <div class="w-[50px] text-left">
+          <div class="w-[65px] text-left">
             <kbd class="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-300 rounded">Esc</kbd>
           </div>
           <span>{{ t('common.clearTip') }}</span>
@@ -214,39 +240,40 @@ onUnmounted(() => {
       </div>
 
       <NImageGroup v-else>
-        <div v-for="(file, idx) in files" :key="file.path"
+        <div v-for="(item, idx) in searchResults" :key="item.file_info.path"
           class="flex w-full space-x-2 p-2 border-b border-(--border-color)"
           :style="selectedIndex === idx ? 'background-color: var(--secondary-bg-color);border: 1px solid var(--primary-color); box-sizing: border-box;border-radius: 0.25rem;' : ''">
           <div class="flex justify-center items-center">
-            <NImage v-if="file.file_data" width="100" height="100" :src="file.file_data" />
-            <div v-else-if="!file.file_data && !extIcons.includes(file.file_ext.toLowerCase())"
+            <NImage v-if="item.file_info.file_data" width="100" height="100" :src="item.file_info.file_data" />
+            <div v-else-if="!item.file_info.file_data && !extIcons.includes(item.file_info.file_ext.toLowerCase())"
               class="w-[50px] h-[50px] flex justify-center items-center text-xl font-bold"
               style="opacity: 0.7;filter: saturate(0.5)">
               {{
-                file.file_ext.toUpperCase()
+                item.file_info.file_ext.toUpperCase()
               }}
             </div>
-            <SvgIcon v-else :name="file.file_ext.toLowerCase()" width="50" height="50"
+            <SvgIcon v-else :name="item.file_info.file_ext.toLowerCase()" width="50" height="50"
               style="opacity: 0.7;filter: saturate(0.5)" />
           </div>
           <div class="flex-1 flex flex-col text-left h-[50px]">
-            <div class="cursor-pointer hover:underline hover:text-(--primary-color)" @click="openFile(file.path)">
+            <div class="cursor-pointer hover:underline hover:text-(--primary-color)"
+              @click="openFile(item.file_info.path)">
               {{
-                file.name }}
+                item.file_info.name }}
             </div>
             <div class="text-xs text-gray-500">
-              {{ file.path }}
+              <div v-html="item.file_info.html_path"></div>
             </div>
           </div>
           <div style="width:100px" class="flex justify-center items-center">
-            <div v-if="indexerStore.indexerSetting.save_parsed_content.document && file.category === 1">
-              <n-button size="tiny" text @click="loadFileDetail(file.id)">
+            <div v-if="indexerStore.indexerSetting.save_parsed_content.document && item.file_info.category === 1">
+              <n-button size="tiny" text @click="loadFileDetail(item.file_info.id)">
                 {{ t('indexer.parsedContent') }}
               </n-button>
             </div>
             <div
-              v-if="indexerStore.indexerSetting.save_parsed_content.image && file.category === 2 || (indexerStore.indexerSetting.save_parsed_content.audio && file.category === 3)">
-              <n-button size="tiny" text @click="loadFileDetail(file.id)">
+              v-if="indexerStore.indexerSetting.save_parsed_content.image && item.file_info.category === 2 || (indexerStore.indexerSetting.save_parsed_content.audio && item.file_info.category === 3)">
+              <n-button size="tiny" text @click="loadFileDetail(item.file_info.id)">
                 {{ t('indexer.recognitionText') }}
               </n-button>
             </div>

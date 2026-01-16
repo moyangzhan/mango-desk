@@ -114,6 +114,7 @@ interface FileInfo {
   // For UI
   file_data?: any // raw file data
   [key: string]: any;
+  html_path: string;
 }
 
 interface CommandResult {
@@ -126,4 +127,11 @@ interface CommandResult {
 interface WatchSetting {
   directories: string[];
   files: string[];
+}
+
+interface SearchResult {
+  score: number,
+  source: string,
+  file_info: FileInfo,
+  matched_keywords: string[],
 }

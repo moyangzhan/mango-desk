@@ -9,7 +9,7 @@ pub static EMBEDDING_SERVICE_MANAGER: OnceLock<AsyncRwLock<EmbeddingServiceManag
     OnceLock::new();
 pub static SERVICE_DURATION: Duration = Duration::from_secs(60 * 30);
 
-pub fn embedding_service_manager() -> &'static AsyncRwLock<EmbeddingServiceManager> {
+pub fn get_manager() -> &'static AsyncRwLock<EmbeddingServiceManager> {
     EMBEDDING_SERVICE_MANAGER.get_or_init(|| AsyncRwLock::new(EmbeddingServiceManager::default()))
 }
 

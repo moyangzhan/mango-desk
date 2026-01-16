@@ -1,4 +1,5 @@
 use crate::document_loaders::open_doc;
+use crate::global::ODP_EXTS;
 use crate::traits::document_loader::DocumentLoader;
 use std::io;
 use std::path::Path;
@@ -11,7 +12,7 @@ pub struct OdpLoader {
 impl Default for OdpLoader {
     fn default() -> Self {
         OdpLoader {
-            exts: vec!["odp".to_string()],
+            exts: ODP_EXTS.iter().map(|s| s.to_string()).collect(),
         }
     }
 }

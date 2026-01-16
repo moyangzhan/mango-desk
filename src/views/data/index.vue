@@ -62,10 +62,8 @@ onMounted(() => {
           }}
         </NButton>
       </div>
-      <NDataTable
-        :columns="fileColumns" :data="files" :pagination="paginationReactive" :bordered="false" striped
-        scroll-x="1700" :max-height="height - 260" @update:page="handlePageChange"
-      />
+      <NDataTable remote :columns="fileColumns" :data="files" :pagination="paginationReactive" :bordered="false" striped
+        scroll-x="1700" :max-height="height - 260" @update:page="handlePageChange" />
     </NCard>
   </div>
 </template>

@@ -1,3 +1,4 @@
+use crate::global::PPTX_EXTS;
 use crate::traits::document_loader::DocumentLoader;
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
@@ -15,7 +16,7 @@ pub struct PptxLoader {
 impl Default for PptxLoader {
     fn default() -> Self {
         Self {
-            exts: vec!["pptx".to_string()],
+            exts: PPTX_EXTS.iter().map(|s| s.to_string()).collect(),
         }
     }
 }

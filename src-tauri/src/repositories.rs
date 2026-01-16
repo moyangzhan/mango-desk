@@ -17,6 +17,8 @@ pub enum RepositoryError {
     InvalidInput(String),
     #[error("Database error: {0}")]
     Database(rusqlite::Error),
+    #[error("Invalid parameter: {0}")]
+    InvalidParam(String),
 }
 
 impl From<chrono::ParseError> for RepositoryError {
@@ -50,6 +52,7 @@ impl From<RepositoryError> for rusqlite::Error {
                 format!("datetime parse error: {}", msg),
                 rusqlite::types::Type::Text,
             ),
+            RepositoryError::InvalidParam(msg) => rusqlite::Error::InvalidParameterName(msg),
         }
     }
 }

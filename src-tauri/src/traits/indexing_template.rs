@@ -1,4 +1,4 @@
-use crate::embedding_service_manager::embedding_service_manager;
+use crate::embedding_service_manager::get_manager;
 use crate::entities::{FileContentEmbedding, FileInfo, FileMetaEmbedding, IndexingTask};
 use crate::enums::{FileCategory, FileIndexStatus, IndexingEvent};
 use crate::errors::{AppError, IndexingError};
@@ -165,7 +165,7 @@ pub async fn embedding_content(file_id: i64, content: &str) -> Result<(), Indexi
 
     // Embedding content
     let chunks = {
-        let mut manager = embedding_service_manager().write().await;
+        let mut manager = get_manager().write().await;
         let embedding_service = manager.service().await?;
         text_util::split_text(&content, &embedding_service.tokenizer)
             .map_err(|op| AppError::DocumentSplitterError(op.to_string()))?
@@ -174,7 +174,7 @@ pub async fn embedding_content(file_id: i64, content: &str) -> Result<(), Indexi
         println!("Chunk text: {}", chunk_text.len());
         let mut keep_run = true;
         let chunk_embedding = {
-            let mut manager = embedding_service_manager().write().await;
+            let mut manager = get_manager().write().await;
             match manager.embed(&chunk_text).await {
                 Ok(embedding) => embedding,
                 Err(op) => {
@@ -232,7 +232,7 @@ pub async fn embedding_metadata(
     file_meta: &FileMetadata,
 ) -> Result<(), IndexingError> {
     // File meta embedding
-    let mut guard = embedding_service_manager().write().await;
+    let mut guard = get_manager().write().await;
     let meta_embedding = match guard.embed(file_meta.to_text().as_str()).await {
         Ok(embedding) => {
             drop(guard);
