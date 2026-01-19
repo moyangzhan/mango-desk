@@ -139,6 +139,7 @@ pub trait IndexingTemplate {
                 FileIndexStatus::Indexed.value(),
                 t!("message.indexing-skip-empty-content").as_ref(),
             );
+            println!("Skip empty content: {}", path_str);
             indexing_task_util::skipped_incr(self.category(), 1).await;
         } else {
             match embedding_content(file_id, &filtered_content).await {

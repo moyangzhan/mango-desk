@@ -177,10 +177,14 @@ pub fn count() -> Result<i64, RepositoryError> {
     Ok(count)
 }
 
-pub fn list_paths(page: i64, size: i64) -> Result<Vec<String>, RepositoryError> {
+pub fn list_paths(page: i64, size: i64, asc: bool) -> Result<Vec<String>, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
-    let mut stmt =
-        conn.prepare("select path from file_info order by id asc limit :size offset :offset")?;
+    let order_direction = if asc { "asc" } else { "desc" };
+    let sql = format!(
+        "select path from file_info order by id {} limit :size offset :offset",
+        order_direction
+    );
+    let mut stmt = conn.prepare(&sql)?;
     let rows = stmt.query_map(
         named_params! {
             ":size": size,

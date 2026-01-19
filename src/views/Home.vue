@@ -7,6 +7,8 @@ import { t } from '@/locales'
 import SvgIcon from '@/components/SvgIcon.vue'
 import { useIndexerStore } from '@/stores/indexer'
 
+const SEMANTIC_SEARCH = 1
+const PATH_SEARCH = 2
 const extIcons = ['csv', 'doc', 'docx', 'html', 'json', 'mp3', 'mp4', 'pdf', 'ppt', 'pptx', 'psd', 'rar', 'txt', 'xls', 'xlsx']
 const query = ref('')
 const searchResults = ref<SearchResult[]>([])
@@ -17,6 +19,7 @@ const isFocused = ref(false)
 const indexerStore = useIndexerStore()
 const parsedContent = ref('')
 const showContentModal = ref(false)
+const searchType = ref(SEMANTIC_SEARCH) // 1: semantic search, 2: path search
 
 const focusInput = () => {
   inputRef.value?.focus()
@@ -26,10 +29,28 @@ const blurInput = () => {
   inputRef.value?.blur()
 }
 
-const quickSearch = useDebounceFn(async () => {
-  console.log('quick search', query.value.length)
+let debounceSearch = useDebounceFn(async () => {
   search()
-}, 500)
+}, 600)
+
+watch(query, () => {
+  let query_txt = query.value.trimStart()
+  if (query_txt.startsWith('/') && searchType.value === SEMANTIC_SEARCH) {
+    console.log('switch to path search')
+    searchType.value = PATH_SEARCH
+    debounceSearch = useDebounceFn(async () => {
+      search()
+    }, 300)
+  } else if (!query_txt.startsWith('/') && searchType.value === PATH_SEARCH) {
+    console.log('switch to semantic search')
+    searchType.value = SEMANTIC_SEARCH
+    //Sematic search is slower, so we use a longer debounce time
+    debounceSearch = useDebounceFn(async () => {
+      search()
+    }, 600)
+  }
+})
+
 
 function openFile(path = '') {
   openPath(path).then((res) => {
@@ -57,6 +78,22 @@ function onClear() {
   focusInput()
 }
 
+function escapeRegExp(str: string) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function highlightPath(path: string, keywords: string[]) {
+  if (!path || !keywords || keywords.length === 0) return path;
+  return keywords.reduce((html, keyword) => {
+    const safeKeyword = escapeRegExp(keyword);
+    const regex = new RegExp(`(${safeKeyword})`, 'gi');
+    return html.replace(
+      regex,
+      '<span class="font-bold text-gray-600 dark:text-gray-400">$1</span>'
+    );
+  }, path);
+}
+
 async function search() {
   if (searching.value || !query.value) {
     searchResults.value = []
@@ -82,11 +119,10 @@ async function search() {
     }
     searchResults.value = res
     searchResults.value.forEach((item) => {
-      item.file_info.html_path = item.file_info.path
       if (item.source === 'path' && item.matched_keywords.length > 0) {
-        for (let i = 0; i < item.matched_keywords.length; i++) {
-          item.file_info.html_path = item.file_info.html_path.replaceAll(item.matched_keywords[i], `<span class="font-bold text-gray-600 dark:text-gray-400">${item.matched_keywords[i]}</span>`)
-        }
+        item.file_info.html_path = highlightPath(item.file_info.path, item.matched_keywords)
+      } else {
+        item.file_info.html_path = item.file_info.path
       }
       if (item.file_info.category !== 2)
         return
@@ -118,13 +154,13 @@ const keyDown = (e: any) => {
       query.value = '/' + query.value
     }
     focusInput()
-    quickSearch()
+    debounceSearch()
     return
   } else if (e.key === 'Enter') {
     if (!isFocused.value && selectedIndex.value > -1)
       openFile(searchResults.value[selectedIndex.value].file_info.path)
     else
-      quickSearch()
+      debounceSearch()
   } else if (e.key === 'ArrowUp') {
     if (selectedIndex.value === 0) {
       focusInput()
@@ -180,8 +216,8 @@ onUnmounted(() => {
     </div>
     <div class="flex flex-col w-full justify-center space-x-2 max-w-[80%]">
       <NInput ref="inputRef" v-model:value="query" class="flex-1 min-w-[100px] text-left" clearable
-        :placeholder="query.startsWith('/') ? t('common.pathSearchTip.title') : t('common.semanticSearch')"
-        @input="quickSearch" @focus="isFocused = true" @blur="isFocused = false" @clear="onClear">
+        :placeholder="searchType == PATH_SEARCH ? t('common.pathSearchTip.title') : t('common.semanticSearch')"
+        @input="debounceSearch" @focus="isFocused = true" @blur="isFocused = false" @clear="onClear">
         <template #prefix>
           <span v-if="!query.startsWith('/')" class="text-gray-300 dark:text-gray-600">
             {{ t('common.content') }}

@@ -53,6 +53,9 @@ Mango Desk is especially useful in scenarios where you have **a large amount of 
 - 📂 **Works with your existing local files**
   - No need to reorganize folders or rename files — Mango Desk works with what you already have
 
+- 👀 **Real-time file & directory watching**
+  - Automatically detects file and folder changes (add / modify / delete) and keeps index and search results up to date
+
 - ⚡ **Fast and lightweight**
   - Instant search results without slowing down your system
 

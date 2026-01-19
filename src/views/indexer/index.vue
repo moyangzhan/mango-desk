@@ -4,6 +4,7 @@ import { useWindowSize } from '@vueuse/core'
 import FileSelector from './FileSelector.vue'
 import FileWatcher from './FileWatcher.vue'
 import { getTaskColumns } from './columns'
+import type { PaginationInfo } from 'naive-ui'
 import { t } from '@/locales'
 
 const { width, height } = useWindowSize()
@@ -11,6 +12,9 @@ const taskPageReactive = reactive({
   page: 1,
   pageSize: 10,
   itemCount: 0,
+  prefix({ itemCount }: PaginationInfo) {
+    return `${t('common.total')}: ${itemCount} `
+  }
 })
 const tasks = ref<IndexingTask[]>([])
 const showTasks = ref(false)
@@ -62,14 +66,10 @@ onMounted(() => {
       </div>
     </NCard>
     <FileWatcher />
-    <NModal
-      v-model:show="showTasks" preset="card" :title="t('indexer.indexingTaskHistory')"
-      style="width: 80%; height:80%; max-width: 1200px;"
-    >
-      <NDataTable
-        remote :columns="taskColumns" :data="tasks" :pagination="taskPageReactive" :bordered="true" striped
-        scroll-x="1300" :max-height="height - 250" @update:page="handleTaskPageChange"
-      />
+    <NModal v-model:show="showTasks" preset="card" :title="t('indexer.indexingTaskHistory')"
+      style="width: 80%; height:80%; max-width: 1200px;">
+      <NDataTable remote :columns="taskColumns" :data="tasks" :pagination="taskPageReactive" :bordered="true" striped
+        scroll-x="1300" :max-height="height - 250" @update:page="handleTaskPageChange" />
     </NModal>
   </div>
 </template>

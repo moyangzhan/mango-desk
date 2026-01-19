@@ -12,11 +12,17 @@ use smallvec::SmallVec;
 use std::cmp::Ordering;
 use std::time::{Duration, Instant};
 
+const LIMIT: usize = 20;
 pub async fn search(query: &str) -> Vec<SearchResult> {
     let start = Instant::now();
     let keywords: Vec<&str> = query.split_whitespace().collect();
     let Ok(automaton) = create_automaton(&keywords) else {
         return vec![];
+    };
+    let take_num = if keywords.len() == 1 {
+        LIMIT
+    } else {
+        LIMIT * 10
     };
     let paths_cache = PATHS_CACHE.read().await;
     let mut result: Vec<SearchResult> = (*paths_cache)
@@ -63,7 +69,7 @@ pub async fn search(query: &str) -> Vec<SearchResult> {
                 Some(result)
             }
         })
-        .take_any(20)
+        .take_any(take_num)
         .collect();
     result.sort_by(|a, b| {
         b.score
@@ -71,6 +77,7 @@ pub async fn search(query: &str) -> Vec<SearchResult> {
             .unwrap_or(Ordering::Equal)
             .then_with(|| a.file_info.id.cmp(&b.file_info.id))
     });
+    result.truncate(LIMIT);
     println!("path search time: {:?}", start.elapsed());
     result
 }
@@ -93,7 +100,7 @@ async fn build_index() {
     let pages = (total + size - 1) / size;
     println!("total: {}, pages:{}", total, pages);
     for page in 1..=pages {
-        let paths = match file_info_repo::list_paths(page, size) {
+        let paths = match file_info_repo::list_paths(page, size, true) {
             Ok(f) => f,
             Err(e) => {
                 eprintln!("Error reading page {}: {}", page, e);

@@ -4,6 +4,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { openPath } from '@tauri-apps/plugin-opener'
 import { useWindowSize } from '@vueuse/core'
 import { getFileColumns } from './columns'
+import type { PaginationInfo } from 'naive-ui'
 import { t } from '@/locales'
 
 const { height } = useWindowSize()
@@ -15,6 +16,9 @@ const paginationReactive = reactive({
   pageCount: 1,
   pageSize: 20,
   itemCount: 0,
+  prefix({ itemCount }: PaginationInfo) {
+    return `${t('common.total')}: ${itemCount} `
+  }
 })
 
 const handleOpenPath = (path: string) => {

@@ -42,7 +42,7 @@ pub async fn task_done() -> Result<usize, String> {
     task.content_processed_cnt = embedding_progress.processed;
     task.content_indexed_success_cnt = embedding_progress.success;
     task.content_indexed_failed_cnt = embedding_progress.failed;
-    task.content_indexed_skipped_cnt = summary.total - embedding_progress.total;
+    task.content_indexed_skipped_cnt = embedding_progress.skipped;
     let resut = indexing_task_repo::update(&task)?;
 
     Ok(resut)
