@@ -212,4 +212,4 @@ Support Mango Desk if you find it helpful:
 
 ## 💻 Sceenshots
 
-![home](./screenshots/home.png)
+![search](./screenshots/search.gif)

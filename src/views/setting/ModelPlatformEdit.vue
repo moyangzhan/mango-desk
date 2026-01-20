@@ -2,6 +2,7 @@
 import { invoke } from '@tauri-apps/api/core'
 import { emptyModelPlatform } from '@/utils/functions'
 import { useSettingStore } from '@/stores/setting'
+import { useDebounceFn } from '@vueuse/core'
 import { t } from '@/locales'
 
 interface Props {
@@ -20,10 +21,11 @@ function gotoProxySetting() {
   settingStore.changeTab('common')
 }
 
-async function onSave() {
-  await invoke('update_model_platform', { platform: tmpPlatform })
+let debounceSave = useDebounceFn(async () => {
+  await invoke('update_model_platform', { platform: tmpPlatform.value })
   emit('saved', tmpPlatform.value)
-}
+}, 1000)
+
 </script>
 
 <template>
@@ -32,16 +34,17 @@ async function onSave() {
       <NInput v-model:value="tmpPlatform.name" disabled />
     </NFormItem>
     <NFormItem :label="t('common.title')">
-      <NInput v-model:value="tmpPlatform.title" />
+      <NInput v-model:value="tmpPlatform.title" @update:value="debounceSave" />
     </NFormItem>
     <NFormItem label="Base Url">
-      <NInput v-model:value="tmpPlatform.base_url" />
+      <NInput v-model:value="tmpPlatform.base_url" @update:value="debounceSave" />
     </NFormItem>
     <NFormItem label="Api Key">
-      <NInput v-model:value="tmpPlatform.api_key" type="password" show-password-on="click" />
+      <NInput v-model:value="tmpPlatform.api_key" type="password" show-password-on="click"
+        @update:value="debounceSave" />
     </NFormItem>
     <NFormItem :label="t('proxy.enable')">
-      <NSwitch v-model:value="tmpPlatform.is_proxy_enable" class="mr-6" />
+      <NSwitch v-model:value="tmpPlatform.is_proxy_enable" class="mr-6" @update:value="debounceSave" />
       <NButton text tag="a" target="_blank" type="primary" @click="gotoProxySetting">
         {{
           t('common.setting').toLowerCase()
@@ -49,12 +52,7 @@ async function onSave() {
       </NButton>
     </NFormItem>
     <NFormItem :label="t('common.description')">
-      <NInput v-model:value="tmpPlatform.remark" />
+      <NInput v-model:value="tmpPlatform.remark" @update:value="debounceSave" />
     </NFormItem>
-    <div>
-      <NButton @click="onSave">
-        {{ t('common.save') }}
-      </NButton>
-    </div>
   </div>
 </template>

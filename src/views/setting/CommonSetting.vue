@@ -9,7 +9,6 @@ const activePlatform = ref('openai')
 const activeTheme = ref(appStore.getTheme)
 const activeLanguage = ref('en-US')
 const activeTab = ref('openai')
-const modelPlatformList = ref<ModelPlatform[]>([])
 const proxy = ref<ProxyInfo>(emptyProxyInfo())
 
 function handleLanguageChanged(newLang: string) {
@@ -39,9 +38,6 @@ onMounted(async () => {
   console.log('common setting onMounted')
   const activePlatformName = await invoke('load_active_platform')
   activePlatform.value = activePlatformName as string
-  const platforms = await invoke('load_model_platforms')
-  modelPlatformList.value = platforms as ModelPlatform[]
-  console.log('platforms', modelPlatformList.value)
   activeTab.value = activePlatform.value
   const activeLocale = await invoke('load_active_locale')
   console.log('active_locale', activeLocale)

@@ -367,6 +367,15 @@ function openUrl(path = '') {
   })
 }
 
+function onModelPlatformSaved(updatedPlatform: ModelPlatform) {
+  const index = modelPlatformList.value.findIndex(
+    (p) => p.name === updatedPlatform.name,
+  )
+  if (index !== -1) {
+    modelPlatformList.value[index] = { ...updatedPlatform }
+  }
+}
+
 onMounted(async () => {
   console.log('IndexerSetting onMounted')
   try {
@@ -516,7 +525,7 @@ onMounted(async () => {
             <NTabs v-model:value="activeTab" type="line" animated placement="left">
               <NTabPane v-for="platform in modelPlatformList" :key="platform.name" :name="platform.name"
                 :tab="platform.title">
-                <ModelPlatformEdit :model-platform="platform" />
+                <ModelPlatformEdit :model-platform="platform" @saved="onModelPlatformSaved" />
               </NTabPane>
             </NTabs>
           </NFormItem>

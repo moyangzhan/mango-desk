@@ -5,7 +5,6 @@ use crate::global::{
     ACTIVE_MODEL_PLATFORM, CONFIG_NAME_INDEXER_SETTING, INDEXER_SETTING, INDEXING, SCANNING,
     SCANNING_TOTAL, STOP_INDEX_SIGNAL,
 };
-use crate::indexers;
 use crate::initializer;
 use crate::repositories::{
     config_repo, file_content_embedding_repo, file_info_repo, file_metadata_embedding_repo,
@@ -14,6 +13,7 @@ use crate::repositories::{
 use crate::scanner;
 use crate::traits::indexing_template::IndexingTemplate;
 use crate::utils::{frontend_util, indexing_task_util};
+use crate::{embedding_service_manager, indexers};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
@@ -22,9 +22,17 @@ use tauri::ipc::Channel;
 pub async fn update_indexer_setting(
     indexer_setting: crate::structs::indexer_setting::IndexerSetting,
 ) -> Result<usize, String> {
+    let content_language_changed =
+        indexer_setting.file_content_language != INDEXER_SETTING.read().await.file_content_language;
     let json = serde_json::to_string(&indexer_setting).map_err(|e| AppError::SerializeError(e))?;
     let result = config_repo::update_by_name(CONFIG_NAME_INDEXER_SETTING, &json)?;
     initializer::init_setting(CONFIG_NAME_INDEXER_SETTING, "", &INDEXER_SETTING).await;
+    if content_language_changed {
+        embedding_service_manager::get_manager()
+            .write()
+            .await
+            .clear();
+    }
     Ok(result)
 }
 

@@ -36,7 +36,7 @@ async fn parallel_search(query: &str) -> Vec<SearchResult> {
             let query = query.clone();
             async move { Ok(path_search_engine::search(&query).await) }
         }),
-        task::spawn({ async move { Ok(semantic_search_engine::search(&query).await) } }),
+        task::spawn(async move { Ok(semantic_search_engine::search(&query).await) }),
     )
     .map(|(path_res, semantic_res)| {
         (

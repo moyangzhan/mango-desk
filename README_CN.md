@@ -221,4 +221,4 @@ A: 代码库包含多个模型，各自服务于不同目的：
 
 ## 💻 截图
 
-![home](./screenshots/home.png)
+![search](./screenshots/search.gif)

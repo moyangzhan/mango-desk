@@ -160,6 +160,15 @@ async function startIndexing() {
   }
 }
 
+watch(indexingMsg, (newVal) => {
+  if (newVal === 'done') {
+    setTimeout(() => {
+      indexingTitle.value = ''
+      indexingMsg.value = ''
+    }, 3000);
+  }
+})
+
 async function stopIndexing() {
   try {
     await invoke('stop_indexing')

@@ -10,6 +10,7 @@ use std::collections::{HashMap, HashSet};
 use std::time::Instant;
 use tokio::{task, try_join};
 
+#[derive(Debug, Clone)]
 struct SearchTmp {
     file_id: i64,
     distance: f32,
@@ -35,11 +36,11 @@ pub async fn search(query: &str) -> Vec<SearchResult> {
     let (content_result, meta_result) = try_join!(
         task::spawn_blocking({
             let embedding = embedding.clone();
-            move || file_content_embedding_repo::search(&embedding, -1.0).unwrap_or_default()
+            move || file_content_embedding_repo::search(&embedding, 0.7).unwrap_or_default()
         }),
         task::spawn_blocking({
             let embedding = embedding.clone();
-            move || file_metadata_embedding_repo::search(&embedding, -1.0).unwrap_or_default()
+            move || file_metadata_embedding_repo::search(&embedding, 0.7).unwrap_or_default()
         }),
     )
     .unwrap_or_default();
@@ -81,15 +82,12 @@ fn merge_and_filter_results(
             }
         })
         .collect();
-
     tmps.sort_by(|a, b| {
         a.distance
             .partial_cmp(&b.distance)
             .unwrap_or(std::cmp::Ordering::Equal)
     });
-
     let file_ids: Vec<i64> = tmps.iter().map(|t| t.file_id).collect();
-    println!("file_ids: {:?}", file_ids);
     let file_infos = file_info_repo::list_by_ids(&file_ids).unwrap_or_default();
     if file_infos.is_empty() {
         println!("file_infos is empty");
@@ -98,15 +96,20 @@ fn merge_and_filter_results(
 
     let file_map: HashMap<i64, FileInfo> =
         file_infos.into_iter().map(|info| (info.id, info)).collect();
-
     // Return results in the sorted order
     tmps.into_iter()
-        .filter_map(|tmp| file_map.get(&tmp.file_id).cloned())
-        .map(|info| SearchResult {
-            file_info: info,
-            score: 1.0,
-            source: SearchSource::Semantic,
-            matched_keywords: Vec::new(),
+        .filter_map(|tmp| {
+            let file_id = tmp.file_id;
+            let info = file_map.get(&file_id).cloned();
+            if info.is_none() {
+                return None;
+            }
+            Some(SearchResult {
+                file_info: info.unwrap_or_default(),
+                score: tmp.distance,
+                source: SearchSource::Semantic,
+                matched_keywords: Vec::new(),
+            })
         })
         .collect()
 }

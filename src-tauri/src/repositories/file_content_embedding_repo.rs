@@ -76,7 +76,7 @@ pub fn search(
     };
 
     let conn = Connection::open(get_db_path())?;
-    let mut stmt = conn.prepare("select *,distance from file_content_embedding where embedding match :embedding order by distance limit 10")?;
+    let mut stmt = conn.prepare("select *,distance from file_content_embedding where embedding match :embedding order by distance asc limit 10")?;
     let rows = stmt.query_map(named_params! {":embedding": embedding_bytes}, |row| {
         let embedding_bytes: Vec<u8> = row.get("embedding")?;
         let embedding: [f32; 384] = unsafe {
