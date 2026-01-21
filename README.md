@@ -14,6 +14,8 @@ Mango Desk is a local-first desktop app for searching your local documents with 
 
 It helps you find information based on what you remember, not file names or folder structures.
 
+![search](./screenshots/search.gif)
+
 ### 📌 Use Cases
 
 Mango Desk is especially useful in scenarios where you have **a large amount of local documents** and want to retrieve information using natural language.
@@ -199,9 +201,11 @@ Contributions of all kinds are welcome, including but not limited to:
 
 Before submitting a pull request, please consider:
 1. Fork this repository
-2. Create a new branch for your changes
-3. Keep commit messages clear and readable
-4. Make sure `pnpm tauri dev` runs successfully in your local environment
+1. Create a new branch (git checkout -b feature/xxx)
+1. Ensure pnpm tauri dev runs successfully locally
+1. Commit changes (git commit -m 'feat: xxx')
+1. Push the branch (git push origin feature/xxx)
+1. Submit a Pull Request
 
 ## ⭐ Support the Project
 
@@ -209,7 +213,3 @@ Support Mango Desk if you find it helpful:
 - Starring the repository on GitHub
 - Recommending it to others
 - Sharing your experience
-
-## 💻 Sceenshots
-
-![search](./screenshots/search.gif)

@@ -10,9 +10,11 @@
 
 ## 📖 项目简介
 
-Mango Desk 是一款用自然语言搜索本地文档的桌面应用。
+Mango Desk 是一款用自然语言搜索本地文件的桌面应用。
 
 帮助您根据记忆中的内容查找信息，而不需要记住文件名或文件夹结构。
+
+![search](./screenshots/search.gif)
 
 ### 📌 使用场景
 
@@ -208,9 +210,11 @@ A: 代码库包含多个模型，各自服务于不同目的：
 
 在提交 PR 之前，建议：
 1. Fork 本仓库
-1. 创建新的分支
-1. 保持提交信息清晰、可读
+1. 创建新分支 (git checkout -b feature/xxx)
 1. 确保本地可以正常运行 pnpm tauri dev
+1. 提交更改 (git commit -m 'feat: xxx')
+1. 推送分支 (git push origin feature/xxx)
+1. 提交 Pull Request
 
 ## ⭐ 支持我们
 
@@ -218,7 +222,3 @@ A: 代码库包含多个模型，各自服务于不同目的：
 * 在 GitHub 上给项目一个 Star
 * 向朋友推荐
 * 分享使用体验
-
-## 💻 截图
-
-![search](./screenshots/search.gif)
