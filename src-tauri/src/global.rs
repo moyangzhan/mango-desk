@@ -37,13 +37,13 @@ pub static EN_EMBEDDING_PATH: OnceLock<String> = OnceLock::new(); // 384 dimensi
 // assets/model/all-minilm-l6-v2-tokenizer.json
 pub static EN_TOKENIZER_PATH: OnceLock<String> = OnceLock::new();
 
+pub const CONFIG_NAME_CLIENT_ID: &'static str = "client_id";
 pub const CONFIG_NAME_PROXY: &'static str = "proxy";
 pub const CONFIG_NAME_INDEXER_SETTING: &'static str = "indexer_setting";
 pub const CONFIG_NAME_WATCHER_SETTING: &'static str = "fs_watcher_setting";
 pub const CONFIG_NAME_ACTIVE_LOCALE: &'static str = "active_locale";
 
 pub static ONNX_EXEC_PROVIDERS_INITIALIZED: OnceLock<bool> = OnceLock::new();
-pub static CLIENT_ID: OnceLock<String> = OnceLock::new(); //Identifier for this client instance
 pub static APP_DIR: OnceLock<String> = OnceLock::new();
 pub static STORAGE_PATH: OnceLock<String> = OnceLock::new();
 pub static DB_PATH: OnceLock<String> = OnceLock::new();
@@ -63,6 +63,8 @@ pub static PROXY: LazyLock<AsyncRwLock<ProxyInfo>> = LazyLock::new(|| {
 pub const DEFAULT_DATETIME_FORMAT: &str = "%Y-%m-%d %H:%M:%S";
 pub const DEFAULT_DATETIME_MICRO_FORMAT: &str = "%Y-%m-%d %H:%M:%S.%f";
 
+pub static CLIENT_ID: LazyLock<AsyncRwLock<String>> =
+    LazyLock::new(|| AsyncRwLock::new("".to_string())); //Identifier for this client instance
 // Current locale, default is en-US
 pub static ACTIVE_LOCALE: LazyLock<AsyncRwLock<String>> =
     LazyLock::new(|| AsyncRwLock::new("en-US".to_string()));

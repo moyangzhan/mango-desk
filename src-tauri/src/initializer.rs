@@ -1,7 +1,8 @@
 use crate::db_initializer;
 use crate::global::{
-    ACTIVE_LOCALE, ACTIVE_MODEL_PLATFORM, CONFIG_NAME_ACTIVE_LOCALE, CONFIG_NAME_INDEXER_SETTING,
-    CONFIG_NAME_PROXY, CONFIG_NAME_WATCHER_SETTING, FS_WATCHER_SETTING, INDEXER_SETTING,
+    ACTIVE_LOCALE, ACTIVE_MODEL_PLATFORM, CLIENT_ID, CONFIG_NAME_ACTIVE_LOCALE,
+    CONFIG_NAME_CLIENT_ID, CONFIG_NAME_INDEXER_SETTING, CONFIG_NAME_PROXY,
+    CONFIG_NAME_WATCHER_SETTING, FS_WATCHER_SETTING, INDEXER_SETTING,
     ONNX_EXEC_PROVIDERS_INITIALIZED, PROXY,
 };
 use crate::repositories::{config_repo, model_platform_repo};
@@ -21,27 +22,28 @@ pub async fn process() {
         .context("Failed to initialize database")
         .unwrap_or_else(|e| error!("db init error: {e:?}"));
 
+    // Initialize the client_id
+    init_string_setting(
+        CONFIG_NAME_CLIENT_ID,
+        &CLIENT_ID,
+    )
+    .await;
+
     init_setting(
         CONFIG_NAME_PROXY,
-        serde_json::to_string(&ProxyInfo::default())
-            .unwrap_or_default()
-            .as_str(),
+        || serde_json::to_string(&ProxyInfo::default()).unwrap_or_default(),
         &PROXY,
     )
     .await;
     init_setting(
         CONFIG_NAME_INDEXER_SETTING,
-        serde_json::to_string(&IndexerSetting::default())
-            .unwrap_or_default()
-            .as_str(),
+        || serde_json::to_string(&IndexerSetting::default()).unwrap_or_default(),
         &INDEXER_SETTING,
     )
     .await;
     init_setting(
         CONFIG_NAME_WATCHER_SETTING,
-        serde_json::to_string(&FsWatcherSetting::default())
-            .unwrap_or_default()
-            .as_str(),
+        || serde_json::to_string(&FsWatcherSetting::default()).unwrap_or_default(),
         &FS_WATCHER_SETTING,
     )
     .await;
@@ -91,19 +93,22 @@ impl<T: 'static> ConfigLock<T> for LazyLock<AsyncRwLock<T>> {
     }
 }
 
+/// TODO: default_value should be a lazy caculed value
 pub async fn init_setting<T: Clone + std::fmt::Debug + for<'de> Deserialize<'de> + 'static>(
     config_name: &str,
-    default_value: &str,
+    default_value_fn: impl Fn() -> String,
     lock: &impl ConfigLock<T>,
 ) {
     let config_resp = config_repo::get_one(config_name);
     if let Some(setting) = match config_resp {
         Ok(Some(config)) => Some(config),
         Ok(None) => {
+            let default_value = default_value_fn();
             if default_value.is_empty() {
                 None
             } else {
-                config_repo::insert_or_ignore(config_name, default_value).unwrap_or_default();
+                config_repo::insert_or_ignore(config_name, default_value.as_str())
+                    .unwrap_or_default();
                 config_repo::get_one(config_name).unwrap_or(None)
             }
         }

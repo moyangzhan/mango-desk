@@ -5,8 +5,8 @@ use crate::enums::{DownloadEvent, IndexingEvent, Locale, ModelPlatformName};
 use crate::errors::AppError;
 use crate::fs_watcher::watcher;
 use crate::global::{
-    ACTIVE_LOCALE, ACTIVE_MODEL_PLATFORM, APP_DIR, CONFIG_NAME_INDEXER_SETTING, CONFIG_NAME_PROXY,
-    INDEXING, SCANNING, STOP_INDEX_SIGNAL, UI_MOUNTED,
+    ACTIVE_LOCALE, ACTIVE_MODEL_PLATFORM, APP_DIR, CLIENT_ID, CONFIG_NAME_INDEXER_SETTING,
+    CONFIG_NAME_PROXY, INDEXING, SCANNING, STOP_INDEX_SIGNAL, UI_MOUNTED,
 };
 use crate::indexer_service;
 use crate::model_platform_services::siliconflow::SiliconFlow;
@@ -390,6 +390,11 @@ async fn chat() {
     } else {
         println!("No ai model found");
     }
+}
+
+#[command]
+pub async fn get_client_id() -> String {
+    CLIENT_ID.read().await.clone()
 }
 
 #[cfg(test)]

@@ -242,7 +242,10 @@ export default {
   },
   about: {
     description:
-      'Mango Desk is an AI-powered desktop app for content-based local file search, including documents, images, and audio.',
+      'MangoDesk is a local file search tool that lets you search with just vague memories. Local-first and privacy-friendly.',
     moreDetail: 'More details or contribute code',
+    CurrentVersion: 'Current Version',
+    appClientId: 'App Client ID',
+    appInfo: 'App Info',
   },
 }

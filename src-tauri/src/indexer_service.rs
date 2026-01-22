@@ -11,6 +11,7 @@ use crate::repositories::{
     indexing_task_repo,
 };
 use crate::scanner;
+use crate::structs::indexer_setting::IndexerSetting;
 use crate::traits::indexing_template::IndexingTemplate;
 use crate::utils::{frontend_util, indexing_task_util};
 use crate::{embedding_service_manager, indexers};
@@ -19,14 +20,17 @@ use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use tauri::ipc::Channel;
 
-pub async fn update_indexer_setting(
-    indexer_setting: crate::structs::indexer_setting::IndexerSetting,
-) -> Result<usize, String> {
+pub async fn update_indexer_setting(indexer_setting: IndexerSetting) -> Result<usize, String> {
     let content_language_changed =
         indexer_setting.file_content_language != INDEXER_SETTING.read().await.file_content_language;
     let json = serde_json::to_string(&indexer_setting).map_err(|e| AppError::SerializeError(e))?;
     let result = config_repo::update_by_name(CONFIG_NAME_INDEXER_SETTING, &json)?;
-    initializer::init_setting(CONFIG_NAME_INDEXER_SETTING, "", &INDEXER_SETTING).await;
+    initializer::init_setting(
+        CONFIG_NAME_INDEXER_SETTING,
+        || serde_json::to_string(&IndexerSetting::default()).unwrap_or_default(),
+        &INDEXER_SETTING,
+    )
+    .await;
     if content_language_changed {
         embedding_service_manager::get_manager()
             .write()

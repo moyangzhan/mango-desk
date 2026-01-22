@@ -24,13 +24,13 @@ mod utils;
 use crate::global::UI_MOUNTED;
 use crate::lib_commands::{
     add_watch_path, check_path_type, count_files, count_indexing_tasks, delete_file,
-    delete_indexing_task, download_multilingual_model, get_app_dir, is_embedding_model_changed,
-    load_active_locale, load_active_platform, load_config_value, load_embedding_models,
-    load_file_detail, load_files, load_indexer_setting, load_indexing_tasks, load_model_by_type,
-    load_model_platforms, load_proxy_info, path_search, quick_search, read_file_data,
-    remove_watch_path, search, semantic_search, set_active_locale, set_active_platform,
-    start_indexing, stop_indexing, ui_mounted, update_indexer_setting, update_model_platform,
-    update_proxy_info,
+    delete_indexing_task, download_multilingual_model, get_app_dir, get_client_id,
+    is_embedding_model_changed, load_active_locale, load_active_platform, load_config_value,
+    load_embedding_models, load_file_detail, load_files, load_indexer_setting, load_indexing_tasks,
+    load_model_by_type, load_model_platforms, load_proxy_info, path_search, quick_search,
+    read_file_data, remove_watch_path, search, semantic_search, set_active_locale,
+    set_active_platform, start_indexing, stop_indexing, ui_mounted, update_indexer_setting,
+    update_model_platform, update_proxy_info,
 };
 use crate::repositories::file_content_embedding_repo;
 use crate::utils::app_util;
@@ -141,7 +141,8 @@ pub fn run() {
             add_watch_path,
             remove_watch_path,
             path_search,
-            semantic_search
+            semantic_search,
+            get_client_id,
         ])
         .setup(|app| {
             let app_handle = app.handle();

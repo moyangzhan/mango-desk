@@ -233,7 +233,10 @@ export default {
   },
   about: {
     description:
-      'MangoDesk 是一个由 AI 驱动的智能文件搜索工具，支持对文档、图片、音频等多种文件类型进行内容搜索。',
+      'MangoDesk 是一个本地文件搜索工具，仅凭模糊的记忆即可搜索以定位文件。',
     moreDetail: '了解更多或贡献代码',
+    currentVersion: '当前版本',
+    appClientId: '客户端ID',
+    appInfo: '应用信息',
   },
 }

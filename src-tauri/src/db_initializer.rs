@@ -1,10 +1,9 @@
 use crate::global::{CLIENT_ID, DB_VERSION};
-use crate::utils::app_util::get_db_path;
+use crate::utils::app_util::{get_db_path};
 use anyhow::Result;
-use log::{error, info, warn};
-use rand::Rng;
-use rand::distr::Alphanumeric;
+use log::{error, info};
 use rusqlite::Connection;
+use uuid::Uuid;
 
 pub fn init() -> Result<()> {
     info!("init db, path:{}", get_db_path());
@@ -268,21 +267,11 @@ pub fn init_data_v1() -> Result<()> {
     let conn: Connection = Connection::open(get_db_path())?;
 
     // init client_id
-    let client_id = conn
-        .query_row("select * from config where name='client_id'", [], |row| {
-            let value: String = row.get("value").unwrap_or(String::from(""));
-            Ok(value)
-        })
-        .unwrap_or(String::from(""));
-    if client_id.is_empty() {
-        let client_id = create_client_id();
-        conn.execute(
-            "insert or ignore into config (name, value) VALUES (?1, ?2)",
-            ("client_id", client_id),
-        )?;
-    } else if CLIENT_ID.set(client_id.clone()).is_err() {
-        eprintln!("Warning: APP_ID was already initialized!");
-    }
+    let client_id = Uuid::new_v4().to_string().replace("-", "");
+    conn.execute(
+        "insert or ignore into config (name, value) VALUES (?1, ?2)",
+        ("client_id", client_id),
+    )?;
 
     // Global config
     // Proxy for model requests
@@ -359,17 +348,4 @@ pub fn init_data_v1() -> Result<()> {
         ("db_version", "1"),
     )?;
     Ok(())
-}
-
-fn create_client_id() -> String {
-    let random_string: String = rand::rng()
-        .sample_iter(&Alphanumeric)
-        .take(20)
-        .map(char::from)
-        .collect();
-
-    if CLIENT_ID.set(random_string.clone()).is_err() {
-        warn!("Warning: CLIENT_ID was already initialized!");
-    }
-    random_string
 }

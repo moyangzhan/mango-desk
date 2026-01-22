@@ -59,6 +59,7 @@ notify = "8.2.0"
 aho-corasick = "1.1"
 rayon = "1.7"
 smallvec = "1.11"
+uuid = { version = "1.19.0", features = ["v4"] }
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-single-instance = "2"
