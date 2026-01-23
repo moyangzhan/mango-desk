@@ -264,10 +264,18 @@ pub async fn load_file_detail(file_id: i64) -> Result<Option<FileInfo>, String> 
 }
 
 #[command]
-pub async fn delete_file(file_id: i64) -> Result<(), String> {
+pub async fn delete_index_item(file_id: i64) -> Result<(), String> {
     file_content_embedding_repo::delete_by_file_id(file_id)?;
     file_metadata_embedding_repo::delete_by_file_id(file_id)?;
     file_info_repo::delete_by_id(file_id)?;
+    Ok(())
+}
+
+#[command]
+pub async fn clear_index() -> Result<(), String> {
+    file_content_embedding_repo::clear()?;
+    file_metadata_embedding_repo::clear()?;
+    file_info_repo::clear()?;
     Ok(())
 }
 

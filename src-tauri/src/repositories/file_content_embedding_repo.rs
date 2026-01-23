@@ -138,6 +138,13 @@ pub fn delete_by_file_prefix_path(file_prefix_path: &str) -> Result<usize, Repos
     Ok(affected)
 }
 
+pub fn clear() -> Result<usize, RepositoryError> {
+    let conn = Connection::open(get_db_path())?;
+    let mut stmt = conn.prepare("delete from file_content_embedding")?;
+    let affected = stmt.execute([])?;
+    Ok(affected)
+}
+
 fn build_file_content_embedding(row: &Row<'_>) -> Result<FileContentEmbedding, RepositoryError> {
     let embedding_bytes: Vec<u8> = row.get("embedding")?;
     let embedding: [f32; 384] = unsafe {

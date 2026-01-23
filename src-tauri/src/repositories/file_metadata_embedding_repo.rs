@@ -2,7 +2,6 @@ use crate::entities::FileMetaEmbedding;
 use crate::repositories::RepositoryError;
 use crate::utils::app_util::get_db_path;
 use rusqlite::{Connection, Result, Row, named_params};
-use std::path::PathBuf;
 
 pub fn insert(
     file_metadata_embedding: &FileMetaEmbedding,
@@ -130,6 +129,13 @@ pub fn delete_by_file_prefix_path(pre_path: &str) -> Result<usize, RepositoryErr
     let mut stmt =
         conn.prepare("delete from file_metadata_embedding where file_id in ( select id from file_info where path like :prefix_path )")?;
     let affected = stmt.execute(named_params! {":prefix_path": pattern})?;
+    Ok(affected)
+}
+
+pub fn clear() -> Result<usize, RepositoryError> {
+    let conn = Connection::open(get_db_path())?;
+    let mut stmt = conn.prepare("delete from file_metadata_embedding")?;
+    let affected = stmt.execute([])?;
     Ok(affected)
 }
 

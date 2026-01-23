@@ -369,6 +369,13 @@ pub fn delete_by_path(path: &str) -> Result<usize, RepositoryError> {
     Ok(affected)
 }
 
+pub fn clear() -> Result<usize, RepositoryError> {
+    let conn = Connection::open(get_db_path())?;
+    let mut stmt = conn.prepare("delete from file_info")?;
+    let affected = stmt.execute([])?;
+    Ok(affected)
+}
+
 pub fn delete_by_prefix_path(pre_path: &str) -> Result<usize, RepositoryError> {
     if pre_path.is_empty() {
         return Ok(0);
