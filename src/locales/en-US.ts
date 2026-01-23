@@ -18,6 +18,7 @@ export default {
     delete: 'Delete',
     tip: 'Tip',
     remove: 'Remove',
+    removeAll: 'Remove All',
     removeTip: 'Remove Action: Delete from index (file remains on disk)',
     add: 'Add',
     search: 'Search',
@@ -227,6 +228,7 @@ export default {
     saveVideoParsedContent: 'Save Video Recognition Text',
     recognitionText: 'Recognition Text',
     parsedContent: 'Parsed Content',
+    clearIndexConfirmation: 'Clear Index (not the files on disk)?',
   },
   message: {
     downloadFailed: 'Download failed, retry or download manually',

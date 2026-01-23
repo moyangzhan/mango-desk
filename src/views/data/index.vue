@@ -25,16 +25,21 @@ const handleOpenPath = (path: string) => {
   openPath(path)
 }
 
-const handleDeleteFile = (id: number) => {
-  invoke('delete_file', { fileId: id }).then(() => {
+const handleDeleteItem = (id: number) => {
+  invoke('delete_index_item', { fileId: id }).then(() => {
     handlePageChange(1)
   })
 }
-const fileColumns: DataTableColumns<FileInfo> = getFileColumns(handleOpenPath, handleDeleteFile)
+const fileColumns: DataTableColumns<FileInfo> = getFileColumns(handleOpenPath, handleDeleteItem)
 
 async function handlePageChange(currentPage: number) {
   page.value = currentPage
   loadFiles()
+}
+
+async function clearIndex() {
+  await invoke('clear_index')
+  handlePageChange(1)
 }
 
 async function loadFiles() {
@@ -60,11 +65,20 @@ onMounted(() => {
 <template>
   <div class="h-full m-auto p-4">
     <NCard :title="t('indexer.indexedFiles')" class="shadow-sm">
-      <div class="flex justify-end mb-2">
-        <NButton ghost size="small" @click="handlePageChange(1)">
+      <div class="flex mb-2 justify-between">
+        <NButton ghost size="small" @click="handlePageChange(1)" class="mr-2">
           {{ t('common.refresh')
           }}
         </NButton>
+        <NPopconfirm :positive-text="t('common.confirm')" placement="left" :negative-text="t('common.cancel')"
+          @positive-click="clearIndex">
+          <template #trigger>
+            <NButton text size="small" class="remove-all-button">
+              {{ t('common.removeAll') }}
+            </NButton>
+          </template>
+          {{ t('indexer.clearIndexConfirmation') }}
+        </NPopconfirm>
       </div>
       <NDataTable remote :columns="fileColumns" :data="files" :pagination="paginationReactive" :bordered="false" striped
         scroll-x="1700" :max-height="height - 260" @update:page="handlePageChange" />
@@ -72,4 +86,8 @@ onMounted(() => {
   </div>
 </template>
 
-<style scoped></style>
+<style scoped>
+.remove-all-button:hover {
+  color: #cf3050;
+}
+</style>

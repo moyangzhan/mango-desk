@@ -18,6 +18,7 @@ export default {
     delete: '删除',
     tip: '提示',
     remove: '移除',
+    removeAll: '移除所有',
     removeTip: '从索引文件列表中移除记录，不会删除磁盘中的文件',
     add: '添加',
     search: '搜索',
@@ -219,6 +220,7 @@ export default {
     saveVideoParsedContent: '保存视频的解析内容',
     recognitionText: '已识别文本',
     parsedContent: '已解析内容',
+    clearIndexConfirmation: '确认清除所有索引（不会删除磁盘上的文件）？',
   },
   message: {
     downloadFailed: '下载失败，可点击按钮重试',
