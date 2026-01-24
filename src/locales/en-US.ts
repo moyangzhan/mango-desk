@@ -129,6 +129,9 @@ export default {
     clearTip: 'Clear selection',
     fileContent: 'File Content',
     content: 'Content',
+    queryTooShort: 'Query is too short, at least 2 characters',
+    matchedSegments: 'Matched Segments',
+    segment: 'Segment',
   },
   proxy: {
     enable: 'Proxy Enable',
@@ -229,6 +232,9 @@ export default {
     recognitionText: 'Recognition Text',
     parsedContent: 'Parsed Content',
     clearIndexConfirmation: 'Clear Index (not the files on disk)?',
+    clearSelected: 'Clear Selected',
+    dataPath: 'Data storage path',
+    allFilesIndexed: 'All files indexed',
   },
   message: {
     downloadFailed: 'Download failed, retry or download manually',
@@ -246,7 +252,7 @@ export default {
     description:
       'MangoDesk is a local file search tool that lets you search with just vague memories. Local-first and privacy-friendly.',
     moreDetail: 'More details or contribute code',
-    CurrentVersion: 'Current Version',
+    currentVersion: 'Current Version',
     appClientId: 'App Client ID',
     appInfo: 'App Info',
   },

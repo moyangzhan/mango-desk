@@ -4,11 +4,11 @@ use crate::global::{
     EXIT_APP_SIGNAL, INDEXING, MULTI_LANG_EMBEDDING_PATH, MULTI_LANG_TOKENIZER_PATH, SCANNING,
     STOP_INDEX_SIGNAL, STORAGE_PATH, TMP_DOWNLOAD_PATH, TRAY_ID,
 };
-use log::{error, info};
+use log::{error, info, warn};
 use rust_i18n::t;
 use std::env;
 use std::fs::create_dir;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 use tauri::menu::{Menu, MenuItem};
 use tauri::{AppHandle, Manager, Wry};
@@ -95,39 +95,71 @@ pub fn rebuild_tray_menu(app: &AppHandle) -> Result<(), String> {
 }
 
 pub fn init_paths(app: &AppHandle) {
-    let app_dir = {
+    let mut data_dir = {
         #[cfg(debug_assertions)]
         {
             env::current_dir()
-                .map(|p| p.to_string_lossy().into_owned())
+                .map(|p| p.to_path_buf())
                 .unwrap_or_else(|e| {
                     error!("Failed to get current directory: {}", e);
-                    "./".to_string()
+                    PathBuf::from("./")
                 })
         }
         #[cfg(not(debug_assertions))]
         {
             env::current_exe()
-                .ok()
-                .and_then(|p| p.parent().map(|p| p.to_path_buf()))
-                .map(|p| p.to_string_lossy().into_owned())
-                .unwrap_or_else(|| {
-                    error!("Failed to get executable directory");
-                    "./".to_string()
+                .and_then(|p| {
+                    p.parent().map(|p| p.to_path_buf()).ok_or_else(|| {
+                        std::io::Error::new(
+                            std::io::ErrorKind::NotFound,
+                            "Parent directory not found",
+                        )
+                    })
+                })
+                .unwrap_or_else(|e| {
+                    error!("Failed to get executable directory:{}", e);
+                    PathBuf::from("./")
                 })
         }
     };
-    if APP_DIR.set(app_dir.clone()).is_err() {
+    info!("data_dir: {}", data_dir.display());
+    // Check if the directory is writable
+    let test_file = data_dir.join(".write_test");
+    match std::fs::write(&test_file, "test") {
+        Ok(_) => {
+            // If writable, clean up test file and use this directory
+            let _ = std::fs::remove_file(&test_file);
+        }
+        Err(e) => {
+            // If cannot write, switch to user data directory
+            error!(
+                "Failed to write test file: {}, error: {}",
+                test_file.display(),
+                e
+            );
+            warn!("Cannot write to program directory, switching to user data directory");
+            data_dir = app
+                .path()
+                .data_dir()
+                .unwrap_or_else(|error| {
+                    error!("Failed to get user data directory:{}", error);
+                    PathBuf::from("./")
+                })
+                .join(env!("CARGO_PKG_NAME"));
+        }
+    }
+    let app_data_path = data_dir.to_string_lossy().into_owned();
+    info!("App data directory: {}", app_data_path);
+    if APP_DIR.set(app_data_path).is_err() {
         error!("Warning: APP_DIR was already set");
     }
-    info!("App directory: {}", app_dir);
-    if !Path::new(&app_dir).exists() {
-        create_dir(&app_dir).unwrap_or_else(|error| {
+    if !Path::new(&data_dir).exists() {
+        create_dir(&data_dir).unwrap_or_else(|error| {
             error!("Failed to create app directory: {}", error);
         });
     }
     // Define storage path
-    let storage_path = Path::new(&app_dir).join("storage");
+    let storage_path = Path::new(&data_dir).join("storage");
     if !storage_path.exists() {
         create_dir(&storage_path).unwrap_or_else(|error| {
             error!("Failed to create storage directory: {}", error);
@@ -140,7 +172,7 @@ pub fn init_paths(app: &AppHandle) {
         "Storage directory: {}",
         STORAGE_PATH.get().unwrap_or(&String::new())
     );
-    let db_path = Path::new(&app_dir).join("storage").join("mango-desk.db");
+    let db_path = Path::new(&data_dir).join("storage").join("mango-desk.db");
     DB_PATH
         .set(db_path.to_string_lossy().into_owned())
         .unwrap_or_else(|error| error!("Failed to set DB_PATH: {}", error));
@@ -149,7 +181,7 @@ pub fn init_paths(app: &AppHandle) {
         DB_PATH.get().unwrap_or(&String::new()).to_string()
     );
     // Assets directory
-    let assets_dir = Path::new(&app_dir).join("assets");
+    let assets_dir = Path::new(&data_dir).join("assets");
     if !assets_dir.exists() {
         create_dir(&assets_dir).unwrap_or_else(|error| {
             error!("Failed to create assets directory: {}", error);

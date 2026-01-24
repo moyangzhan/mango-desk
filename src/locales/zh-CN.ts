@@ -130,6 +130,9 @@ export default {
     fileContent: '文件内容',
     recognitionText: '识别文本',
     content: '内容',
+    queryTooShort: '查询内容太短，至少需要2个字符',
+    matchedSegments: '匹配的片段',
+    segment: '片段',
   },
   proxy: {
     enable: '启用代理',
@@ -221,6 +224,9 @@ export default {
     recognitionText: '已识别文本',
     parsedContent: '已解析内容',
     clearIndexConfirmation: '确认清除所有索引（不会删除磁盘上的文件）？',
+    clearSelected: '清除选中',
+    dataPath: '数据存储路径',
+    allFilesIndexed: '所有文件已被索引',
   },
   message: {
     downloadFailed: '下载失败，可点击按钮重试',

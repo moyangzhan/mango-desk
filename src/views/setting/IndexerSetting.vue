@@ -53,6 +53,7 @@ const embeddingModelChanged = ref(false)
 const dataRef = ref<RowData[]>([])
 
 const modelPath = ref('')
+const dbPath = ref('')
 const downloading = ref(false)
 const downloadProxy = ref(false)
 const downloadFailed = ref(false)
@@ -395,6 +396,7 @@ onMounted(async () => {
     console.log('homePath', homePath)
     modelPath.value = await join(homePath, 'assets', 'model')
     console.log('modelPath', modelPath.value)
+    dbPath.value = await join(homePath, 'storage')
     await loadEmbeddingModels()
     activeTab.value = activePlatform.value
     initStatusData()
@@ -534,6 +536,7 @@ onMounted(async () => {
     </NCard>
     <NCard :title="t('common.storage')" class="mb-4 px-0" size="small" :bordered="true" hoverable>
       <div class="flex flex-col">
+        <div class="mb-2">{{ t('indexer.dataPath') }}: {{ dbPath }}</div>
         <NAlert :show-icon="false">
           <div>
             {{ t('indexer.saveParsedContentTip') }}

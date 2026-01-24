@@ -7,7 +7,7 @@ import { getTaskColumns } from './columns'
 import type { PaginationInfo } from 'naive-ui'
 import { t } from '@/locales'
 
-const { width, height } = useWindowSize()
+const { height } = useWindowSize()
 const taskPageReactive = reactive({
   page: 1,
   pageSize: 10,
@@ -46,9 +46,9 @@ function indexingFinish() {
   loadIndexingTask()
 }
 
-watch([width, height], ([newWidth, newHeight]) => {
-  console.log(`Window size: ${newWidth}x${newHeight}`)
-})
+// watch([width, height], ([newWidth, newHeight]) => {
+//   console.log(`Window size: ${newWidth}x${newHeight}`)
+// })
 
 onMounted(() => {
   loadIndexingTask()

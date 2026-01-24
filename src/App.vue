@@ -74,6 +74,11 @@ const isDark = computed(() => {
   }
 })
 onMounted(() => {
+  if (import.meta.env.MODE === "production") {
+    window.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+    }, false);
+  }
   invoke('ui_mounted').then((resp) => {
     console.log('ui_mounted', resp)
   })
@@ -84,10 +89,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <NConfigProvider
-    class="h-full select-text" :locale="appStore.locale === 'en-US' ? enUS : zhCN"
-    :date-locale="appStore.locale === 'en-US' ? dateEnUS : dateZhCN" :theme="isDark"
-  >
+  <NConfigProvider class="h-full select-text" :locale="appStore.locale === 'en-US' ? enUS : zhCN"
+    :date-locale="appStore.locale === 'en-US' ? dateEnUS : dateZhCN" :theme="isDark">
     <NaiveProvider>
       <NLayout class="h-full" has-sider>
         <NLayoutSider bordered :collapsed-width="48" collapse-mode="width" :collapsed="true" class="h-full">

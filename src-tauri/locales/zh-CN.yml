@@ -39,4 +39,5 @@ message:
   indexing-processing: 索引进行中，请稍候...
   indexing-paths-empty: 未选择索引路径
   indexing-skip-empty-content: 文件内容为空，跳过
+  indexing-skip-by-privacy: "隐私设置：跳过图片和音频索引"
   abort-tasks-and-exit: 是否中止后台任务 [%{tasks}] 并退出 Mango Desk？

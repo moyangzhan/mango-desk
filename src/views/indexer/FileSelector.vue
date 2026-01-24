@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { AttachFileOutlined, DeleteOutlined, FileOpenOutlined, FolderOpenOutlined, FolderOutlined, StopCircleOutlined } from '@vicons/material'
+import { AttachFileOutlined, DeleteOutlined, FileOpenOutlined, FolderOpenOutlined, FolderOutlined, StopCircleOutlined, DoneOutlineRound } from '@vicons/material'
 import { open } from '@tauri-apps/plugin-dialog'
 import { TauriEvent, listen } from '@tauri-apps/api/event'
 import { Channel, invoke } from '@tauri-apps/api/core'
@@ -74,6 +74,7 @@ function addPath(path: string, isDirectory: boolean) {
     type: isDirectory ? 'directory' : 'file',
     raw: null,
     path,
+    done: false,
   })
 }
 
@@ -81,6 +82,10 @@ function removePath(id: string) {
   const idx = selectedList.value.findIndex(item => item.id === id)
   if (idx !== -1)
     selectedList.value.splice(idx, 1)
+}
+
+function clearAllPaths() {
+  selectedList.value = []
 }
 
 listen(TauriEvent.DRAG_DROP, async (e: Event<DragPayload>) => {
@@ -115,14 +120,21 @@ async function startIndexing() {
     message.warning(t('indexer.noFileSelected'))
     return
   }
+  let undonePaths = selectedList.value.filter(item => !item.done).map(item => item.path)
+  if (undonePaths.length === 0) {
+    window.$message.info(t('indexer.allFilesIndexed'))
+    return
+  }
   btnDisabled.value = true
   setTimeout(() => {
     btnDisabled.value = false
   }, 3000)
   try {
+    indexingTitle.value = 'START'
+    indexingMsg.value = ''
     const onEvent = new Channel<IndexingEvent>()
     onEvent.onmessage = (eventObj) => {
-      console.log(`got indexing event ${eventObj.event}`)
+      console.log(`got indexing event ${JSON.stringify(eventObj)}`)
       indexingTitle.value = eventObj.event.toUpperCase()
       indexingMsg.value = eventObj.data.msg
       switch (eventObj.event) {
@@ -134,20 +146,20 @@ async function startIndexing() {
         case 'embed':
           break
         case 'finish':
-        case 'stop':
+          emit('indexingFinish')
           indexProcessing.value = false
-          setTimeout(() => {
-            emit('indexingFinish')
-            selectedList.value = []
-          }, 1000)
+          selectedList.value.forEach(item => {
+            item.done = true
+          })
+          break
+        case 'stop':
           break
       }
     }
-    const result = await invoke('start_indexing', {
-      paths: selectedList.value.map(item => item.path),
+    const res = await invoke<CommandResult>('start_indexing', {
+      paths: undonePaths,
       onEvent,
     })
-    const res = result as CommandResult
     if (!res.success && res.message) {
       indexingTitle.value = 'ERROR'
       indexingMsg.value = res.message
@@ -182,10 +194,8 @@ async function stopIndexing() {
 
 <template>
   <div>
-    <NCard
-      size="small" :bordered="true" content-style="padding: 10px; " class="mb-2"
-      :content-class="isDragOver ? 'bg-gray-200 dark:text-white dark:bg-white' : ''"
-    >
+    <NCard size="small" :bordered="true" content-style="padding: 10px; " class="mb-2"
+      :content-class="isDragOver ? 'bg-gray-200 dark:text-white dark:bg-white' : ''">
       <div class="flex flex-col items-center justify-center space-y-2 mb-2">
         <NIcon size="32">
           <FolderOpenOutlined v-if="isDragOver" />
@@ -218,19 +228,33 @@ async function stopIndexing() {
 
     <NList bordered>
       <template #header>
-        <div class="font-semibold">
-          {{ t('common.selectedFileAndFolder') }}
+        <div class="flex justify-between items-center mb-2">
+          <div class="font-semibold">
+            {{ t('common.selectedFileAndFolder') }}
+          </div>
+          <div>
+            <NButton ghost size="tiny" @click="clearAllPaths">{{ t('indexer.clearSelected') }}</NButton>
+          </div>
         </div>
       </template>
       <template v-for="item in selectedList" :key="item.id">
         <NListItem>
-          <div class="flex items-center justify-between px-2 py-1">
-            <div class="flex items-center gap-2">
-              <NIcon :size="20">
-                <FolderOutlined v-if="item.type === 'directory'" />
-                <AttachFileOutlined v-else />
-              </NIcon>
-              <span class="truncate max-w-xs" :title="item.name">{{ item.name }}</span>
+          <div class="flex items-center px-2 py-1">
+            <div class="flex-1 flex">
+              <div class="mr-2 w-[20px] items-center flex"
+                :class="item.done ? 'text-green-500' : 'text-gray-300 dark:text-gray-800'">
+                <NIcon :size="20">
+                  <DoneOutlineRound />
+                </NIcon>
+              </div>
+              <div class="flex items-center gap-2"
+                :class="item.done ? 'text-green-500' : 'text-gray-800 dark:text-gray-300'">
+                <NIcon :size="20">
+                  <FolderOutlined v-if="item.type === 'directory'" />
+                  <AttachFileOutlined v-else />
+                </NIcon>
+                <span class="truncate max-w-xs" :title="item.name">{{ item.name }}</span>
+              </div>
             </div>
             <NButton quaternary type="error" size="small" @click="removePath(item.id)">
               <template #icon>
@@ -248,16 +272,12 @@ async function stopIndexing() {
     </NList>
 
     <div class="flex mt-2">
-      <NButton
-        v-if="!indexProcessing" type="primary" style="margin-right: 6px"
-        :disabled="selectedList.length === 0 || indexProcessing" :loading="indexProcessing" @click="startIndexing"
-      >
+      <NButton v-if="!indexProcessing" type="primary" style="margin-right: 6px"
+        :disabled="selectedList.length === 0 || indexProcessing" :loading="indexProcessing" @click="startIndexing">
         {{ t('indexer.startIndexing') }}
       </NButton>
-      <NPopconfirm
-        v-if="indexProcessing" :positive-text="t('common.confirm')" :negative-text="t('common.cancel')"
-        @positive-click="stopIndexing"
-      >
+      <NPopconfirm v-if="indexProcessing" :positive-text="t('common.confirm')" :negative-text="t('common.cancel')"
+        @positive-click="stopIndexing">
         <template #trigger>
           <NButton ghost type="error">
             <template #icon>

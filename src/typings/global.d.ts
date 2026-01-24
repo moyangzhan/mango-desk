@@ -67,6 +67,7 @@ interface SelectedItem {
   type: 'file' | 'directory';
   raw: File | null;
   path?: string;
+  done: boolean; // for indexing task
 }
 
 interface IndexingTask {
@@ -134,4 +135,5 @@ interface SearchResult {
   source: string,
   file_info: FileInfo,
   matched_keywords: string[],
+  matched_chunk_ids: number[],
 }

@@ -113,6 +113,34 @@ pub fn search(
     return Ok(filtered_result);
 }
 
+pub fn list_chunks_by_ids(ids: &Vec<u32>) -> Result<Vec<String>, RepositoryError> {
+    if ids.is_empty() {
+        return Ok(Vec::new());
+    }
+    let conn = Connection::open(get_db_path())?;
+    let ids_str = ids
+        .iter()
+        .map(|id| id.to_string())
+        .collect::<Vec<_>>()
+        .join("','");
+    let mut stmt = conn.prepare(&format!(
+        "select chunk_text from file_content_embedding where id in ('{}') order by chunk_index asc",
+        ids_str
+    ))?;
+    let rows = stmt.query_map((), |row| {
+        let chunk_text: String = row.get("chunk_text")?;
+        Ok(chunk_text)
+    })?;
+    let mut segments: Vec<String> = Vec::new();
+    for row_result in rows {
+        match row_result {
+            Ok(chunk_text) => segments.push(chunk_text),
+            Err(e) => eprintln!("Error retrieving chunk text: {}", e),
+        }
+    }
+    Ok(segments)
+}
+
 pub fn delete_by_file_id(file_id: i64) -> Result<usize, RepositoryError> {
     if file_id < 1 {
         return Ok(0);

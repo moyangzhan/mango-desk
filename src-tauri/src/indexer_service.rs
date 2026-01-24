@@ -15,6 +15,7 @@ use crate::structs::indexer_setting::IndexerSetting;
 use crate::traits::indexing_template::IndexingTemplate;
 use crate::utils::{frontend_util, indexing_task_util};
 use crate::{embedding_service_manager, indexers};
+use rust_i18n::t;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
@@ -136,7 +137,7 @@ pub async fn start_indexing(
         println!("--- private mode, skip indexing image and audio ---");
         indexing_finish(
             task.id,
-            format!("Privacy setting: skip indexing image and audio").as_str(),
+            t!("message.indexing-skip-by-privacy").to_string().as_str(),
             Some(event.clone()),
         )
         .await?;

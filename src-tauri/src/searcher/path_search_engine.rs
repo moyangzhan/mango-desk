@@ -65,6 +65,7 @@ pub async fn search(query: &str) -> Vec<SearchResult> {
                     score: matches.len() as f32,
                     source: SearchSource::Path,
                     matched_keywords: match_keywords,
+                    matched_chunk_ids: Vec::new(),
                 };
                 Some(result)
             }

@@ -19,6 +19,8 @@ const isFocused = ref(false)
 const indexerStore = useIndexerStore()
 const parsedContent = ref('')
 const showContentModal = ref(false)
+const showChunksModal = ref(false)
+const matchChunks = ref<string[]>([])
 const searchType = ref(SEMANTIC_SEARCH) // 1: semantic search, 2: path search
 
 const focusInput = () => {
@@ -71,6 +73,19 @@ async function loadFileDetail(id = 0) {
   }
 }
 
+async function loadChunks(ids: number[]) {
+  showChunksModal.value = true
+  matchChunks.value = []
+  try {
+    let chunks = await invoke<string[]>('load_chunks', { ids });
+    if (chunks) {
+      matchChunks.value = chunks
+    }
+  } catch (e) {
+    console.log(e)
+  }
+}
+
 function onClear() {
   query.value = ''
   searchResults.value = []
@@ -106,7 +121,8 @@ async function search() {
       search_name = 'path_search'
       query_txt = query.value.substring(1)
     }
-    if (query_txt.length <= 2) {
+    if (query_txt.length < 2) {
+      window.$message.warning(t('common.queryTooShort'))
       return
     }
     selectedIndex.value = -1
@@ -301,17 +317,22 @@ onUnmounted(() => {
               <div v-html="item.file_info.html_path"></div>
             </div>
           </div>
-          <div style="width:100px" class="flex justify-center items-center">
+          <div class="flex justify-center items-center">
             <div v-if="indexerStore.indexerSetting.save_parsed_content.document && item.file_info.category === 1">
-              <n-button size="tiny" text @click="loadFileDetail(item.file_info.id)">
+              <NButton size="tiny" text @click="loadFileDetail(item.file_info.id)">
                 {{ t('indexer.parsedContent') }}
-              </n-button>
+              </NButton>
             </div>
             <div
               v-if="indexerStore.indexerSetting.save_parsed_content.image && item.file_info.category === 2 || (indexerStore.indexerSetting.save_parsed_content.audio && item.file_info.category === 3)">
-              <n-button size="tiny" text @click="loadFileDetail(item.file_info.id)">
+              <NButton size="tiny" text @click="loadFileDetail(item.file_info.id)">
                 {{ t('indexer.recognitionText') }}
-              </n-button>
+              </NButton>
+            </div>
+            <div v-if="item.matched_chunk_ids && item.matched_chunk_ids.length > 0" class="ml-2">
+              <NButton size="tiny" text @click="loadChunks(item.matched_chunk_ids)">
+                {{ t('common.matchedSegments', { count: item.matched_chunk_ids.length }) }}
+              </NButton>
             </div>
           </div>
         </div>
@@ -323,6 +344,24 @@ onUnmounted(() => {
       <div style="max-height: 600px;overflow-y: auto;" class="select-text">
         <div v-if="parsedContent">
           {{ parsedContent }}
+        </div>
+        <div v-else>
+          {{ t('common.noData') }}
+        </div>
+      </div>
+    </NModal>
+    <NModal v-model:show="showChunksModal" preset="card" :title="t('common.matchedSegments')"
+      style="width: 80%; height:80%;">
+      <div style="max-height: 600px;overflow-y: auto;" class="select-text">
+        <div v-if="matchChunks.length > 0">
+          <div v-for="(chunk, index) in matchChunks" :key="index" class="mb-4">
+            <div class="mb-2">
+              <strong>{{ t('common.segment') }} {{ index + 1 }}:</strong>
+            </div>
+            <div>
+              {{ chunk }}
+            </div>
+          </div>
         </div>
         <div v-else>
           {{ t('common.noData') }}

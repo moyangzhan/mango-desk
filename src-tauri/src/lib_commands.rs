@@ -374,6 +374,13 @@ pub async fn ui_mounted(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+#[command]
+pub async fn load_chunks(ids: Vec<u32>) -> Result<Vec<String>, String> {
+    let segments =
+        file_content_embedding_repo::list_chunks_by_ids(&ids).map_err(|e| e.to_string())?;
+    Ok(segments)
+}
+
 async fn chat() {
     let ai_model = ai_model_repo::get_one(
         ModelPlatformName::SiliconFlow.text(),

@@ -6,7 +6,7 @@ use crate::repositories::{
     file_content_embedding_repo, file_info_repo, file_metadata_embedding_repo,
 };
 use crate::structs::search_result::SearchResult;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::time::Instant;
 use tokio::{task, try_join};
 
@@ -14,6 +14,7 @@ use tokio::{task, try_join};
 struct SearchTmp {
     file_id: i64,
     distance: f32,
+    chunk_ids: Vec<i64>,
 }
 
 pub async fn warmup_embedding_service() -> Result<(), AppError> {
@@ -60,28 +61,36 @@ fn merge_and_filter_results(
     if content_result.is_empty() && meta_result.is_empty() {
         return Vec::new();
     }
-    let mut seen = HashSet::new();
-    let mut tmps: Vec<SearchTmp> = content_result
-        .into_iter()
-        .map(|item| SearchTmp {
+    let mut file_map: HashMap<i64, SearchTmp> = HashMap::new();
+
+    for item in content_result {
+        let entry = file_map.entry(item.file_id).or_insert(SearchTmp {
             file_id: item.file_id,
             distance: item.distance,
-        })
-        .chain(meta_result.into_iter().map(|item| SearchTmp {
+            chunk_ids: Vec::new(),
+        });
+        entry.chunk_ids.push(item.id);
+        // Keep the minimum distance value
+        if item.distance < entry.distance {
+            entry.distance = item.distance;
+        }
+    }
+
+    for item in meta_result {
+        file_map.entry(item.file_id).or_insert(SearchTmp {
             file_id: item.file_id,
             distance: item.distance,
-        }))
-        .filter_map(|item| {
-            if seen.insert(item.file_id) {
-                Some(SearchTmp {
-                    file_id: item.file_id,
-                    distance: item.distance,
-                })
-            } else {
-                None
+            chunk_ids: Vec::new(),
+        });
+        // Metadata results don't add segment_ids, but may update distance
+        if let Some(entry) = file_map.get_mut(&item.file_id) {
+            if item.distance < entry.distance {
+                entry.distance = item.distance;
             }
-        })
-        .collect();
+        }
+    }
+
+    let mut tmps: Vec<SearchTmp> = file_map.into_values().collect();
     tmps.sort_by(|a, b| {
         a.distance
             .partial_cmp(&b.distance)
@@ -109,6 +118,7 @@ fn merge_and_filter_results(
                 score: tmp.distance,
                 source: SearchSource::Semantic,
                 matched_keywords: Vec::new(),
+                matched_chunk_ids: tmp.chunk_ids,
             })
         })
         .collect()

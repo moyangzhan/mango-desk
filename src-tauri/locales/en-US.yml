@@ -39,4 +39,5 @@ message:
   indexing-processing: Index process already started. Please wait.
   indexing-paths-empty: No file or folder selected for indexing.
   indexing-skip-empty-content: Skipping empty content.
+  indexing-skip-by-privacy: "Privacy setting: skip indexing image and audio"
   abort-tasks-and-exit: Abort running background tasks [%{tasks}] and exit Mango Desk?
