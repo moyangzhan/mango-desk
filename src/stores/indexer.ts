@@ -4,6 +4,7 @@ import { emptyIndexerSetting } from '@/utils/functions'
 export const useIndexerStore = defineStore('indexer-store', {
   state: () => ({
     indexerSetting: emptyIndexerSetting(),
+    indexProcessing: false,
   }),
   getters: {},
   actions: {
@@ -18,6 +19,9 @@ export const useIndexerStore = defineStore('indexer-store', {
     },
     setAudioParsedContent(value: boolean) {
       this.indexerSetting.save_parsed_content.video = value
+    },
+    setIndexProcessing(value: boolean) {
+      this.indexProcessing = value
     }
   },
 })

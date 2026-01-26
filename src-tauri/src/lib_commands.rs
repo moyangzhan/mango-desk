@@ -206,8 +206,13 @@ pub async fn stop_indexing() {
 }
 
 #[command]
-pub async fn load_indexing_tasks(page: i64, page_size: i64) -> Result<Vec<IndexingTask>, String> {
-    let tasks = indexing_task_repo::list(page, page_size)?;
+pub async fn load_indexing_tasks(
+    page: i64,
+    page_size: i64,
+    column_key: &str,
+    sort_order: &str,
+) -> Result<Vec<IndexingTask>, String> {
+    let tasks = indexing_task_repo::list(page, page_size, column_key, sort_order)?;
     Ok(tasks)
 }
 

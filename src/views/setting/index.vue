@@ -34,7 +34,7 @@ onMounted(async () => {
       <NTabPane name="common" :tab="t('common.commonSetting')">
         <CommonSetting />
       </NTabPane>
-      <NTabPane name="indexer" :tab="t('indexer.setting')">
+      <NTabPane name="indexer" display-directive="show" :tab="t('indexer.setting')">
         <IndexerSetting />
       </NTabPane>
       <NTabPane name="about" :tab="t('menu.about')">

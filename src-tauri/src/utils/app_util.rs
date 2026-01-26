@@ -95,58 +95,55 @@ pub fn rebuild_tray_menu(app: &AppHandle) -> Result<(), String> {
 }
 
 pub fn init_paths(app: &AppHandle) {
-    let mut data_dir = {
-        #[cfg(debug_assertions)]
-        {
-            env::current_dir()
-                .map(|p| p.to_path_buf())
-                .unwrap_or_else(|e| {
-                    error!("Failed to get current directory: {}", e);
-                    PathBuf::from("./")
-                })
+    let mut data_dir = app
+        .path()
+        .data_dir()
+        .unwrap_or_else(|error| {
+            error!("Failed to get user data directory:{}", error);
+            PathBuf::from("./")
+        })
+        .join(env!("CARGO_PKG_NAME"));
+    info!("use dir: {}", data_dir.display());
+    let config_path = data_dir.join(".config");
+    info!("config_path: {}", config_path.display());
+    if !config_path.exists() {
+        if let Err(e) = std::fs::write(&config_path, data_dir.to_str().unwrap_or("")) {
+            error!("Failed to write data path record: {}", e);
         }
-        #[cfg(not(debug_assertions))]
-        {
-            env::current_exe()
-                .and_then(|p| {
-                    p.parent().map(|p| p.to_path_buf()).ok_or_else(|| {
-                        std::io::Error::new(
-                            std::io::ErrorKind::NotFound,
-                            "Parent directory not found",
-                        )
-                    })
-                })
-                .unwrap_or_else(|e| {
-                    error!("Failed to get executable directory:{}", e);
-                    PathBuf::from("./")
-                })
+    } else {
+        match std::fs::File::open(&config_path) {
+            Ok(file) => {
+                use std::io::{BufRead, BufReader};
+                let reader = BufReader::new(file);
+                if let Some(Ok(first_line)) = reader.lines().next() {
+                    if !first_line.is_empty() {
+                        data_dir = PathBuf::from(first_line);
+                        info!("read data_dir from config file: {}", data_dir.display());
+                    } else {
+                        warn!("Empty line in data path record, using default directory");
+                    }
+                } else {
+                    error!("Failed to read data path record: empty line");
+                }
+            }
+            Err(e) => {
+                error!("Failed to read data path record: {}", e);
+            }
         }
-    };
+    }
     info!("data_dir: {}", data_dir.display());
-    // Check if the directory is writable
-    let test_file = data_dir.join(".write_test");
-    match std::fs::write(&test_file, "test") {
-        Ok(_) => {
-            // If writable, clean up test file and use this directory
-            let _ = std::fs::remove_file(&test_file);
-        }
-        Err(e) => {
-            // If cannot write, switch to user data directory
-            error!(
-                "Failed to write test file: {}, error: {}",
-                test_file.display(),
-                e
-            );
-            warn!("Cannot write to program directory, switching to user data directory");
-            data_dir = app
-                .path()
-                .data_dir()
-                .unwrap_or_else(|error| {
-                    error!("Failed to get user data directory:{}", error);
-                    PathBuf::from("./")
-                })
-                .join(env!("CARGO_PKG_NAME"));
-        }
+    #[cfg(debug_assertions)]
+    {
+        data_dir = env::current_dir()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(|e| {
+                error!("Failed to get current directory: {}", e);
+                PathBuf::from("./")
+            });
+        info!(
+            "Debug mode: using current directory as data directory: {}",
+            data_dir.display()
+        );
     }
     let app_data_path = data_dir.to_string_lossy().into_owned();
     info!("App data directory: {}", app_data_path);

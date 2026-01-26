@@ -4,7 +4,7 @@ import { useWindowSize } from '@vueuse/core'
 import FileSelector from './FileSelector.vue'
 import FileWatcher from './FileWatcher.vue'
 import { getTaskColumns } from './columns'
-import type { PaginationInfo } from 'naive-ui'
+import type { PaginationInfo, DataTableSortState } from 'naive-ui'
 import { t } from '@/locales'
 
 const { height } = useWindowSize()
@@ -31,9 +31,9 @@ async function handleTaskPageChange(currentPage: number) {
   loadIndexingTask()
 }
 
-async function loadIndexingTask() {
+async function loadIndexingTask(columnKey: string = 'id', sortOrder: string = 'descend') {
   const { page, pageSize } = taskPageReactive
-  const rows = await invoke<IndexingTask[]>('load_indexing_tasks', { page, pageSize })
+  const rows = await invoke<IndexingTask[]>('load_indexing_tasks', { page, pageSize, columnKey, sortOrder: sortOrder === 'ascend' ? 'asc' : 'desc' })
   tasks.value = rows
   if (taskPageReactive.page === 1 || taskPageReactive.itemCount === 0) {
     const total = await invoke<number>('count_indexing_tasks')
@@ -50,6 +50,13 @@ function indexingFinish() {
 //   console.log(`Window size: ${newWidth}x${newHeight}`)
 // })
 
+function handleSorterChange(sorter: DataTableSortState) {
+  console.log('sorter', sorter)
+  if (sorter.columnKey) {
+    loadIndexingTask(sorter.columnKey as string, sorter.order as string)
+  }
+}
+
 onMounted(() => {
   loadIndexingTask()
 })
@@ -58,7 +65,7 @@ onMounted(() => {
 <template>
   <div class="h-full m-auto p-4">
     <NCard :title="t('indexer.indexer')" class="mb-2">
-      <FileSelector @indexing-finish="indexingFinish" />
+      <FileSelector @indexing-finish="indexingFinish" @indexing-stop="indexingFinish" />
       <div class="flex justify-end mt-4">
         <NButton type="primary" text @click="showTasks = true">
           <span class="hover:underline">{{ t('indexer.indexingTaskHistory') }}</span>
@@ -68,8 +75,9 @@ onMounted(() => {
     <FileWatcher />
     <NModal v-model:show="showTasks" preset="card" :title="t('indexer.indexingTaskHistory')"
       style="width: 80%; height:80%; max-width: 1200px;">
-      <NDataTable remote :columns="taskColumns" :data="tasks" :pagination="taskPageReactive" :bordered="true" striped
-        scroll-x="1300" :max-height="height - 250" @update:page="handleTaskPageChange" />
+      <NDataTable remote @update:sorter="handleSorterChange" :columns="taskColumns" :data="tasks"
+        :pagination="taskPageReactive" :bordered="true" striped scroll-x="1300" :max-height="height - 250"
+        @update:page="handleTaskPageChange" />
     </NModal>
   </div>
 </template>

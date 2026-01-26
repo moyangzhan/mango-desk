@@ -5,8 +5,10 @@ import { openPath } from '@tauri-apps/plugin-opener'
 import { useWindowSize } from '@vueuse/core'
 import { getFileColumns } from './columns'
 import type { PaginationInfo } from 'naive-ui'
+import { useIndexerStore } from '@/stores/indexer'
 import { t } from '@/locales'
 
+const indexerStore = useIndexerStore()
 const { height } = useWindowSize()
 const page = ref(1)
 const pageSize = ref(20)
@@ -55,6 +57,12 @@ async function loadFiles() {
     paginationReactive.itemCount = total
   }
 }
+
+watch(() => indexerStore.indexProcessing, (newVal) => {
+  if (!newVal) {
+    handlePageChange(1)
+  }
+})
 
 onMounted(() => {
   page.value = 1

@@ -4,13 +4,17 @@ import { open } from '@tauri-apps/plugin-dialog'
 import { TauriEvent, listen } from '@tauri-apps/api/event'
 import { Channel, invoke } from '@tauri-apps/api/core'
 import type { Event } from '@tauri-apps/api/event'
+import { useIndexerStore } from '@/stores/indexer'
 import router from '@/router'
 import { t } from '@/locales'
 
 const emit = defineEmits<Emit>()
 interface Emit {
   (ev: 'indexingFinish'): void
+  (ev: 'indexingStop'): void
 }
+
+const indexerStore = useIndexerStore()
 const isDragOver = ref(false)
 const selectedList = ref<SelectedItem[]>([])
 const message = useMessage()
@@ -140,6 +144,7 @@ async function startIndexing() {
       switch (eventObj.event) {
         case 'start':
           indexProcessing.value = true
+          indexerStore.setIndexProcessing(indexProcessing.value)
           break
         case 'scan':
           break
@@ -148,11 +153,15 @@ async function startIndexing() {
         case 'finish':
           emit('indexingFinish')
           indexProcessing.value = false
+          indexerStore.setIndexProcessing(indexProcessing.value)
           selectedList.value.forEach(item => {
             item.done = true
           })
           break
         case 'stop':
+          emit('indexingStop')
+          indexProcessing.value = false
+          indexerStore.setIndexProcessing(indexProcessing.value)
           break
       }
     }
@@ -163,8 +172,10 @@ async function startIndexing() {
     if (!res.success && res.message) {
       indexingTitle.value = 'ERROR'
       indexingMsg.value = res.message
-      if (res.code === 2)
+      if (res.code === 2) {
         indexProcessing.value = true
+        indexerStore.setIndexProcessing(indexProcessing.value)
+      }
     }
   } catch (e: any) {
     console.log(e)
@@ -188,6 +199,7 @@ async function stopIndexing() {
     console.log(e)
   } finally {
     indexProcessing.value = false
+    indexerStore.setIndexProcessing(indexProcessing.value)
   }
 }
 </script>
@@ -256,7 +268,7 @@ async function stopIndexing() {
                 <span class="truncate max-w-xs" :title="item.name">{{ item.name }}</span>
               </div>
             </div>
-            <NButton quaternary type="error" size="small" @click="removePath(item.id)">
+            <NButton v-if="!indexProcessing" quaternary type="error" size="small" @click="removePath(item.id)">
               <template #icon>
                 <DeleteOutlined />
               </template>

@@ -426,7 +426,7 @@ onMounted(async () => {
         <NAlert v-if="embeddingModelChanged" type="warning" closable @close="closeEmbeddingChangedTip">
           {{ t('indexer.embeddingModelChangedTip') }}
         </NAlert>
-        <div v-if="
+        <div v-show="
           indexerStore.indexerSetting.file_content_language === 'multilingual'
           && !embeddingModels.get('paraphrase-multilingual-MiniLM-L12-v2')
         " class="flex flex-col space-y-2">

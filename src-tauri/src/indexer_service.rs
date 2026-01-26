@@ -42,7 +42,7 @@ pub async fn update_indexer_setting(indexer_setting: IndexerSetting) -> Result<u
 }
 
 pub async fn is_embedding_model_changed() -> Result<bool, String> {
-    let tasks = indexing_task_repo::list(1, 1);
+    let tasks = indexing_task_repo::list(1, 1, "id", "desc");
     if tasks.is_err() {
         return Ok(false);
     }
