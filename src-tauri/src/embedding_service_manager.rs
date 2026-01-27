@@ -5,8 +5,7 @@ use std::time::Instant;
 use tokio::sync::RwLock as AsyncRwLock;
 use tokio::time::Duration;
 
-static EMBEDDING_SERVICE_MANAGER: OnceLock<AsyncRwLock<EmbeddingServiceManager>> =
-    OnceLock::new();
+static EMBEDDING_SERVICE_MANAGER: OnceLock<AsyncRwLock<EmbeddingServiceManager>> = OnceLock::new();
 pub static SERVICE_DURATION: Duration = Duration::from_secs(60 * 30);
 
 pub fn get_manager() -> &'static AsyncRwLock<EmbeddingServiceManager> {

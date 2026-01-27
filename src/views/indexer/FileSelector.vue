@@ -90,6 +90,7 @@ function removePath(id: string) {
 
 function clearAllPaths() {
   selectedList.value = []
+  indexingMsg.value = ''
 }
 
 listen(TauriEvent.DRAG_DROP, async (e: Event<DragPayload>) => {
@@ -253,7 +254,7 @@ async function stopIndexing() {
         <NListItem>
           <div class="flex items-center px-2 py-1">
             <div class="flex-1 flex">
-              <div class="mr-2 w-[20px] items-center flex"
+              <div class="mr-2 w-5 items-center flex"
                 :class="item.done ? 'text-green-500' : 'text-gray-300 dark:text-gray-800'">
                 <NIcon :size="20">
                   <DoneOutlineRound />
@@ -265,7 +266,7 @@ async function stopIndexing() {
                   <FolderOutlined v-if="item.type === 'directory'" />
                   <AttachFileOutlined v-else />
                 </NIcon>
-                <span class="truncate max-w-xs" :title="item.name">{{ item.name }}</span>
+                <span class="truncate" :title="item.name">{{ item.name }}</span>
               </div>
             </div>
             <NButton v-if="!indexProcessing" quaternary type="error" size="small" @click="removePath(item.id)">
@@ -304,7 +305,7 @@ async function stopIndexing() {
       </NPopconfirm>
     </div>
 
-    <NAlert v-if="indexingMsg" type="info" class="mt-4" :title="indexingTitle">
+    <NAlert v-if="indexingMsg" type="info" class="mt-4" :title="indexingTitle" closable @close="indexingMsg = ''">
       {{ indexingMsg }}
     </NAlert>
   </div>

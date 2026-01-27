@@ -5,7 +5,7 @@ use crate::enums::{DownloadEvent, IndexingEvent, Locale, ModelPlatformName};
 use crate::errors::AppError;
 use crate::fs_watcher::watcher;
 use crate::global::{
-    ACTIVE_LOCALE, ACTIVE_MODEL_PLATFORM, APP_DIR, CLIENT_ID, CONFIG_NAME_INDEXER_SETTING,
+    ACTIVE_LOCALE, ACTIVE_MODEL_PLATFORM, APP_DATA_PATH, CLIENT_ID, CONFIG_NAME_INDEXER_SETTING,
     CONFIG_NAME_PROXY, INDEXING, SCANNING, STOP_INDEX_SIGNAL, UI_MOUNTED,
 };
 use crate::indexer_service;
@@ -322,8 +322,18 @@ pub async fn read_file_data(path: String) -> Result<Vec<u8>, String> {
 }
 
 #[command]
-pub async fn get_app_dir() -> Result<String, String> {
-    Ok(APP_DIR.get().unwrap_or(&String::new()).to_string())
+pub async fn get_data_path() -> Result<String, String> {
+    Ok(APP_DATA_PATH.read().await.to_string())
+}
+
+#[command]
+pub async fn set_data_path(path: String, force: bool, app: AppHandle) -> Result<String, String> {
+    app_util::set_data_path(&path, force, &app).await
+}
+
+#[command]
+pub async fn reset_data_path(force: bool, app: AppHandle) -> Result<String, String> {
+    app_util::reset_data_path(force, &app).await
 }
 
 #[command]

@@ -1,5 +1,5 @@
-use crate::global::{CLIENT_ID, DB_VERSION};
-use crate::utils::app_util::{get_db_path};
+use crate::global::DB_VERSION;
+use crate::utils::app_util::get_db_path;
 use anyhow::Result;
 use log::{error, info};
 use rusqlite::Connection;

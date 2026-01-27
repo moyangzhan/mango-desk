@@ -6,6 +6,7 @@ use crate::utils::datetime_util;
 use chrono::{DateTime, Local};
 use md5::{Digest, Md5};
 use std::path::Path;
+use std::path::PathBuf;
 use tokio::io::AsyncReadExt;
 
 pub fn list_files_by_directory(scan_dir: &str) -> Result<(), Box<dyn std::error::Error>> {
@@ -181,4 +182,12 @@ pub fn get_name_ext(path: &str) -> (String, String) {
         .to_string();
 
     (file_name, file_ext)
+}
+
+pub fn copy_file(src: &PathBuf, dest: &PathBuf) -> anyhow::Result<()> {
+    if let Some(parent) = dest.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::copy(src, dest)?;
+    Ok(())
 }

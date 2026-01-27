@@ -8,5 +8,5 @@ pub struct SearchResult {
     pub source: SearchSource,
     pub file_info: FileInfo,
     pub matched_keywords: Vec<String>, // For path search
-    pub matched_chunk_ids: Vec<i64>, // For semantic search
+    pub matched_chunk_ids: Vec<i64>,   // For semantic search
 }

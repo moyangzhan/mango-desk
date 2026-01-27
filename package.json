@@ -17,6 +17,7 @@
     "@tauri-apps/api": "^2.9.0",
     "@tauri-apps/plugin-dialog": "~2",
     "@tauri-apps/plugin-opener": "^2.5.2",
+    "@tauri-apps/plugin-process": "~2.3.1",
     "@vicons/ionicons5": "^0.13.0",
     "@vicons/material": "^0.13.0",
     "@vue/shared": "^3.5.14",

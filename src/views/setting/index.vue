@@ -31,7 +31,7 @@ onMounted(async () => {
   <div class="h-full mx-auto">
     <NTabs :value="activeTab" type="line" size="large" :tabs-padding="20"
       pane-style=" height: 100%; overflow-y: auto;padding: 20px;" style="height: 100%;" @update:value="onUpdateTab">
-      <NTabPane name="common" :tab="t('common.commonSetting')">
+      <NTabPane name="common" display-directive="show" :tab="t('common.commonSetting')">
         <CommonSetting />
       </NTabPane>
       <NTabPane name="indexer" display-directive="show" :tab="t('indexer.setting')">

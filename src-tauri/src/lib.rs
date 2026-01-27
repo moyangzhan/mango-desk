@@ -24,13 +24,13 @@ mod utils;
 use crate::global::UI_MOUNTED;
 use crate::lib_commands::{
     add_watch_path, check_path_type, clear_index, count_files, count_indexing_tasks,
-    delete_index_item, delete_indexing_task, download_multilingual_model, get_app_dir,
-    get_client_id, is_embedding_model_changed, load_active_locale, load_active_platform,
-    load_config_value, load_embedding_models, load_file_detail, load_files, load_indexer_setting,
-    load_indexing_tasks, load_model_by_type, load_model_platforms, load_proxy_info, load_chunks,
-    path_search, quick_search, read_file_data, remove_watch_path, search, semantic_search,
-    set_active_locale, set_active_platform, start_indexing, stop_indexing, ui_mounted,
-    update_indexer_setting, update_model_platform, update_proxy_info,
+    delete_index_item, delete_indexing_task, download_multilingual_model, get_client_id,
+    get_data_path, is_embedding_model_changed, load_active_locale, load_active_platform,
+    load_chunks, load_config_value, load_embedding_models, load_file_detail, load_files,
+    load_indexer_setting, load_indexing_tasks, load_model_by_type, load_model_platforms,
+    load_proxy_info, path_search, quick_search, read_file_data, remove_watch_path, reset_data_path,
+    search, semantic_search, set_active_locale, set_active_platform, set_data_path, start_indexing,
+    stop_indexing, ui_mounted, update_indexer_setting, update_model_platform, update_proxy_info,
 };
 use crate::repositories::file_content_embedding_repo;
 use crate::utils::app_util;
@@ -61,7 +61,7 @@ pub fn run() {
         error!("{}", message);
         //TODO add file logger
     }));
-    let mut builder = tauri::Builder::default();
+    let mut builder = tauri::Builder::default().plugin(tauri_plugin_process::init());
     let log_path = {
         #[cfg(debug_assertions)]
         {
@@ -139,7 +139,9 @@ pub fn run() {
             read_file_data,
             ui_mounted,
             is_embedding_model_changed,
-            get_app_dir,
+            get_data_path,
+            set_data_path,
+            reset_data_path,
             add_watch_path,
             remove_watch_path,
             path_search,
@@ -148,9 +150,9 @@ pub fn run() {
         ])
         .setup(|app| {
             let app_handle = app.handle();
-            app_util::init_paths(app_handle);
             let rt = tokio::runtime::Runtime::new().unwrap();
             rt.block_on(async {
+                app_util::init_paths(app_handle).await;
                 initializer::process().await;
             });
             let menu = app_util::create_tray_menu(app_handle)?;

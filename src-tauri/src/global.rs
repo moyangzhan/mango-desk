@@ -43,12 +43,13 @@ pub const CONFIG_NAME_INDEXER_SETTING: &'static str = "indexer_setting";
 pub const CONFIG_NAME_WATCHER_SETTING: &'static str = "fs_watcher_setting";
 pub const CONFIG_NAME_ACTIVE_LOCALE: &'static str = "active_locale";
 
+pub static APP_DATA_PATH: LazyLock<AsyncRwLock<String>> =
+    LazyLock::new(|| AsyncRwLock::new("".to_string()));
 pub static ONNX_EXEC_PROVIDERS_INITIALIZED: OnceLock<bool> = OnceLock::new();
-pub static APP_DIR: OnceLock<String> = OnceLock::new();
+pub static HOME_PATH: OnceLock<String> = OnceLock::new();
 pub static STORAGE_PATH: OnceLock<String> = OnceLock::new();
 pub static DB_PATH: OnceLock<String> = OnceLock::new();
-pub static ASSETS_PATH: OnceLock<String> = OnceLock::new();
-pub static TMP_DOWNLOAD_PATH: OnceLock<String> = OnceLock::new();
+pub static TMP_PATH: OnceLock<String> = OnceLock::new();
 pub static EXIT_APP_SIGNAL: AtomicBool = AtomicBool::new(false);
 pub static ACTIVE_MODEL_PLATFORM: LazyLock<AsyncRwLock<ModelPlatform>> =
     LazyLock::new(|| AsyncRwLock::new(ModelPlatform::default()));
