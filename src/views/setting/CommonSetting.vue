@@ -3,13 +3,18 @@ import { invoke } from '@tauri-apps/api/core'
 import { useAppStore } from '@/stores/app'
 import { setLocale, t } from '@/locales'
 import { emptyProxyInfo } from '@/utils/functions'
+import { open } from '@tauri-apps/plugin-dialog'
+import { relaunch } from '@tauri-apps/plugin-process';
 
+const dataPath = ref('')
 const appStore = useAppStore()
 const activePlatform = ref('openai')
 const activeTheme = ref(appStore.getTheme)
 const activeLanguage = ref('en-US')
 const activeTab = ref('openai')
 const proxy = ref<ProxyInfo>(emptyProxyInfo())
+const needRestart = ref(false)
+const dataCopying = ref(false)
 
 function handleLanguageChanged(newLang: string) {
   console.log('languageChange', newLang)
@@ -34,6 +39,98 @@ function handleSaveProxy() {
   })
 }
 
+async function openDirDialog() {
+  // Replace browser's native input with Tauri dialog
+  // This prevents the default file upload confirmation dialog such as ("Do you want to upload [number] files to this site?")
+  const paths = await open({ directory: true, multiple: false })
+  if (Array.isArray(paths)) {
+    console.log('openDirDialog', paths)
+    return;
+  }
+  let res = await invoke<string>('set_data_path', { path: paths, force: false })
+  if (res.indexOf('exist') === 0) {
+    let existPath = res.split(':')[1]
+    window.$dialog.warning({
+      title: t('common.warning'),
+      content: t('common.existFile') + ': ' + existPath + t('common.forceChange'),
+      positiveText: t('common.confirm'),
+      onPositiveClick: async () => {
+        dataCopying.value = true
+        try {
+          res = await invoke<string>('set_data_path', { path: paths, force: true })
+          if (res.indexOf('success') === 0) {
+            const userDataPath = await invoke<string>('get_data_path')
+            dataPath.value = userDataPath
+            window.$message.success(t('common.restartAppForChange'))
+            needRestart.value = true
+          } else {
+            window.$message.error(res)
+          }
+        } catch (err) {
+          console.error('set_data_path error', err)
+        } finally {
+          dataCopying.value = false
+        }
+      },
+    })
+    return;
+  } else if (res.indexOf('same') === 0) {
+    window.$message.error(t('common.changeSamePathError'))
+    return;
+  }
+
+  const userDataPath = await invoke<string>('get_data_path')
+  dataPath.value = userDataPath
+  window.$message.success(t('common.restartAppForChange'))
+  needRestart.value = true
+}
+
+async function resetDataPath() {
+  let res = await invoke<string>('reset_data_path', { force: false })
+  if (res.indexOf('exist') === 0) {
+    let existPath = res.split(':')[1]
+    window.$dialog.warning({
+      title: t('common.warning'),
+      content: t('common.existFile') + ': ' + existPath + t('common.forceChange'),
+      positiveText: t('common.confirm'),
+      onPositiveClick: async () => {
+        dataCopying.value = true
+        try {
+          res = await invoke<string>('reset_data_path', { force: true })
+          if (res.indexOf('success') === 0) {
+            const userDataPath = await invoke<string>('get_data_path')
+            dataPath.value = userDataPath
+            window.$message.success(t('common.restartAppForChange'))
+            needRestart.value = true
+          } else {
+            window.$message.error(res)
+          }
+        } catch (err) {
+          console.log(err)
+        } finally {
+          dataCopying.value = false
+        }
+      }
+    })
+    return;
+  } else if (res.indexOf('same') === 0) {
+    window.$message.error(t('common.changeSamePathError'))
+    return;
+  }
+  const userDataPath = await invoke<string>('get_data_path')
+  dataPath.value = userDataPath
+  window.$message.success(t('common.restartAppForChange'))
+  needRestart.value = true
+}
+
+async function restart() {
+  try {
+    await relaunch();
+  } catch (e) {
+    console.error('relaunch failed', e);
+  }
+}
+
 onMounted(async () => {
   console.log('common setting onMounted')
   const activePlatformName = await invoke('load_active_platform')
@@ -45,6 +142,8 @@ onMounted(async () => {
   activeLanguage.value = activeLocale as string
   const proxyInfo = await invoke('load_proxy_info')
   proxy.value = proxyInfo as ProxyInfo
+  const userDataPath = await invoke<string>('get_data_path')
+  dataPath.value = userDataPath
 })
 </script>
 
@@ -70,6 +169,25 @@ onMounted(async () => {
             <NRadio :label="`🌙${t('common.dark')}`" value="dark" />
           </NRadioGroup>
         </NFormItem>
+      </div>
+    </NCard>
+    <NCard :title="t('common.storage')" class="mb-4" size="small" :bordered="true">
+      <div class="flex flex-col space-y-2">
+        <div>{{ t('indexer.dataPath') }}: {{ dataPath }}</div>
+        <NAlert v-if="needRestart" type="warning">{{ t('common.restartAppForChange') }}
+          <NButton type="primary" text @click="restart">{{
+            t('common.clickToRestart') }}</NButton>
+        </NAlert>
+        <div class="flex space-x-2">
+          <div class="mr-2">
+            <NButton @click="openDirDialog" :disabled="dataCopying" :loading="dataCopying">
+              <span>{{ t('common.change') }}</span>
+            </NButton>
+          </div>
+          <NButton @click="resetDataPath" :disabled="dataCopying" :loading="dataCopying">
+            {{ t('common.reset') }}
+          </NButton>
+        </div>
       </div>
     </NCard>
     <NCard :title="t('proxy.setting')" class="mb-4" size="small" :bordered="true">

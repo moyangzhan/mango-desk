@@ -15,8 +15,9 @@ export const getTaskColumns = (deleteFn: (id: number) => void) => {
     {
       title: 'ID',
       key: 'id',
-      width: 50,
+      width: 60,
       fixed: 'left' as const,
+      sorter: true,
     },
     {
       title: () => t('common.path'),
@@ -41,36 +42,43 @@ export const getTaskColumns = (deleteFn: (id: number) => void) => {
       title: () => t('common.durationInSeconds'),
       key: 'duration',
       width: 120,
+      sorter: true,
     },
     {
       title: () => t('common.total'),
       key: 'total_cnt',
       width: 80,
+      sorter: true,
     },
     {
       title: () => t('common.processed'),
       key: 'content_processed_cnt',
       width: 100,
+      sorter: true,
     },
     {
       title: () => t('common.success'),
       key: 'content_indexed_success_cnt',
       width: 80,
+      sorter: true,
     },
     {
       title: () => t('common.failed'),
       key: 'content_indexed_failed_cnt',
       width: 80,
+      sorter: true,
     },
     {
       title: () => t('common.skipped'),
       key: 'content_indexed_skipped_cnt',
       width: 80,
+      sorter: true,
     },
     {
       title: () => t('common.createTime'),
       key: 'create_time',
       width: 120,
+      sorter: true,
     },
     {
       title: () => t('common.action'),

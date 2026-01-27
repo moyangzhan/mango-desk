@@ -23,11 +23,7 @@ pub async fn process() {
         .unwrap_or_else(|e| error!("db init error: {e:?}"));
 
     // Initialize the client_id
-    init_string_setting(
-        CONFIG_NAME_CLIENT_ID,
-        &CLIENT_ID,
-    )
-    .await;
+    init_string_setting(CONFIG_NAME_CLIENT_ID, &CLIENT_ID).await;
 
     init_setting(
         CONFIG_NAME_PROXY,

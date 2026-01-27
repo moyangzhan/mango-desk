@@ -138,10 +138,20 @@ pub fn get(id: i64) -> Result<IndexingTask, RepositoryError> {
     Ok(entity)
 }
 
-pub fn list(page: i64, page_size: i64) -> Result<Vec<IndexingTask>, RepositoryError> {
+pub fn list(
+    page: i64,
+    page_size: i64,
+    column_key: &str,
+    sort_order: &str,
+) -> Result<Vec<IndexingTask>, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
-    let mut stmt =
-        conn.prepare("select * from indexing_task order by id desc limit :limit offset :offset")?;
+    let mut stmt = conn.prepare(
+        format!(
+            "select * from indexing_task order by {} {} limit :limit offset :offset",
+            column_key, sort_order
+        )
+        .as_str(),
+    )?;
     let rows = stmt.query_map(
         named_params! {
             ":offset": (page -1)*page_size,

@@ -4,13 +4,17 @@ import { open } from '@tauri-apps/plugin-dialog'
 import { TauriEvent, listen } from '@tauri-apps/api/event'
 import { Channel, invoke } from '@tauri-apps/api/core'
 import type { Event } from '@tauri-apps/api/event'
+import { useIndexerStore } from '@/stores/indexer'
 import router from '@/router'
 import { t } from '@/locales'
 
 const emit = defineEmits<Emit>()
 interface Emit {
   (ev: 'indexingFinish'): void
+  (ev: 'indexingStop'): void
 }
+
+const indexerStore = useIndexerStore()
 const isDragOver = ref(false)
 const selectedList = ref<SelectedItem[]>([])
 const message = useMessage()
@@ -86,6 +90,7 @@ function removePath(id: string) {
 
 function clearAllPaths() {
   selectedList.value = []
+  indexingMsg.value = ''
 }
 
 listen(TauriEvent.DRAG_DROP, async (e: Event<DragPayload>) => {
@@ -140,6 +145,7 @@ async function startIndexing() {
       switch (eventObj.event) {
         case 'start':
           indexProcessing.value = true
+          indexerStore.setIndexProcessing(indexProcessing.value)
           break
         case 'scan':
           break
@@ -148,11 +154,15 @@ async function startIndexing() {
         case 'finish':
           emit('indexingFinish')
           indexProcessing.value = false
+          indexerStore.setIndexProcessing(indexProcessing.value)
           selectedList.value.forEach(item => {
             item.done = true
           })
           break
         case 'stop':
+          emit('indexingStop')
+          indexProcessing.value = false
+          indexerStore.setIndexProcessing(indexProcessing.value)
           break
       }
     }
@@ -163,8 +173,10 @@ async function startIndexing() {
     if (!res.success && res.message) {
       indexingTitle.value = 'ERROR'
       indexingMsg.value = res.message
-      if (res.code === 2)
+      if (res.code === 2) {
         indexProcessing.value = true
+        indexerStore.setIndexProcessing(indexProcessing.value)
+      }
     }
   } catch (e: any) {
     console.log(e)
@@ -188,6 +200,7 @@ async function stopIndexing() {
     console.log(e)
   } finally {
     indexProcessing.value = false
+    indexerStore.setIndexProcessing(indexProcessing.value)
   }
 }
 </script>
@@ -241,7 +254,7 @@ async function stopIndexing() {
         <NListItem>
           <div class="flex items-center px-2 py-1">
             <div class="flex-1 flex">
-              <div class="mr-2 w-[20px] items-center flex"
+              <div class="mr-2 w-5 items-center flex"
                 :class="item.done ? 'text-green-500' : 'text-gray-300 dark:text-gray-800'">
                 <NIcon :size="20">
                   <DoneOutlineRound />
@@ -253,10 +266,10 @@ async function stopIndexing() {
                   <FolderOutlined v-if="item.type === 'directory'" />
                   <AttachFileOutlined v-else />
                 </NIcon>
-                <span class="truncate max-w-xs" :title="item.name">{{ item.name }}</span>
+                <span class="truncate" :title="item.name">{{ item.name }}</span>
               </div>
             </div>
-            <NButton quaternary type="error" size="small" @click="removePath(item.id)">
+            <NButton v-if="!indexProcessing" quaternary type="error" size="small" @click="removePath(item.id)">
               <template #icon>
                 <DeleteOutlined />
               </template>
@@ -292,7 +305,7 @@ async function stopIndexing() {
       </NPopconfirm>
     </div>
 
-    <NAlert v-if="indexingMsg" type="info" class="mt-4" :title="indexingTitle">
+    <NAlert v-if="indexingMsg" type="info" class="mt-4" :title="indexingTitle" closable @close="indexingMsg = ''">
       {{ indexingMsg }}
     </NAlert>
   </div>

@@ -20,10 +20,7 @@ pub fn get_one(platform: &str, name: &str) -> Result<Option<AiModel>, Repository
     return Ok(one);
 }
 
-pub fn get_one_by_type(
-    platform: &str,
-    one_type: &str,
-) -> Result<Option<AiModel>, RepositoryError> {
+pub fn get_one_by_type(platform: &str, one_type: &str) -> Result<Option<AiModel>, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
     let mut stmt = conn.prepare(
         "select * from ai_model where model_types like '%' || :one_type || '%' and platform=:platform and is_enable=1 limit 1",

@@ -392,11 +392,11 @@ onMounted(async () => {
     embeddingModelChanged.value = await invoke<boolean>(
       'is_embedding_model_changed',
     )
-    const homePath = await invoke<string>('get_app_dir')
-    console.log('homePath', homePath)
-    modelPath.value = await join(homePath, 'assets', 'model')
+    const userDataPath = await invoke<string>('get_data_path')
+    console.log('userDataPath', userDataPath)
+    modelPath.value = await join(userDataPath, 'model')
     console.log('modelPath', modelPath.value)
-    dbPath.value = await join(homePath, 'storage')
+    dbPath.value = await join(userDataPath, 'storage')
     await loadEmbeddingModels()
     activeTab.value = activePlatform.value
     initStatusData()
@@ -426,7 +426,7 @@ onMounted(async () => {
         <NAlert v-if="embeddingModelChanged" type="warning" closable @close="closeEmbeddingChangedTip">
           {{ t('indexer.embeddingModelChangedTip') }}
         </NAlert>
-        <div v-if="
+        <div v-show="
           indexerStore.indexerSetting.file_content_language === 'multilingual'
           && !embeddingModels.get('paraphrase-multilingual-MiniLM-L12-v2')
         " class="flex flex-col space-y-2">
@@ -536,7 +536,6 @@ onMounted(async () => {
     </NCard>
     <NCard :title="t('common.storage')" class="mb-4 px-0" size="small" :bordered="true" hoverable>
       <div class="flex flex-col">
-        <div class="mb-2">{{ t('indexer.dataPath') }}: {{ dbPath }}</div>
         <NAlert :show-icon="false">
           <div>
             {{ t('indexer.saveParsedContentTip') }}
