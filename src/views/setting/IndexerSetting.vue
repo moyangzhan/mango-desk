@@ -5,6 +5,7 @@ import { join } from '@tauri-apps/api/path'
 import type { DataTableColumns, ProgressStatus } from 'naive-ui'
 import ModelPlatformEdit from './ModelPlatformEdit.vue'
 import { useIndexerStore } from '@/stores/indexer'
+import { useAppStore } from '@/stores/app'
 import { t } from '@/locales'
 import { emptyDownloadState } from '@/utils/functions'
 type DownloadEvent =
@@ -45,6 +46,7 @@ interface RowData {
 }
 
 const indexerStore = useIndexerStore()
+const appStore = useAppStore()
 const activePlatform = ref('openai')
 const activeTab = ref('openai')
 const modelPlatformList = ref<ModelPlatform[]>([])
@@ -166,7 +168,7 @@ async function initStatusData() {
   ]
 }
 
-const columns: DataTableColumns<RowData> = [
+const columns = computed<DataTableColumns<RowData>>(() => [
   {
     title: t('common.setting'),
     key: 'name',
@@ -234,7 +236,7 @@ const columns: DataTableColumns<RowData> = [
       }
     },
   },
-]
+]);
 
 async function doActivePlatformChanged(selectedName: string) {
   activePlatform.value = selectedName
@@ -377,6 +379,12 @@ function onModelPlatformSaved(updatedPlatform: ModelPlatform) {
   }
 }
 
+watch(() => appStore.locale, (newVal) => {
+  if (newVal) {
+    initStatusData()
+  }
+})
+
 onMounted(async () => {
   console.log('IndexerSetting onMounted')
   try {
@@ -426,10 +434,9 @@ onMounted(async () => {
         <NAlert v-if="embeddingModelChanged" type="warning" closable @close="closeEmbeddingChangedTip">
           {{ t('indexer.embeddingModelChangedTip') }}
         </NAlert>
-        <div v-show="
-          indexerStore.indexerSetting.file_content_language === 'multilingual'
+        <div v-show="indexerStore.indexerSetting.file_content_language === 'multilingual'
           && !embeddingModels.get('paraphrase-multilingual-MiniLM-L12-v2')
-        " class="flex flex-col space-y-2">
+          " class="flex flex-col space-y-2">
           <div class="flex flex-col space-y-2 justify-start items-start">
             <div v-html="$t('indexer.multilingualEmbeddingModeSettingTip')" />
             <NButton :type="downloadFailed ? 'error' : 'primary'" size="small" ghost tag="a" target="_blank"

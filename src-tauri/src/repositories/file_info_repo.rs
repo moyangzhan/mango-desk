@@ -242,7 +242,7 @@ pub fn count_unindexed_files(category: i64) -> Result<i64, RepositoryError> {
     Ok(count)
 }
 
-pub fn list_by_ids(ids: &[i64]) -> Result<Vec<FileInfo>, RepositoryError> {
+pub fn list_by_ids(ids: &Vec<i64>) -> Result<Vec<FileInfo>, RepositoryError> {
     let ids_str = ids
         .iter()
         .map(|id| id.to_string())

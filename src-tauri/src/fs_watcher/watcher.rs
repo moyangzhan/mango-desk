@@ -1,6 +1,9 @@
 use crate::enums::FsEvent;
 use crate::fs_watcher::fs_event_normalizer::FsEventNormalizer;
-use crate::global::{CONFIG_NAME_WATCHER_SETTING, EXIT_APP_SIGNAL, FS_WATCHER_SETTING};
+use crate::global::{
+    CONFIG_NAME_WATCHER_SETTING, EXIT_APP_SIGNAL, FS_WATCHER_SETTING, INCREMENT_WATCH_PATHS,
+    INDEXING_FROM_WATCHER,
+};
 use crate::indexer_service;
 use crate::repositories::{config_repo, file_info_repo};
 use crate::searcher::path_search_engine;
@@ -64,6 +67,7 @@ pub async fn add_path(path: &str) -> Result<()> {
     drop(guard);
     config_repo::update_by_name(CONFIG_NAME_WATCHER_SETTING, &json)?;
     watch_path(path).await?;
+    INCREMENT_WATCH_PATHS.write().await.insert(path.to_string());
     Ok(())
 }
 
@@ -78,6 +82,7 @@ pub async fn remove_path(path: &str) -> Result<()> {
     drop(guard);
     config_repo::update_by_name(CONFIG_NAME_WATCHER_SETTING, &json)?;
     unwatch_path(&path).await?;
+    INCREMENT_WATCH_PATHS.write().await.remove(path);
     Ok(())
 }
 
@@ -278,12 +283,15 @@ fn flush_pending(pending: &mut HashMap<PathBuf, FsEvent>) {
                     let count = file_info_repo::count_by_prefix_path(&from_path).unwrap_or(0);
                     if count == 0 {
                         tokio::task::spawn(async move {
-                            indexer_service::background_indexing(target_path.as_str())
-                                .await
-                                .unwrap_or_else(|error: String| {
-                                    log::error!("Failed to index new directory: {}", error);
-                                    false
-                                });
+                            indexer_service::start_indexing(
+                                vec![target_path],
+                                INDEXING_FROM_WATCHER,
+                            )
+                            .await
+                            .unwrap_or_else(|error: String| {
+                                log::error!("Failed to index new directory: {}", error);
+                                false
+                            });
                         });
                     } else {
                         file_info_repo::replace_directory_prefix_path(&from_path, &target_path)

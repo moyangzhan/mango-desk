@@ -22,20 +22,22 @@ export default {
     removeAll: 'Remove All',
     removeTip: 'Remove Action: Delete from index (file remains on disk)',
     add: 'Add',
+    semantic: 'Semantic',
+    keyword: 'Keyword',
     search: 'Search',
     searchTip: 'Sematic search or path search (start with "/")',
     semanticSearch: 'Sematic Search',
-    pathSearchTip: {
-      title: 'Path Search',
-      description: 'Start with "/" and use spaces for multiple keywords',
-      example: 'For example: "/plan 2026 Q1 Q2 Q3"'
+    keywordSearchTip: {
+      title: 'Keyword Search',
+      description: 'Use spaces to separate multiple keywords',
+      example: 'For example: "plan 2026 Q1 Q2 Q3"'
     },
     semanticSearchTip: {
-      title: 'Content Search',
+      title: 'Semantic Search',
       description: 'Find files by their content using natural language',
       example: 'e.g., "Project Launch Process" or "Precautions"'
     },
-    switchSearchMode: 'Toggle: Content Search ↔ Path Search',
+    switchSearchMode: 'Toggle: Semantic Search ↔ Keyword Search',
     reset: 'Reset',
     operation: 'Operation',
     enable: 'Enable',
@@ -216,6 +218,7 @@ export default {
     startIndexing: 'Start Indexing',
     stopIndexing: 'Stop Indexing',
     stopIndexingConfirm: 'Stop indexing?',
+    reindexing: 'Reindexing',
     indexingTaskHistory: 'Indexing History',
     indexingRecord: 'Indexing Record',
     indexedFiles: 'Indexed Files',

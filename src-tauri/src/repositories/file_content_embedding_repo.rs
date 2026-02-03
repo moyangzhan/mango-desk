@@ -122,9 +122,9 @@ pub fn list_chunks_by_ids(ids: &Vec<u32>) -> Result<Vec<String>, RepositoryError
         .iter()
         .map(|id| id.to_string())
         .collect::<Vec<_>>()
-        .join("','");
+        .join(",");
     let mut stmt = conn.prepare(&format!(
-        "select chunk_text from file_content_embedding where id in ('{}') order by chunk_index asc",
+        "select chunk_text from file_content_embedding where id in ({}) order by chunk_index asc",
         ids_str
     ))?;
     let rows = stmt.query_map((), |row| {

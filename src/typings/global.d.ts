@@ -132,8 +132,21 @@ interface WatchSetting {
 
 interface SearchResult {
   score: number,
-  source: string,
+  sources: string[],
   file_info: FileInfo,
   matched_keywords: string[],
   matched_chunk_ids: number[],
+}
+
+//  Start { task_id: i64 },
+//  Scan { task_id: i64, msg: String },
+//  Stop { task_id: i64, msg: String },
+//  Embed { task_id: i64, msg: String },
+//  Finish { task_id: i64, msg: String },
+interface IndexingEvent {
+  event: string
+  data: {
+    taskId: number
+    msg: string
+  }
 }

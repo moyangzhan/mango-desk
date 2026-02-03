@@ -21,16 +21,17 @@ mod traits;
 mod types;
 mod utils;
 
-use crate::global::UI_MOUNTED;
+use crate::global::{APP_HANDLE, UI_MOUNTED};
 use crate::lib_commands::{
     add_watch_path, check_path_type, clear_index, count_files, count_indexing_tasks,
     delete_index_item, delete_indexing_task, download_multilingual_model, get_client_id,
-    get_data_path, is_embedding_model_changed, load_active_locale, load_active_platform,
-    load_chunks, load_config_value, load_embedding_models, load_file_detail, load_files,
-    load_indexer_setting, load_indexing_tasks, load_model_by_type, load_model_platforms,
-    load_proxy_info, path_search, quick_search, read_file_data, remove_watch_path, reset_data_path,
-    search, semantic_search, set_active_locale, set_active_platform, set_data_path, start_indexing,
-    stop_indexing, ui_mounted, update_indexer_setting, update_model_platform, update_proxy_info,
+    get_data_path, indexing_watch_paths, is_embedding_model_changed, keyword_search,
+    load_active_locale, load_active_platform, load_chunks, load_config_value,
+    load_embedding_models, load_file_detail, load_files, load_indexer_setting, load_indexing_tasks,
+    load_model_by_type, load_model_platforms, load_proxy_info, quick_search, read_file_data,
+    remove_watch_path, reset_data_path, search, semantic_search, set_active_locale,
+    set_active_platform, set_data_path, start_indexing, stop_indexing, ui_mounted,
+    update_indexer_setting, update_model_platform, update_proxy_info,
 };
 use crate::repositories::file_content_embedding_repo;
 use crate::utils::app_util;
@@ -129,6 +130,7 @@ pub fn run() {
             update_indexer_setting,
             start_indexing,
             stop_indexing,
+            indexing_watch_paths,
             download_multilingual_model,
             check_path_type,
             delete_indexing_task,
@@ -144,11 +146,14 @@ pub fn run() {
             reset_data_path,
             add_watch_path,
             remove_watch_path,
-            path_search,
+            keyword_search,
             semantic_search,
             get_client_id,
         ])
         .setup(|app| {
+            APP_HANDLE.set(app.handle().clone()).unwrap_or_else(|_| {
+                error!("Failed to set APP_HANDLE");
+            });
             let app_handle = app.handle();
             let rt = tokio::runtime::Runtime::new().unwrap();
             rt.block_on(async {

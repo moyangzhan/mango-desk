@@ -5,11 +5,15 @@ export const useIndexerStore = defineStore('indexer-store', {
   state: () => ({
     indexerSetting: emptyIndexerSetting(),
     indexProcessing: false,
+    watcherProcessing: false,
   }),
   getters: {},
   actions: {
     setIndexerSetting(setting: IndexerSetting) {
       this.indexerSetting = setting
+    },
+    setWatcherProcessing(value: boolean) {
+      this.watcherProcessing = value
     },
     setDocumentParsedContent(value: boolean) {
       this.indexerSetting.save_parsed_content.document = value

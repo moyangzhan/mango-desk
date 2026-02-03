@@ -22,20 +22,22 @@ export default {
     removeAll: '移除所有',
     removeTip: '从索引文件列表中移除记录，不会删除磁盘中的文件',
     add: '添加',
+    semantic: '语义',
+    keyword: '关键词',
     search: '搜索',
-    searchTip: '语义搜索或路径搜索(以"/"开头)',
+    searchTip: '语义搜索或关键词搜索',
     semanticSearch: '语义搜索',
-    pathSearchTip: {
-      title: '按路径搜索',
-      description: '以 "/" 开头，用空格分隔多个关键词',
-      example: '例如: "/计划 2026 Q1 Q2 Q3"'
+    keywordSearchTip: {
+      title: '关键词搜索',
+      description: '用空格分隔多个关键词',
+      example: '例如: "计划 2026 Q1 Q2 Q3"'
     },
     semanticSearchTip: {
-      title: '按内容搜索',
-      description: '输入内容进行语义搜索',
+      title: '语义搜索',
+      description: '输入相近意思的内容进行搜索',
       example: '如："重大项目启动流程及注意事项"'
     },
-    switchSearchMode: '切换：内容搜索 ↔ 路径搜索',
+    switchSearchMode: '切换：语义搜索 ↔ 关键词搜索',
     reset: '重置',
     operation: '操作',
     enable: '启用',
@@ -209,6 +211,7 @@ export default {
     startIndexing: '开始索引',
     stopIndexing: '停止索引',
     stopIndexingConfirm: '确定要停止索引吗？',
+    reindexing: '重新索引',
     indexingTaskHistory: '索引历史',
     indexingRecord: '索引记录',
     indexedFiles: '已索引文件',

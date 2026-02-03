@@ -1,17 +1,18 @@
 use crate::embedding_service_manager::get_manager;
 use crate::entities::{FileInfo, IndexingTask, ModelPlatform};
 use crate::enums::CommandResultCode;
-use crate::enums::{DownloadEvent, IndexingEvent, Locale, ModelPlatformName};
+use crate::enums::{DownloadEvent, Locale, ModelPlatformName};
 use crate::errors::AppError;
 use crate::fs_watcher::watcher;
 use crate::global::{
     ACTIVE_LOCALE, ACTIVE_MODEL_PLATFORM, APP_DATA_PATH, CLIENT_ID, CONFIG_NAME_INDEXER_SETTING,
-    CONFIG_NAME_PROXY, INDEXING, SCANNING, STOP_INDEX_SIGNAL, UI_MOUNTED,
+    CONFIG_NAME_PROXY, FS_WATCHER_SETTING, INDEXING, INDEXING_FROM_WATCHER, SCANNING,
+    STOP_INDEX_SIGNAL, UI_MOUNTED,
 };
 use crate::indexer_service;
 use crate::model_platform_services::siliconflow::SiliconFlow;
 use crate::repositories::{
-    ai_model_repo, config_repo, file_content_embedding_repo, file_info_repo,
+    ai_model_repo, config_repo, file_content_embedding_repo, file_content_fts_repo, file_info_repo,
     file_metadata_embedding_repo, indexing_task_repo, model_platform_repo,
 };
 use crate::searcher;
@@ -165,10 +166,7 @@ pub async fn set_active_locale(app: AppHandle, locale: &str) -> Result<usize, St
 }
 
 #[command]
-pub async fn start_indexing(
-    paths: Vec<String>,
-    on_event: Channel<IndexingEvent>,
-) -> Result<CommandResult, String> {
+pub async fn start_indexing(paths: Vec<String>, from: &str) -> Result<CommandResult, String> {
     if paths.is_empty() {
         let result = CommandResult::error(
             CommandResultCode::INDEXING,
@@ -192,7 +190,7 @@ pub async fn start_indexing(
         );
         return Ok(result);
     }
-    let result = indexer_service::start_indexing(paths, on_event).await?;
+    let result = indexer_service::start_indexing(paths, from).await?;
     if result {
         return Ok(CommandResult::default());
     }
@@ -270,6 +268,7 @@ pub async fn load_file_detail(file_id: i64) -> Result<Option<FileInfo>, String> 
 
 #[command]
 pub async fn delete_index_item(file_id: i64) -> Result<(), String> {
+    file_content_fts_repo::delete_by_file_id(file_id)?;
     file_content_embedding_repo::delete_by_file_id(file_id)?;
     file_metadata_embedding_repo::delete_by_file_id(file_id)?;
     file_info_repo::delete_by_id(file_id)?;
@@ -278,6 +277,7 @@ pub async fn delete_index_item(file_id: i64) -> Result<(), String> {
 
 #[command]
 pub async fn clear_index() -> Result<(), String> {
+    file_content_fts_repo::clear()?;
     file_content_embedding_repo::clear()?;
     file_metadata_embedding_repo::clear()?;
     file_info_repo::clear()?;
@@ -305,8 +305,8 @@ pub async fn search(query: &str) -> Result<Vec<SearchResult>, String> {
 }
 
 #[command]
-pub async fn path_search(query: &str) -> Result<Vec<SearchResult>, String> {
-    let results = searcher::path_search(query).await;
+pub async fn keyword_search(query: &str) -> Result<Vec<SearchResult>, String> {
+    let results = searcher::keyword_search(query).await;
     Ok(results)
 }
 
@@ -394,6 +394,19 @@ pub async fn load_chunks(ids: Vec<u32>) -> Result<Vec<String>, String> {
     let segments =
         file_content_embedding_repo::list_chunks_by_ids(&ids).map_err(|e| e.to_string())?;
     Ok(segments)
+}
+
+#[command]
+pub async fn indexing_watch_paths() -> Result<(), String> {
+    let mut paths = vec![];
+    for path in FS_WATCHER_SETTING.read().await.directories.iter() {
+        paths.push(path.clone());
+    }
+    for path in FS_WATCHER_SETTING.read().await.files.iter() {
+        paths.push(path.clone());
+    }
+    start_indexing(paths, INDEXING_FROM_WATCHER).await?;
+    Ok(())
 }
 
 async fn chat() {

@@ -1,5 +1,6 @@
 use crate::entities::FileInfo;
 use crate::enums::{FileCategory, SearchSource};
+use crate::global::DEFAULT_PAGE_SIZE;
 use crate::global::{PATHS_CACHE, PATHS_CACHE_BUILD_TIME};
 use crate::repositories::file_info_repo;
 use crate::structs::search_result::SearchResult;
@@ -10,9 +11,10 @@ use chrono::Local;
 use rayon::prelude::*;
 use smallvec::SmallVec;
 use std::cmp::Ordering;
+use std::collections::HashSet;
 use std::time::{Duration, Instant};
 
-const LIMIT: usize = 20;
+/// Keyword-based exact match search for file paths
 pub async fn search(query: &str) -> Vec<SearchResult> {
     let start = Instant::now();
     let keywords: Vec<&str> = query.split_whitespace().collect();
@@ -20,9 +22,9 @@ pub async fn search(query: &str) -> Vec<SearchResult> {
         return vec![];
     };
     let take_num = if keywords.len() == 1 {
-        LIMIT
+        DEFAULT_PAGE_SIZE
     } else {
-        LIMIT * 10
+        DEFAULT_PAGE_SIZE * 10
     };
     let paths_cache = PATHS_CACHE.read().await;
     let mut result: Vec<SearchResult> = (*paths_cache)
@@ -63,9 +65,9 @@ pub async fn search(query: &str) -> Vec<SearchResult> {
                         ..Default::default()
                     },
                     score: matches.len() as f32,
-                    source: SearchSource::Path,
+                    sources: vec![SearchSource::PathKeyword],
                     matched_keywords: match_keywords,
-                    matched_chunk_ids: Vec::new(),
+                    matched_chunk_ids: HashSet::new(),
                 };
                 Some(result)
             }
@@ -78,7 +80,7 @@ pub async fn search(query: &str) -> Vec<SearchResult> {
             .unwrap_or(Ordering::Equal)
             .then_with(|| a.file_info.id.cmp(&b.file_info.id))
     });
-    result.truncate(LIMIT);
+    result.truncate(DEFAULT_PAGE_SIZE);
     println!("path search time: {:?}", start.elapsed());
     result
 }

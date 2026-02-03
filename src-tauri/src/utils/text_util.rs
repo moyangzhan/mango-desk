@@ -1,6 +1,6 @@
 use crate::global::{DOCUMENT_CHUNK_OVERLAP, DOCUMENT_CHUNK_SIZE};
 use std::error::Error;
-use text_splitter::{ChunkCapacity, ChunkConfig, TextSplitter};
+use text_splitter::{ChunkConfig, TextSplitter};
 use tokenizers::Tokenizer;
 
 pub fn collapse_newlines(s: &str) -> String {
@@ -34,13 +34,6 @@ pub fn collapse_newlines(s: &str) -> String {
 }
 
 pub fn split_text(text: &str, tokenizer: &Tokenizer) -> Result<Vec<String>, Box<dyn Error>> {
-    let chunk_capacity = ChunkCapacity::new(DOCUMENT_CHUNK_SIZE);
-    match chunk_capacity.with_max(DOCUMENT_CHUNK_SIZE * 5) {
-        Ok(_) => (),
-        Err(e) => {
-            println!("Error setting chunk capacity: {}", e);
-        }
-    }
     let config = ChunkConfig::new(DOCUMENT_CHUNK_SIZE)
         .with_sizer(&tokenizer)
         .with_overlap(DOCUMENT_CHUNK_OVERLAP)?;

@@ -3,6 +3,7 @@ use crate::structs::file_metadata::FileMetadata;
 use crate::utils::datetime_util;
 use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
@@ -209,4 +210,12 @@ impl Default for IndexingTask {
             update_time: Local::now(),
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FtsSearchResult {
+    pub file_id: i64,
+    pub chunk_ids: HashSet<i64>,
+    pub matched_keywords: HashSet<String>,
+    pub score: f64,
 }

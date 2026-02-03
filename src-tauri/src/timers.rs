@@ -1,5 +1,8 @@
 use crate::embedding_service_manager::get_manager;
-use crate::global::EXIT_APP_SIGNAL;
+use crate::global::{
+    EXIT_APP_SIGNAL, INCREMENT_WATCH_PATHS, INDEXING, INDEXING_FROM_WATCHER, SCANNING,
+};
+use crate::indexer_service;
 use log::info;
 use std::sync::atomic::Ordering;
 use std::time::Instant;
@@ -17,6 +20,9 @@ pub fn start_after_ui_mounted() {
         //     Ok(_) => info!("embedding_service_cleanup finished without panic"),
         //     Err(e) => error!("embedding_service_cleanup panicked: {:?}", e),
         // }
+    });
+    let _ = tokio::spawn(async {
+        watch_path_indexing_job().await;
     });
 }
 
@@ -44,5 +50,39 @@ async fn embedding_service_cleanup() {
                 }
             }
         }
+    }
+}
+
+async fn watch_path_indexing_job() {
+    let mut interval = tokio::time::interval(Duration::from_secs(1));
+    loop {
+        if EXIT_APP_SIGNAL.load(Ordering::SeqCst) {
+            break;
+        }
+        if SCANNING.load(Ordering::SeqCst) || INDEXING.load(Ordering::SeqCst) {
+            interval.tick().await;
+            continue;
+        }
+        if INCREMENT_WATCH_PATHS.read().await.is_empty() {
+            continue;
+        }
+        if EXIT_APP_SIGNAL.load(Ordering::SeqCst) {
+            break;
+        }
+        tokio::spawn(async move {
+            if SCANNING.load(Ordering::SeqCst) || INDEXING.load(Ordering::SeqCst) {
+                return;
+            }
+            let mut guard = INCREMENT_WATCH_PATHS.write().await;
+            let paths = (*guard).clone().into_iter().collect::<Vec<_>>();
+            (*guard).clear();
+            drop(guard);
+            indexer_service::start_indexing(paths, INDEXING_FROM_WATCHER)
+                .await
+                .unwrap_or_else(|error: String| {
+                    log::error!("Failed to index directory: {}", error);
+                    false
+                });
+        });
     }
 }

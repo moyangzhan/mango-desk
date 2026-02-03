@@ -3,8 +3,10 @@ use crate::entities::{FileContentEmbedding, FileInfo, FileMetaEmbedding, Indexin
 use crate::enums::{FileCategory, FileIndexStatus, IndexingEvent};
 use crate::errors::{AppError, IndexingError};
 use crate::global::{INDEXER_SETTING, STOP_INDEX_SIGNAL};
+use crate::indexer_service;
 use crate::repositories::{
-    file_content_embedding_repo, file_info_repo, file_metadata_embedding_repo,
+    file_content_embedding_repo, file_content_fts_repo, file_info_repo,
+    file_metadata_embedding_repo,
 };
 use crate::structs::file_metadata::FileMetadata;
 use crate::utils::{file_util, frontend_util, indexing_task_util, text_util};
@@ -12,14 +14,10 @@ use rust_i18n::t;
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
-use tauri::ipc::Channel;
 
 pub trait IndexingTemplate {
-    async fn process(
-        &mut self,
-        task: Arc<IndexingTask>,
-        on_event: Option<Arc<Channel<IndexingEvent>>>,
-    ) -> Result<(), IndexingError> {
+    async fn process(&mut self, task: Arc<IndexingTask>, from: &str) -> Result<(), IndexingError> {
+        let event_name = indexer_service::get_event_from(from);
         let mut min_id = 0i64;
         let mut loop_count = 0;
         let limit = 1000;
@@ -37,15 +35,13 @@ pub trait IndexingTemplate {
             }
             if STOP_INDEX_SIGNAL.load(Ordering::SeqCst) {
                 println!("stopping indexing process");
-                if let Some(event) = on_event.as_ref() {
-                    frontend_util::send_to_frontend(
-                        event,
-                        IndexingEvent::Stop {
-                            task_id: task.id,
-                            msg: "Stop indexing, Stopped by user.".to_string(),
-                        },
-                    );
-                }
+                frontend_util::send_event(
+                    &event_name,
+                    &IndexingEvent::Stop {
+                        task_id: task.id,
+                        msg: "Stop indexing, Stopped by user.".to_string(),
+                    },
+                );
                 break;
             }
             println!(
@@ -77,19 +73,18 @@ pub trait IndexingTemplate {
                     println!("File not exist: {}", file_info.path);
                     indexing_task_util::failed_incr(self.category(), 1).await;
                     file_info_repo::delete_by_id(file_info.id)?;
+                    file_content_fts_repo::delete_by_file_id(file_info.id)?;
                     file_content_embedding_repo::delete_by_file_id(file_info.id)?;
                     file_metadata_embedding_repo::delete_by_file_id(file_info.id)?;
                     continue;
                 }
-                if let Some(event) = on_event.as_ref() {
-                    frontend_util::send_to_frontend(
-                        event,
-                        IndexingEvent::Embed {
-                            task_id: task.id,
-                            msg: format!("Embedding path: {}", &file_info.path),
-                        },
-                    );
-                }
+                frontend_util::send_event(
+                    &event_name,
+                    &IndexingEvent::Embed {
+                        task_id: task.id,
+                        msg: format!("Embedding path: {}", &file_info.path),
+                    },
+                );
                 if let Err(error) = self.embedding_one_file(&file_info).await {
                     println!("Embedding failed: {}", error.to_string());
                     indexing_task_util::failed_incr(self.category(), 1).await;
@@ -129,6 +124,7 @@ pub trait IndexingTemplate {
         }
 
         //Remove old index
+        file_content_fts_repo::delete_by_file_id(file_id)?;
         file_content_embedding_repo::delete_by_file_id(file_id)?;
         file_metadata_embedding_repo::delete_by_file_id(file_id)?;
 
@@ -209,16 +205,24 @@ pub async fn embedding_content(file_id: i64, content: &str) -> Result<(), Indexi
         if !keep_run {
             continue;
         }
-        file_content_embedding_repo::insert(
-            &(FileContentEmbedding {
-                id: 0,
+        let new_embedding_data = FileContentEmbedding {
+            id: 0,
+            file_id,
+            embedding: content_array,
+            chunk_index: chunk_index as i64,
+            chunk_text,
+            distance: -0.1,
+        };
+        let embedding_result = file_content_embedding_repo::insert(&new_embedding_data)?;
+        if let Some(embedding_result) = embedding_result {
+            file_content_fts_repo::insert(
                 file_id,
-                embedding: content_array,
-                chunk_index: chunk_index as i64,
-                chunk_text,
-                distance: -0.1,
-            }),
-        )?;
+                embedding_result.id,
+                new_embedding_data.chunk_text.as_str(),
+            )
+            .await
+            .unwrap_or_default();
+        }
         let _ = file_info_repo::update_content_index_status(
             file_id,
             FileIndexStatus::Indexed.value(),

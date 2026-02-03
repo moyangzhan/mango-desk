@@ -21,6 +21,7 @@ body {
   --secondary-bg-color: #f9f9f9;
   --border-color: #e0e0e6;
   --svg-color: #0e0d0dab;
+  --match-word-color: #7895e7;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -37,6 +38,7 @@ body.dark {
   --secondary-bg-color: #ffffff1a;
   --border-color: gray;
   --svg-color: #e0e0e6;
+  --match-word-color: #80a1df;
   background-color: var(--bg-color) !important;
 }
 

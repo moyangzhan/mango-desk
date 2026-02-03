@@ -72,7 +72,7 @@ onMounted(() => {
         </NButton>
       </div>
     </NCard>
-    <FileWatcher />
+    <FileWatcher @indexing-finish="indexingFinish" @indexing-stop="indexingFinish" />
     <NModal v-model:show="showTasks" preset="card" :title="t('indexer.indexingTaskHistory')"
       style="width: 80%; height:80%; max-width: 1200px;">
       <NDataTable remote @update:sorter="handleSorterChange" :columns="taskColumns" :data="tasks"

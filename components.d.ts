@@ -10,6 +10,7 @@ declare module 'vue' {
   export interface GlobalComponents {
     NaiveProvider: typeof import('./src/components/NaiveProvider.vue')['default']
     NAlert: typeof import('naive-ui')['NAlert']
+    NBtton: typeof import('naive-ui')['NBtton']
     NButton: typeof import('naive-ui')['NButton']
     NCard: typeof import('naive-ui')['NCard']
     NDataTable: typeof import('naive-ui')['NDataTable']

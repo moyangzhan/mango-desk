@@ -6,7 +6,7 @@ use crate::repositories::{
     file_content_embedding_repo, file_info_repo, file_metadata_embedding_repo,
 };
 use crate::structs::search_result::SearchResult;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::time::Instant;
 use tokio::{task, try_join};
 
@@ -14,7 +14,7 @@ use tokio::{task, try_join};
 struct SearchTmp {
     file_id: i64,
     distance: f32,
-    chunk_ids: Vec<i64>,
+    chunk_ids: HashSet<i64>,
 }
 
 pub async fn warmup_embedding_service() -> Result<(), AppError> {
@@ -67,9 +67,9 @@ fn merge_and_filter_results(
         let entry = file_map.entry(item.file_id).or_insert(SearchTmp {
             file_id: item.file_id,
             distance: item.distance,
-            chunk_ids: Vec::new(),
+            chunk_ids: HashSet::new(),
         });
-        entry.chunk_ids.push(item.id);
+        entry.chunk_ids.insert(item.id);
         // Keep the minimum distance value
         if item.distance < entry.distance {
             entry.distance = item.distance;
@@ -80,7 +80,7 @@ fn merge_and_filter_results(
         file_map.entry(item.file_id).or_insert(SearchTmp {
             file_id: item.file_id,
             distance: item.distance,
-            chunk_ids: Vec::new(),
+            chunk_ids: HashSet::new(),
         });
         // Metadata results don't add segment_ids, but may update distance
         if let Some(entry) = file_map.get_mut(&item.file_id) {
@@ -116,9 +116,9 @@ fn merge_and_filter_results(
             Some(SearchResult {
                 file_info: info.unwrap_or_default(),
                 score: tmp.distance,
-                source: SearchSource::Semantic,
-                matched_keywords: Vec::new(),
-                matched_chunk_ids: tmp.chunk_ids,
+                sources: vec![SearchSource::ContentSemantic],
+                matched_keywords: HashSet::new(),
+                matched_chunk_ids: tmp.chunk_ids.into_iter().collect(),
             })
         })
         .collect()

@@ -2,7 +2,7 @@
 import { AttachFileOutlined, DeleteOutlined, FileOpenOutlined, FolderOpenOutlined, FolderOutlined, StopCircleOutlined, DoneOutlineRound } from '@vicons/material'
 import { open } from '@tauri-apps/plugin-dialog'
 import { TauriEvent, listen } from '@tauri-apps/api/event'
-import { Channel, invoke } from '@tauri-apps/api/core'
+import { invoke } from '@tauri-apps/api/core'
 import type { Event } from '@tauri-apps/api/event'
 import { useIndexerStore } from '@/stores/indexer'
 import router from '@/router'
@@ -18,24 +18,9 @@ const indexerStore = useIndexerStore()
 const isDragOver = ref(false)
 const selectedList = ref<SelectedItem[]>([])
 const message = useMessage()
-const indexProcessing = ref(false)
 const btnDisabled = ref(false)
 const indexingTitle = ref('')
 const indexingMsg = ref('')
-
-//  Start { task_id: i64 },
-//  Scan { task_id: i64, msg: String },
-//  Stop { task_id: i64, msg: String },
-//  Embed { task_id: i64, msg: String },
-//  Finish { task_id: i64, msg: String },
-
-interface IndexingEvent {
-  event: string
-  data: {
-    taskId: number
-    msg: string
-  }
-}
 
 interface DragPayload {
   paths: string[]
@@ -119,6 +104,31 @@ listen(TauriEvent.DRAG_ENTER, (e) => {
   isDragOver.value = true
   console.log('Drag enter', e)
 })
+listen<string>('selector-indexing', (eventObj) => {
+  let payload = JSON.parse(eventObj.payload) as IndexingEvent
+  indexingTitle.value = payload.event.toUpperCase()
+  indexingMsg.value = payload.data.msg
+  switch (payload.event) {
+    case 'start':
+      indexerStore.setIndexProcessing(true)
+      break
+    case 'scan':
+      break
+    case 'embed':
+      break
+    case 'finish':
+      emit('indexingFinish')
+      indexerStore.setIndexProcessing(false)
+      selectedList.value.forEach(item => {
+        item.done = true
+      })
+      break
+    case 'stop':
+      emit('indexingStop')
+      indexerStore.setIndexProcessing(false)
+      break
+  }
+});
 
 async function startIndexing() {
   if (selectedList.value.length === 0) {
@@ -137,45 +147,15 @@ async function startIndexing() {
   try {
     indexingTitle.value = 'START'
     indexingMsg.value = ''
-    const onEvent = new Channel<IndexingEvent>()
-    onEvent.onmessage = (eventObj) => {
-      console.log(`got indexing event ${JSON.stringify(eventObj)}`)
-      indexingTitle.value = eventObj.event.toUpperCase()
-      indexingMsg.value = eventObj.data.msg
-      switch (eventObj.event) {
-        case 'start':
-          indexProcessing.value = true
-          indexerStore.setIndexProcessing(indexProcessing.value)
-          break
-        case 'scan':
-          break
-        case 'embed':
-          break
-        case 'finish':
-          emit('indexingFinish')
-          indexProcessing.value = false
-          indexerStore.setIndexProcessing(indexProcessing.value)
-          selectedList.value.forEach(item => {
-            item.done = true
-          })
-          break
-        case 'stop':
-          emit('indexingStop')
-          indexProcessing.value = false
-          indexerStore.setIndexProcessing(indexProcessing.value)
-          break
-      }
-    }
     const res = await invoke<CommandResult>('start_indexing', {
       paths: undonePaths,
-      onEvent,
+      from: 'selector',
     })
     if (!res.success && res.message) {
       indexingTitle.value = 'ERROR'
       indexingMsg.value = res.message
       if (res.code === 2) {
-        indexProcessing.value = true
-        indexerStore.setIndexProcessing(indexProcessing.value)
+        indexerStore.setIndexProcessing(true)
       }
     }
   } catch (e: any) {
@@ -199,8 +179,7 @@ async function stopIndexing() {
   } catch (e) {
     console.log(e)
   } finally {
-    indexProcessing.value = false
-    indexerStore.setIndexProcessing(indexProcessing.value)
+    indexerStore.setIndexProcessing(false)
   }
 }
 </script>
@@ -269,7 +248,8 @@ async function stopIndexing() {
                 <span class="truncate" :title="item.name">{{ item.name }}</span>
               </div>
             </div>
-            <NButton v-if="!indexProcessing" quaternary type="error" size="small" @click="removePath(item.id)">
+            <NButton v-if="!indexerStore.indexProcessing" quaternary type="error" size="small"
+              @click="removePath(item.id)">
               <template #icon>
                 <DeleteOutlined />
               </template>
@@ -285,12 +265,13 @@ async function stopIndexing() {
     </NList>
 
     <div class="flex mt-2">
-      <NButton v-if="!indexProcessing" type="primary" style="margin-right: 6px"
-        :disabled="selectedList.length === 0 || indexProcessing" :loading="indexProcessing" @click="startIndexing">
+      <NButton v-if="!indexerStore.indexProcessing" type="primary" style="margin-right: 6px"
+        :disabled="selectedList.length === 0 || indexerStore.indexProcessing" :loading="indexerStore.indexProcessing"
+        @click="startIndexing">
         {{ t('indexer.startIndexing') }}
       </NButton>
-      <NPopconfirm v-if="indexProcessing" :positive-text="t('common.confirm')" :negative-text="t('common.cancel')"
-        @positive-click="stopIndexing">
+      <NPopconfirm v-if="indexerStore.indexProcessing" :positive-text="t('common.confirm')"
+        :negative-text="t('common.cancel')" @positive-click="stopIndexing">
         <template #trigger>
           <NButton ghost type="error">
             <template #icon>

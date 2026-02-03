@@ -12,13 +12,14 @@ use crate::structs::indexing_summary::IndexingSummary;
 use crate::structs::proxy_setting::ProxyInfo;
 use crate::traits::document_loader::DocumentLoader;
 use chrono::{DateTime, Local};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::sync::{Arc, LazyLock, OnceLock};
+use tauri::AppHandle;
 use tokio::sync::RwLock as AsyncRwLock;
 
-pub const DB_VERSION: i32 = 1;
-
+pub const DB_VERSION: i32 = 2;
+pub const DEFAULT_PAGE_SIZE: usize = 20;
 pub const HUGGINFACE_WEBSITE: &str = "https://huggingface.co";
 pub const HUGGINFACE_MIRROR: &str = "https://hf-mirror.com";
 // multi-language embedding model(384 dimensions): https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2/resolve/main/onnx/model.onnx
@@ -36,12 +37,14 @@ pub static MULTI_LANG_TOKENIZER_PATH: OnceLock<String> = OnceLock::new();
 pub static EN_EMBEDDING_PATH: OnceLock<String> = OnceLock::new(); // 384 dimensions
 // assets/model/all-minilm-l6-v2-tokenizer.json
 pub static EN_TOKENIZER_PATH: OnceLock<String> = OnceLock::new();
+pub static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
 
 pub const CONFIG_NAME_CLIENT_ID: &'static str = "client_id";
 pub const CONFIG_NAME_PROXY: &'static str = "proxy";
 pub const CONFIG_NAME_INDEXER_SETTING: &'static str = "indexer_setting";
 pub const CONFIG_NAME_WATCHER_SETTING: &'static str = "fs_watcher_setting";
 pub const CONFIG_NAME_ACTIVE_LOCALE: &'static str = "active_locale";
+pub const CONFIG_NAME_DB_VERSION: &'static str = "db_version";
 
 pub static APP_DATA_PATH: LazyLock<AsyncRwLock<String>> =
     LazyLock::new(|| AsyncRwLock::new("".to_string()));
@@ -138,6 +141,9 @@ pub static FS_WATCHER_SETTING: LazyLock<AsyncRwLock<FsWatcherSetting>> =
 pub static INDEXING_SUMMARY: LazyLock<AsyncRwLock<IndexingSummary>> =
     LazyLock::new(|| AsyncRwLock::new(IndexingSummary::default()));
 
+pub static INCREMENT_WATCH_PATHS: LazyLock<AsyncRwLock<HashSet<String>>> =
+    LazyLock::new(|| AsyncRwLock::new(HashSet::new()));
+
 // Ignore dot-prefixed directories, such as .git, .vscode, etc.
 pub const IGNORE_HIDDEN_DIRS: bool = true;
 // Ignore dot-prefixed files, such as .gitignore, .env, etc.
@@ -156,3 +162,9 @@ pub static PATHS_CACHE: LazyLock<AsyncRwLock<Vec<String>>> =
     LazyLock::new(|| AsyncRwLock::new(vec![]));
 pub static PATHS_CACHE_BUILD_TIME: LazyLock<AsyncRwLock<DateTime<Local>>> =
     LazyLock::new(|| AsyncRwLock::new(Local::now()));
+
+pub const EVENT_SELECTOR_INDEXING: &'static str = "selector-indexing";
+pub const EVENT_WATCHER_INDEXING: &'static str = "watcher-indexing";
+
+pub const INDEXING_FROM_SELECTOR: &'static str = "selector";
+pub const INDEXING_FROM_WATCHER: &'static str = "watcher";

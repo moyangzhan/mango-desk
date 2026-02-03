@@ -2,9 +2,10 @@ use crate::entities::{FileInfo, IndexingTask};
 use crate::enums::{FileCategory, FileIndexStatus, IndexingEvent};
 use crate::errors::{AppError, IndexingError};
 use crate::global::{
-    IGNORE_HIDDEN_DIRS, IGNORE_HIDDEN_FILES, INDEXER_SETTING, SCANNING, SCANNING_TOTAL,
-    STOP_INDEX_SIGNAL,
+    EVENT_SELECTOR_INDEXING, EVENT_WATCHER_INDEXING, IGNORE_HIDDEN_DIRS, IGNORE_HIDDEN_FILES,
+    INDEXER_SETTING, INDEXING_FROM_SELECTOR, SCANNING, SCANNING_TOTAL, STOP_INDEX_SIGNAL,
 };
+use crate::indexer_service;
 use crate::repositories::file_info_repo;
 use crate::structs::indexer_setting::IndexerSetting;
 use crate::utils::file_util::calculate_md5;
@@ -12,7 +13,6 @@ use crate::utils::{datetime_util, file_util, frontend_util};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use tauri::ipc::Channel;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::Sender;
 use tokio::task::JoinSet;
@@ -21,11 +21,7 @@ use tokio::time::{Duration, sleep};
 const MAX_RETRIES: usize = 3;
 static UNSCANNED_DIR_COUNT: AtomicUsize = AtomicUsize::new(0);
 
-pub async fn start(
-    paths: &Vec<String>,
-    indexing_task: Arc<IndexingTask>,
-    event_opt: Option<Arc<Channel<IndexingEvent>>>,
-) {
+pub async fn start(paths: &Vec<String>, indexing_task: Arc<IndexingTask>, from: &str) {
     if paths.is_empty() {
         return;
     }
@@ -48,17 +44,15 @@ pub async fn start(
             SCANNING_TOTAL.fetch_add(1, Ordering::SeqCst);
             let path_str = path.to_string();
             let task_id = indexing_task.id;
-            let indexing_event = event_opt.clone();
+            let event_name = indexer_service::get_event_from(from);
             let task = tokio::spawn(async move {
-                if let Some(event) = indexing_event.as_ref() {
-                    frontend_util::send_to_frontend(
-                        event.as_ref(),
-                        IndexingEvent::Scan {
-                            task_id: task_id,
-                            msg: format!("Scanning path: {}", path_str),
-                        },
-                    );
-                }
+                frontend_util::send_event(
+                    event_name,
+                    &IndexingEvent::Scan {
+                        task_id: task_id,
+                        msg: format!("Scanning path: {}", path_str),
+                    },
+                );
                 let is_valid = is_valid_file_with(&PathBuf::from(&path_str)).await;
                 if !is_valid {
                     println!("File is not valid: {}", path_str);
@@ -89,9 +83,9 @@ pub async fn start(
                 let Some(dir) = maybe_dir else { break; };
                 let tx_clone = sender.clone();
                 let task = indexing_task.clone();
-                let event = event_opt.clone();
+                let from = from.to_string();
                 let task = tokio::spawn(async move {
-                    let _ = scan_and_store(dir, tx_clone, task, event).await;
+                    let _ = scan_and_store(dir, tx_clone, task, &from).await;
                 });
                 tasks.spawn(task);
             }
@@ -122,26 +116,25 @@ pub async fn scan_and_store(
     dir: String,
     sender: Sender<String>,
     task: Arc<IndexingTask>,
-    on_event: Option<Arc<Channel<IndexingEvent>>>,
+    from: &str,
 ) -> Result<(), IndexingError> {
     if dir.is_empty() {
         return Ok(());
     }
     println!("Scan directory: {}", dir);
+    let event_name = indexer_service::get_event_from(from);
     let indexer_setting = INDEXER_SETTING.read().await.clone();
     let mut entries = tokio::fs::read_dir(dir).await?;
     while let Some(entry) = entries.next_entry().await? {
         if STOP_INDEX_SIGNAL.load(Ordering::SeqCst) {
             println!("Scanning process was stopped.");
-            if let Some(event) = on_event.as_ref() {
-                frontend_util::send_to_frontend(
-                    event,
-                    IndexingEvent::Stop {
-                        task_id: task.id,
-                        msg: "Scanning interrupted by stop signal.".to_string(),
-                    },
-                );
-            }
+            frontend_util::send_event(
+                &event_name,
+                &IndexingEvent::Stop {
+                    task_id: task.id,
+                    msg: "Scanning interrupted by stop signal.".to_string(),
+                },
+            );
             SCANNING.store(false, Ordering::SeqCst);
             break;
         }
@@ -151,15 +144,13 @@ pub async fn scan_and_store(
         if path_str.is_empty() {
             continue;
         }
-        if let Some(event) = on_event.as_ref() {
-            frontend_util::send_to_frontend(
-                event,
-                IndexingEvent::Scan {
-                    task_id: task.id,
-                    msg: format!("Scanning path: {}", path_str),
-                },
-            );
-        }
+        frontend_util::send_event(
+            &event_name,
+            &IndexingEvent::Scan {
+                task_id: task.id,
+                msg: format!("Scanning path: {}", path_str),
+            },
+        );
         if path_buf.is_file() {
             SCANNING_TOTAL.fetch_add(1, Ordering::SeqCst);
             let is_valid = is_valid_file(&path_buf, &indexer_setting).await;

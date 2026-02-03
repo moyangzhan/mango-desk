@@ -2,11 +2,22 @@
 import { AttachFileOutlined, DeleteOutlined, FolderOutlined } from '@vicons/material'
 import { open } from '@tauri-apps/plugin-dialog'
 import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
 import { emptyWatchSetting } from '@/utils/functions'
+import { useIndexerStore } from '@/stores/indexer'
 import { t } from '@/locales'
 
+const emit = defineEmits<Emit>()
+interface Emit {
+  (ev: 'indexingFinish'): void
+  (ev: 'indexingStop'): void
+}
+
+const indexerStore = useIndexerStore()
 const watchSetting = ref<WatchSetting>(emptyWatchSetting())
 const message = useMessage()
+const indexingTitle = ref('')
+const indexingMsg = ref('')
 
 async function openDirDialog() {
   // Replace browser's native input with Tauri dialog
@@ -64,6 +75,59 @@ async function removePath(path: string) {
   console.log('remove path', resp)
 }
 
+listen<string>('watcher-indexing', (eventObj) => {
+  let payload = JSON.parse(eventObj.payload) as IndexingEvent
+  console.log('watcher-indexing', payload)
+  indexingTitle.value = payload.event.toUpperCase()
+  indexingMsg.value = payload.data.msg
+  switch (payload.event) {
+    case 'start':
+      indexerStore.setWatcherProcessing(true)
+      break
+    case 'scan':
+      break
+    case 'embed':
+      break
+    case 'finish':
+      emit('indexingFinish')
+      indexerStore.setWatcherProcessing(false)
+      break
+    case 'stop':
+      emit('indexingStop')
+      indexerStore.setWatcherProcessing(false)
+      break
+  }
+})
+
+async function reindexing() {
+  if (watchSetting.value.directories.length === 0 && watchSetting.value.files.length === 0) {
+    message.warning(t('indexer.noFileSelected'))
+    return
+  }
+  let paths = watchSetting.value.directories.concat(watchSetting.value.files)
+  if (paths.length === 0) {
+    return
+  }
+  try {
+    indexingTitle.value = 'START'
+    indexingMsg.value = ''
+    const res = await invoke<CommandResult>('start_indexing', {
+      paths: paths,
+      from: 'watcher'
+    })
+    if (!res.success && res.message) {
+      indexingTitle.value = 'ERROR'
+      indexingMsg.value = res.message
+      if (res.code === 2) {
+        indexerStore.setWatcherProcessing(false)
+      }
+    }
+  } catch (e: any) {
+    console.log(e)
+    window.$message.error(e)
+  }
+}
+
 onMounted(async () => {
   invoke('load_config_value', { configName: 'fs_watcher_setting' }).then((resp) => {
     const str = resp as string
@@ -82,15 +146,27 @@ onMounted(async () => {
           {{ t('indexer.autoIndexWhenChanged') }}
         </NText>
       </template>
-      <div v-if="watchSetting.directories.length !== 0 || watchSetting.files.length !== 0" class="mb-2">
-        <NButton ghost @click="openDirDialog">
-          {{ t('common.selectFolder')
-          }}
-        </NButton>
-        <NButton ghost style="margin-left: 8px" @click="openFileDialog">
-          {{ t('common.selectFile')
-          }}
-        </NButton>
+      <div>
+      </div>
+      <div v-if="watchSetting.directories.length !== 0 || watchSetting.files.length !== 0"
+        class="mb-2 flex justify-between">
+        <div class="flex-1">
+          <NButton ghost @click="openDirDialog">
+            {{ t('common.selectFolder')
+            }}
+          </NButton>
+          <NButton ghost style="margin-left: 8px" @click="openFileDialog">
+            {{ t('common.selectFile')
+            }}
+          </NButton>
+        </div>
+        <div>
+          <NButton ghost style="margin-right: 6px"
+            :disabled="(watchSetting.directories.length === 0 && watchSetting.files.length === 0) || indexerStore.watcherProcessing"
+            @click="reindexing">
+            {{ t('indexer.reindexing') }}
+          </NButton>
+        </div>
       </div>
       <div v-if="watchSetting.directories.length === 0 && watchSetting.files.length === 0" class="flex items-center">
         <span>
@@ -151,6 +227,9 @@ onMounted(async () => {
           </NListItem>
         </template>
       </NList>
+      <NAlert v-if="indexingMsg" type="info" class="mt-4" :title="indexingTitle" closable @close="indexingMsg = ''">
+        {{ indexingMsg }}
+      </NAlert>
     </NCard>
   </div>
 </template>

@@ -8,7 +8,7 @@ import SvgIcon from '@/components/SvgIcon.vue'
 import { useIndexerStore } from '@/stores/indexer'
 
 const SEMANTIC_SEARCH = 1
-const PATH_SEARCH = 2
+const KEYWORD_SEARCH = 2
 const extIcons = ['csv', 'doc', 'docx', 'html', 'json', 'mp3', 'mp4', 'pdf', 'ppt', 'pptx', 'psd', 'rar', 'txt', 'xls', 'xlsx']
 const query = ref('')
 const searchResults = ref<SearchResult[]>([])
@@ -35,22 +35,20 @@ let debounceSearch = useDebounceFn(async () => {
   search()
 }, 600)
 
-watch(query, () => {
-  let query_txt = query.value.trimStart()
-  if (query_txt.startsWith('/') && searchType.value === SEMANTIC_SEARCH) {
-    console.log('switch to path search')
-    searchType.value = PATH_SEARCH
+watch(searchType, (newVal) => {
+  if (newVal === SEMANTIC_SEARCH) {
+    console.log('switch to semantic search')
     debounceSearch = useDebounceFn(async () => {
       search()
     }, 300)
-  } else if (!query_txt.startsWith('/') && searchType.value === PATH_SEARCH) {
-    console.log('switch to semantic search')
-    searchType.value = SEMANTIC_SEARCH
+  } else if (newVal === KEYWORD_SEARCH) {
+    console.log('switch to keyword search')
     //Sematic search is slower, so we use a longer debounce time
     debounceSearch = useDebounceFn(async () => {
       search()
     }, 600)
   }
+  debounceSearch()
 })
 
 
@@ -73,13 +71,19 @@ async function loadFileDetail(id = 0) {
   }
 }
 
-async function loadChunks(ids: number[]) {
+async function loadChunks(ids: number[], keywords: string[]) {
   showChunksModal.value = true
   matchChunks.value = []
   try {
     let chunks = await invoke<string[]>('load_chunks', { ids });
     if (chunks) {
-      matchChunks.value = chunks
+      if (keywords && keywords.length > 0) {
+        matchChunks.value = chunks.map((chunk) => {
+          return highlightText(chunk, keywords)
+        })
+      } else {
+        matchChunks.value = chunks
+      }
     }
   } catch (e) {
     console.log(e)
@@ -97,16 +101,16 @@ function escapeRegExp(str: string) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function highlightPath(path: string, keywords: string[]) {
-  if (!path || !keywords || keywords.length === 0) return path;
+function highlightText(text: string, keywords: string[]) {
+  if (!text || !keywords || keywords.length === 0) return text;
   return keywords.reduce((html, keyword) => {
     const safeKeyword = escapeRegExp(keyword);
     const regex = new RegExp(`(${safeKeyword})`, 'gi');
     return html.replace(
       regex,
-      '<span class="font-bold text-gray-600 dark:text-gray-400">$1</span>'
+      '<span class="font-bold text-(--match-word-color)">$1</span>'
     );
-  }, path);
+  }, text);
 }
 
 async function search() {
@@ -117,9 +121,9 @@ async function search() {
   try {
     let query_txt = query.value.trim()
     let search_name = 'semantic_search'
-    if (query.value.startsWith('/')) {
-      search_name = 'path_search'
-      query_txt = query.value.substring(1)
+    if (searchType.value === KEYWORD_SEARCH) {
+      search_name = 'keyword_search'
+      query_txt = query.value.trim()
     }
     if (query_txt.length < 2) {
       window.$message.warning(t('common.queryTooShort'))
@@ -135,8 +139,8 @@ async function search() {
     }
     searchResults.value = res
     searchResults.value.forEach((item) => {
-      if (item.source === 'path' && item.matched_keywords.length > 0) {
-        item.file_info.html_path = highlightPath(item.file_info.path, item.matched_keywords)
+      if (item.sources.includes('pathKeyword') && item.matched_keywords.length > 0) {
+        item.file_info.html_path = highlightText(item.file_info.path, item.matched_keywords)
       } else {
         item.file_info.html_path = item.file_info.path
       }
@@ -163,12 +167,8 @@ async function search() {
 
 const keyDown = (e: any) => {
   if (e.ctrlKey && e.key === 'Tab') {
+    searchType.value = searchType.value === SEMANTIC_SEARCH ? KEYWORD_SEARCH : SEMANTIC_SEARCH
     query.value = query.value.trim()
-    if (query.value.startsWith('/')) {
-      query.value = query.value.substring(1)
-    } else {
-      query.value = '/' + query.value
-    }
     focusInput()
     debounceSearch()
     return
@@ -231,22 +231,27 @@ onUnmounted(() => {
       </div>
     </div>
     <div class="flex flex-col w-full justify-center space-x-2 max-w-[80%]">
-      <NInput ref="inputRef" v-model:value="query" class="flex-1 min-w-[100px] text-left" clearable
-        :placeholder="searchType == PATH_SEARCH ? t('common.pathSearchTip.title') : t('common.semanticSearch')"
-        @input="debounceSearch" @focus="isFocused = true" @blur="isFocused = false" @clear="onClear">
-        <template #prefix>
-          <span v-if="!query.startsWith('/')" class="text-gray-300 dark:text-gray-600">
-            {{ t('common.content') }}
-          </span>
-          <span v-else class="text-gray-300 dark:text-gray-600">
-            {{ t('common.path') }}
-          </span>
-        </template>
-      </NInput>
+      <div class="flex flex-row items-center justify-center space-x-2">
+        <NInput ref="inputRef" v-model:value="query" class="flex-1 min-w-[100px] text-left" clearable
+          :placeholder="searchType == KEYWORD_SEARCH ? t('common.keywordSearchTip.description') : t('common.semanticSearchTip.description')"
+          @input="debounceSearch" @focus="isFocused = true" @blur="isFocused = false" @clear="onClear">
+          <template #prefix>
+            <NButton type="primary" text
+              @click="searchType = searchType === SEMANTIC_SEARCH ? KEYWORD_SEARCH : SEMANTIC_SEARCH">
+              <span v-if="searchType === SEMANTIC_SEARCH" class="pr-2">
+                {{ t('common.semantic') }}
+              </span>
+              <span v-else class="pr-2">
+                {{ t('common.keyword') }}
+              </span>
+            </NButton>
+          </template>
+        </NInput>
+      </div>
       <div v-if="searchResults.length === 0" class="mt-2 text-xs text-gray-400 w-full text-left">
         <div>{{ t('common.semanticSearchTip.title') }}：{{ t('common.semanticSearchTip.description') }}</div>
-        <div>{{ t('common.pathSearchTip.title') }}：{{ t('common.pathSearchTip.description') }}, {{
-          t('common.pathSearchTip.example') }}</div>
+        <div>{{ t('common.keywordSearchTip.title') }}：{{ t('common.keywordSearchTip.description') }}, {{
+          t('common.keywordSearchTip.example') }}</div>
       </div>
     </div>
     <div class="flex-1 flex flex-col w-full items-center justify-start mt-4"
@@ -330,7 +335,8 @@ onUnmounted(() => {
               </NButton>
             </div>
             <div v-if="item.matched_chunk_ids && item.matched_chunk_ids.length > 0" class="ml-2">
-              <NButton size="tiny" text @click="loadChunks(item.matched_chunk_ids)">
+              <NButton size="tiny" text
+                @click="loadChunks(item.matched_chunk_ids, item.sources.includes('contentKeyword') ? item.matched_keywords : [])">
                 {{ t('common.matchedSegments', { count: item.matched_chunk_ids.length }) }}
               </NButton>
             </div>
@@ -358,9 +364,7 @@ onUnmounted(() => {
             <div class="mb-2">
               <strong>{{ t('common.segment') }} {{ index + 1 }}:</strong>
             </div>
-            <div>
-              {{ chunk }}
-            </div>
+            <div v-html="chunk"></div>
           </div>
         </div>
         <div v-else>
