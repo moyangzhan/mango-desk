@@ -73,9 +73,9 @@ pub fn search(
     let mut stmt = conn.prepare("select *,distance from file_metadata_embedding where embedding match :embedding order by distance limit 10")?;
     let rows = stmt.query_map(named_params! {":embedding": embedding_bytes}, |row| {
         let embedding_bytes: Vec<u8> = row.get("embedding")?;
-        let embedding: [f32; 384] = unsafe {
+        let embedding: [f32; 768] = unsafe {
             let ptr = embedding_bytes.as_ptr() as *const f32;
-            std::ptr::read(ptr as *const [f32; 384])
+            std::ptr::read(ptr as *const [f32; 768])
         };
         Ok(FileMetaEmbedding {
             id: row.get("id")?,
@@ -141,9 +141,9 @@ pub fn clear() -> Result<usize, RepositoryError> {
 
 fn build_file_metadata_embedding(row: &Row<'_>) -> Result<FileMetaEmbedding, RepositoryError> {
     let embedding_bytes: Vec<u8> = row.get("embedding")?;
-    let embedding: [f32; 384] = unsafe {
+    let embedding: [f32; 768] = unsafe {
         let ptr = embedding_bytes.as_ptr() as *const f32;
-        std::ptr::read(ptr as *const [f32; 384])
+        std::ptr::read(ptr as *const [f32; 768])
     };
     return Ok(FileMetaEmbedding {
         id: row.get("id")?,

@@ -179,3 +179,8 @@ pub async fn remove_from_index(path: &str, is_file: bool) {
         (*paths).retain(|item| !item.starts_with(directory.as_str()));
     }
 }
+
+pub async fn clear() {
+    let mut paths = PATHS_CACHE.write().await;
+    paths.clear();
+}

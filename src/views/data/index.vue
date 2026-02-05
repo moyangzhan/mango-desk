@@ -64,6 +64,12 @@ watch(() => indexerStore.indexProcessing, (newVal) => {
   }
 })
 
+watch(() => indexerStore.watcherProcessing, (newVal) => {
+  if (!newVal) {
+    handlePageChange(1)
+  }
+})
+
 onMounted(() => {
   page.value = 1
   loadFiles()

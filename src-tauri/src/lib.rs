@@ -1,4 +1,5 @@
 mod db_initializer;
+mod db_migrations;
 mod document_loaders;
 mod embedding_service;
 mod embedding_service_manager;

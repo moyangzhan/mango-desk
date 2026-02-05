@@ -227,13 +227,16 @@ impl Display for FileCategory {
 pub enum FileContentLanguage {
     #[serde(rename = "en")]
     English,
+    #[serde(rename = "zh")]
+    Chinese,
     Multilingual,
 }
 
 impl From<&str> for FileContentLanguage {
     fn from(s: &str) -> Self {
         match s {
-            "english" => FileContentLanguage::English,
+            "en" | "english" => FileContentLanguage::English,
+            "zh" | "chinese" => FileContentLanguage::Chinese,
             "multilingual" => FileContentLanguage::Multilingual,
             _ => FileContentLanguage::English,
         }
@@ -243,6 +246,7 @@ impl From<&str> for FileContentLanguage {
 impl From<FileContentLanguage> for &'static str {
     fn from(value: FileContentLanguage) -> Self {
         match value {
+            FileContentLanguage::Chinese => "chinese",
             FileContentLanguage::English => "english",
             FileContentLanguage::Multilingual => "multilingual",
         }

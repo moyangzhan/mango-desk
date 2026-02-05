@@ -27,7 +27,10 @@ pub async fn search(query: &str) -> Vec<SearchResult> {
     let start = Instant::now();
     let embedding = {
         let mut manager = get_manager().write().await;
-        manager.embed(query).await.unwrap_or_default()
+        manager.embed(query).await.unwrap_or_else(|e| {
+            log::error!("embed query failed, error: {:?}", e);
+            Vec::new()
+        })
     };
     if embedding.is_empty() {
         return Vec::new();

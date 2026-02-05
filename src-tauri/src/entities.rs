@@ -135,7 +135,7 @@ pub struct FileMetaEmbedding {
     pub id: i64,
     pub file_id: i64,
     #[serde(skip, default = "default_embedding")]
-    pub embedding: [f32; 384],
+    pub embedding: [f32; 768],
     pub distance: f32, // for search result
 }
 
@@ -146,7 +146,7 @@ pub struct FileContentEmbedding {
     pub chunk_index: i64,
     pub chunk_text: String,
     #[serde(skip, default = "default_embedding")]
-    pub embedding: [f32; 384],
+    pub embedding: [f32; 768],
     pub distance: f32, // for search result
 }
 
@@ -163,8 +163,8 @@ impl Default for FileContentEmbedding {
     }
 }
 
-fn default_embedding() -> [f32; 384] {
-    [0.0; 384]
+fn default_embedding() -> [f32; 768] {
+    [0.0; 768]
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -36,7 +36,7 @@ impl SaveParsedContent {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct IndexerSetting {
     pub is_private: bool,
-    pub file_content_language: FileContentLanguage, // en, multilingual
+    pub file_content_language: FileContentLanguage, // zh, en, multilingual
     pub ignore_dirs: Vec<String>,
     pub ignore_exts: Vec<String>,
     pub ignore_files: Vec<String>, // File absolute path

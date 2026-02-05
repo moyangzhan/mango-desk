@@ -1,5 +1,5 @@
 use crate::global::{CONFIG_NAME_DB_VERSION, DB_VERSION};
-use crate::repositories::{db_v1, db_v2};
+use crate::db_migrations::{db_v1, db_v2, db_v3};
 use crate::utils::app_util::get_db_path;
 use anyhow::Result;
 use log::{error, info};
@@ -49,6 +49,10 @@ pub fn init() -> Result<()> {
             2 => {
                 db_v2::exec_ddl()?;
                 db_v2::init_data()?;
+            }
+            3 => {
+                db_v3::exec_ddl()?;
+                db_v3::init_data()?;
             }
             _ => {}
         }

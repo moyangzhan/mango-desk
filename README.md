@@ -168,7 +168,7 @@ As shown in the architecture diagram above, the entire processing pipeline is de
 A: The codebase includes multiple models serving different purposes:
 
 #### 1. Active Local Models (Enabled by Default)
-- `all-minilm-l6-v2` or `paraphrase-multilingual-MiniLM-L12-v2`
+- `bge-base-*`
 - These models run locally on users' computers for basic document processing
 - Prioritized for privacy and performance
 

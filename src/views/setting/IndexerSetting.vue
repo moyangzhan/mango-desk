@@ -66,10 +66,6 @@ initStatusData()
 async function initStatusData() {
   let imageParserDesc = t('indexer.disabledByPrivateMode')
   let audioParserDesc = t('indexer.disabledByPrivateMode')
-  const contentLaugnage
-    = indexerStore.indexerSetting.file_content_language === 'en'
-      ? t('common.english')
-      : t('common.multilingual')
   if (!indexerStore.indexerSetting.is_private) {
     const platformInfo = modelPlatformList.value.find(
       p => p.name === activePlatform.value,
@@ -127,7 +123,7 @@ async function initStatusData() {
       children: [
         {
           name: t('indexer.ignoreFileExtensions'),
-          status: indexerStore.indexerSetting.ignore_exts.join(', '),
+          status: indexerStore.indexerSetting.ignore_exts.length === 0 ? t('common.none') : indexerStore.indexerSetting.ignore_exts.join(', '),
           key: 'ignore-file-extensions',
         },
         {
@@ -145,7 +141,7 @@ async function initStatusData() {
         },
         {
           name: t('indexer.ignoreFolders'),
-          status: indexerStore.indexerSetting.ignore_dirs.join(', '),
+          status: indexerStore.indexerSetting.ignore_dirs.length === 0 ? t('common.none') : indexerStore.indexerSetting.ignore_dirs.join(', '),
           key: 'ignore-folders',
         },
         {
@@ -154,16 +150,6 @@ async function initStatusData() {
           key: 'ignore-hidden-folders',
         },
       ],
-    },
-    {
-      name: t('indexer.fileContentLanguage'),
-      status: contentLaugnage,
-      key: 'file-content-language',
-    },
-    {
-      name: t('indexer.embeddingModel'),
-      status: '',
-      key: 'embedding-model',
     },
   ]
 }
@@ -206,35 +192,6 @@ const columns = computed<DataTableColumns<RowData>>(() => [
   {
     title: t('common.status'),
     key: 'status',
-    render(row) {
-      if (row.name === t('indexer.embeddingModel')) {
-        return h(
-          'div',
-          { class: 'flex flex-col' },
-          {
-            default: () => [
-              h(
-                'div',
-                {},
-                { default: () => `${t('common.english')}: all-minilm-l6-v2` },
-              ),
-              h(
-                'div',
-                {},
-                {
-                  default: () =>
-                    `${t(
-                      'common.multilingual',
-                    )}: paraphrase-multilingual-MiniLM-L12-v2`,
-                },
-              ),
-            ],
-          },
-        )
-      } else {
-        return row.status
-      }
-    },
   },
 ]);
 
@@ -388,11 +345,10 @@ watch(() => appStore.locale, (newVal) => {
 onMounted(async () => {
   console.log('IndexerSetting onMounted')
   try {
-    if (!indexerStore.indexerSetting) {
-      indexerStore.indexerSetting = await invoke<IndexerSetting>('load_indexer_setting')
-      let indexerSetting = await invoke<IndexerSetting>('load_indexer_setting')
-      indexerStore.setIndexerSetting(indexerSetting)
-    }
+    indexerStore.indexerSetting = await invoke<IndexerSetting>('load_indexer_setting')
+    let indexerSetting = await invoke<IndexerSetting>('load_indexer_setting')
+    indexerStore.setIndexerSetting(indexerSetting)
+
     activePlatform.value = await invoke<string>('load_active_platform')
     modelPlatformList.value = await invoke<ModelPlatform[]>(
       'load_model_platforms',
@@ -426,6 +382,7 @@ onMounted(async () => {
         <NRadioGroup :value="indexerStore.indexerSetting.file_content_language"
           @update:value="doContentLauguageChanged">
           <NRadio :label="t('common.english')" value="en" />
+          <NRadio :label="t('common.chinese')" value="zh" />
           <NRadio :label="t('common.multilingual')" value="multilingual" />
         </NRadioGroup>
         <NAlert v-if="!embeddingModelChanged" :show-icon="false">
@@ -435,7 +392,7 @@ onMounted(async () => {
           {{ t('indexer.embeddingModelChangedTip') }}
         </NAlert>
         <div v-show="indexerStore.indexerSetting.file_content_language === 'multilingual'
-          && !embeddingModels.get('paraphrase-multilingual-MiniLM-L12-v2')
+          && !embeddingModels.get('multilingual_embedding.onnx')
           " class="flex flex-col space-y-2">
           <div class="flex flex-col space-y-2 justify-start items-start">
             <div v-html="$t('indexer.multilingualEmbeddingModeSettingTip')" />
@@ -477,24 +434,27 @@ onMounted(async () => {
               • {{ t('common.model') }}:
               <NText type="primary" class="cursor-pointer" @click="
                 openUrl(
-                  'https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2/resolve/main/onnx/model.onnx',
+                  'https://huggingface.co/moyangzhan/multilingual-e5-base-onnx/resolve/main/model_opt2_QInt8.onnx',
                 )
                 ">
-                https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2/resolve/main/onnx/model.onnx
+                https://huggingface.co/moyangzhan/multilingual-e5-base-onnx/resolve/main/model_opt2_QInt8.onnx
               </NText>
             </div>
             <div>
               • {{ t('common.tokenizer') }}:
               <NText type="primary" class="cursor-pointer" @click="
                 openUrl(
-                  'https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2/resolve/main/tokenizer.json',
+                  'https://huggingface.co/moyangzhan/multilingual-e5-base-onnx/resolve/main/tokenizer.json',
                 )
                 ">
-                https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2/resolve/main/tokenizer.json
+                https://huggingface.co/moyangzhan/multilingual-e5-base-onnx/resolve/main/tokenizer.json
               </NText>
             </div>
             <div>
               2. {{ t('message.moveModelTip', { modelPath }) }}
+            </div>
+            <div>
+              3. {{ t('common.restart') }}
             </div>
           </NAlert>
         </div>

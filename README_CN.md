@@ -176,7 +176,7 @@ A: Mango Desk 采用本地优先（local-first）架构来确保数据隐私：
 A: 代码库包含多个模型，各自服务于不同目的：
 
 #### 1. 本地模型（默认启用）
-- `all-minilm-l6-v2` 或 `paraphrase-multilingual-MiniLM-L12-v2`
+- `bge-base-*`
 - 这些模型在用户计算机上本地运行，用于基本的文档处理
 - 优先考虑隐私和性能
 

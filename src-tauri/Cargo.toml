@@ -1,6 +1,6 @@
 [package]
 name = "mango-desk"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -63,6 +63,7 @@ uuid = { version = "1.19.0", features = ["v4"] }
 tauri-plugin-process = "2"
 jieba-rs = "0.8.1"
 regex = "1.12.2"
+sys-locale = "0.3.2"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-single-instance = "2"

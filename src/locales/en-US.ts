@@ -18,6 +18,7 @@ export default {
     delete: 'Delete',
     warning: 'Warning',
     tip: 'Tip',
+    restart: 'Restart',
     remove: 'Remove',
     removeAll: 'Remove All',
     removeTip: 'Remove Action: Delete from index (file remains on disk)',
@@ -251,7 +252,7 @@ export default {
     downloadFailed: 'Download failed, retry or download manually',
     downloadModelManualTip:
       'Download failed? Copy the link to your browser or download manager to try again',
-    moveModelTip: 'Move model.onnx and tokenizer.json to: {modelPath}',
+    moveModelTip: 'Move model_opt2_QInt8.onnx and tokenizer.json to: {modelPath} and rename them to multilingual_embedding.onnx and multilingual_tokenizer.json respectively',
     downloadLinks: 'Download Links',
     downloadModelLink: 'model.onnx: {link} ',
     downloadTokenizerLink: 'tokenizer.json: {link}',

@@ -18,25 +18,35 @@ use std::sync::{Arc, LazyLock, OnceLock};
 use tauri::AppHandle;
 use tokio::sync::RwLock as AsyncRwLock;
 
-pub const DB_VERSION: i32 = 2;
+pub const DB_VERSION: i32 = 3;
 pub const DEFAULT_PAGE_SIZE: usize = 20;
 pub const HUGGINFACE_WEBSITE: &str = "https://huggingface.co";
 pub const HUGGINFACE_MIRROR: &str = "https://hf-mirror.com";
-// multi-language embedding model(384 dimensions): https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2/resolve/main/onnx/model.onnx
-// web url: https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/blob/main/onnx/model.onnx
-// multi-language tokenzier: https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2/resolve/main/tokenizer.json
-// web url: https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/blob/main/tokenizer.json
-pub const MULTI_LANG_MODEL_URL: &str = "https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2/resolve/main/onnx/model.onnx";
-pub const MULTI_LANG_TOKENIZER_URL: &str = "https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2/resolve/main/tokenizer.json";
+// url: https://huggingface.co/moyangzhan/multilingual-e5-base-onnx (768 dimensions)
+pub const MULTI_LANG_MODEL_URL: &str = "https://huggingface.co/moyangzhan/multilingual-e5-base-onnx/resolve/main/model_opt2_QInt8.onnx";
+pub const MULTI_LANG_TOKENIZER_URL: &str =
+    "https://huggingface.co/moyangzhan/multilingual-e5-base-onnx/resolve/main/tokenizer.json";
+pub const MODEL_NAME_EN: &str = "en_embedding.onnx";
+pub const MODEL_NAME_ZH: &str = "zh_embedding.onnx";
+pub const MODEL_NAME_MULTI: &str = "multilingual_embedding.onnx";
+pub const TOKENIZER_NAME_EN: &str = "en_tokenizer.json";
+pub const TOKENIZER_NAME_ZH: &str = "zh_tokenizer.json";
+pub const TOKENIZER_NAME_MULTI: &str = "multilingual_tokenizer.json";
+
 // assets/model/model.onnx
 pub static MULTI_LANG_EMBEDDING_PATH: OnceLock<String> = OnceLock::new();
 // assets/model/tokenizer.json
 pub static MULTI_LANG_TOKENIZER_PATH: OnceLock<String> = OnceLock::new();
 // English embedding model
-// path: assets/model/all-minilm-l6-v2.onnx
-pub static EN_EMBEDDING_PATH: OnceLock<String> = OnceLock::new(); // 384 dimensions
-// assets/model/all-minilm-l6-v2-tokenizer.json
+// path: assets/model/en_embedding.onnx
+pub static EN_EMBEDDING_PATH: OnceLock<String> = OnceLock::new(); // 768 dimensions
+// assets/model/en_tokenizer.json
 pub static EN_TOKENIZER_PATH: OnceLock<String> = OnceLock::new();
+// Chinese embedding model
+// path: assets/model/zh_embedding.onnx
+pub static ZH_EMBEDDING_PATH: OnceLock<String> = OnceLock::new(); // 768 dimensions
+// path: assets/model/zh_tokenizer.json
+pub static ZH_TOKENIZER_PATH: OnceLock<String> = OnceLock::new();
 pub static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
 
 pub const CONFIG_NAME_CLIENT_ID: &'static str = "client_id";
@@ -125,7 +135,7 @@ pub static EXT_TO_DOC_LOADER: LazyLock<AsyncRwLock<HashMap<String, DocHandler>>>
     });
 
 // Chunking related
-pub const DOCUMENT_CHUNK_SIZE: usize = 1024;
+pub const DOCUMENT_CHUNK_SIZE: usize = 500;
 pub const DOCUMENT_CHUNK_OVERLAP: usize = 20;
 pub const MAX_DOCUMENT_LOAD_CHARS: usize = 30000;
 

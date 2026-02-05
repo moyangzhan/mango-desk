@@ -6,8 +6,8 @@ use crate::errors::AppError;
 use crate::fs_watcher::watcher;
 use crate::global::{
     ACTIVE_LOCALE, ACTIVE_MODEL_PLATFORM, APP_DATA_PATH, CLIENT_ID, CONFIG_NAME_INDEXER_SETTING,
-    CONFIG_NAME_PROXY, FS_WATCHER_SETTING, INDEXING, INDEXING_FROM_WATCHER, SCANNING,
-    STOP_INDEX_SIGNAL, UI_MOUNTED,
+    CONFIG_NAME_PROXY, FS_WATCHER_SETTING, INDEXING, INDEXING_FROM_WATCHER, MODEL_NAME_EN,
+    MODEL_NAME_MULTI, MODEL_NAME_ZH, SCANNING, STOP_INDEX_SIGNAL, UI_MOUNTED,
 };
 use crate::indexer_service;
 use crate::model_platform_services::siliconflow::SiliconFlow;
@@ -74,8 +74,9 @@ pub async fn load_embedding_models() -> serde_json::Value {
     let multilang_path = app_util::get_multilingual_embedding_path();
     let multilang_model = Path::new(multilang_path.as_str());
     json!({
-        "all-minilm-l6-v2": true,
-        "paraphrase-multilingual-MiniLM-L12-v2": multilang_model.exists()
+        MODEL_NAME_ZH: true,
+        MODEL_NAME_EN: true,
+        MODEL_NAME_MULTI: multilang_model.exists()
     })
 }
 
@@ -271,6 +272,10 @@ pub async fn delete_index_item(file_id: i64) -> Result<(), String> {
     file_content_fts_repo::delete_by_file_id(file_id)?;
     file_content_embedding_repo::delete_by_file_id(file_id)?;
     file_metadata_embedding_repo::delete_by_file_id(file_id)?;
+    if let Some(file) = file_info_repo::get_by_id(file_id)? {
+        let file_path = file.path;
+        searcher::path_search_engine::remove_from_index(file_path.as_str(), true).await;
+    }
     file_info_repo::delete_by_id(file_id)?;
     Ok(())
 }
@@ -281,6 +286,7 @@ pub async fn clear_index() -> Result<(), String> {
     file_content_embedding_repo::clear()?;
     file_metadata_embedding_repo::clear()?;
     file_info_repo::clear()?;
+    searcher::path_search_engine::clear().await;
     Ok(())
 }
 

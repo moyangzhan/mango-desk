@@ -1,7 +1,5 @@
 pub mod ai_model_repo;
 pub mod config_repo;
-pub mod db_v1;
-pub mod db_v2;
 pub mod file_content_embedding_repo;
 pub mod file_content_fts_repo;
 pub mod file_info_repo;

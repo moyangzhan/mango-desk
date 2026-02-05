@@ -1,8 +1,10 @@
-use crate::enums::TrayMenuItem;
+use crate::enums::{FileContentLanguage, TrayMenuItem};
 use crate::global::{
     APP_DATA_PATH, DB_PATH, DOWNLOADING, EN_EMBEDDING_PATH, EN_TOKENIZER_PATH, EXIT_APP_SIGNAL,
-    HOME_PATH, INDEXING, MULTI_LANG_EMBEDDING_PATH, MULTI_LANG_TOKENIZER_PATH, SCANNING,
-    STOP_INDEX_SIGNAL, STORAGE_PATH, TMP_PATH, TRAY_ID,
+    HOME_PATH, INDEXING, MODEL_NAME_EN, MODEL_NAME_MULTI, MODEL_NAME_ZH, MULTI_LANG_EMBEDDING_PATH,
+    MULTI_LANG_TOKENIZER_PATH, SCANNING, STOP_INDEX_SIGNAL, STORAGE_PATH, TMP_PATH,
+    TOKENIZER_NAME_EN, TOKENIZER_NAME_MULTI, TOKENIZER_NAME_ZH, TRAY_ID, ZH_EMBEDDING_PATH,
+    ZH_TOKENIZER_PATH,
 };
 use crate::utils::file_util;
 use log::{error, info, warn};
@@ -11,6 +13,7 @@ use std::env;
 use std::fs::create_dir;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
+use sys_locale::get_locale;
 use tauri::menu::{Menu, MenuItem};
 use tauri::{AppHandle, Manager, Wry};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
@@ -114,10 +117,10 @@ pub async fn set_data_path(
             exist_files.push_str("mango-desk.db, ");
         }
         if ndp.join("model").join("model.onnx").exists() {
-            exist_files.push_str("model.onnx, ");
+            exist_files.push_str("multilingual_embedding.onnx, ");
         }
         if ndp.join("model").join("tokenizer.json").exists() {
-            exist_files.push_str("tokenizer.json, ");
+            exist_files.push_str("multilingual_tokenizer.json, ");
         }
         if !exist_files.is_empty() {
             return Ok("exist:".to_string() + &exist_files);
@@ -145,15 +148,15 @@ pub async fn set_data_path(
             file_util::copy_file(&old_db, &new_db)
                 .map_err(|e| format!("Failed to copy db file: {}", e))?;
         }
-        let old_model = old_path_buf.join("model").join("model.onnx");
+        let old_model = old_path_buf.join("model").join(MODEL_NAME_MULTI);
         if old_model.exists() {
-            let new_model = ndp.join("model").join("model.onnx");
+            let new_model = ndp.join("model").join(MODEL_NAME_MULTI);
             file_util::copy_file(&old_model, &new_model)
                 .map_err(|e| format!("Failed to copy model file: {}", e))?;
         }
-        let old_tokenizer = old_path_buf.join("model").join("tokenizer.json");
+        let old_tokenizer = old_path_buf.join("model").join(TOKENIZER_NAME_MULTI);
         if old_tokenizer.exists() {
-            let new_tokenizer = ndp.join("model").join("tokenizer.json");
+            let new_tokenizer = ndp.join("model").join(TOKENIZER_NAME_MULTI);
             file_util::copy_file(&old_tokenizer, &new_tokenizer)
                 .map_err(|e| format!("Failed to copy tokenizer file: {}", e))?;
         }
@@ -255,7 +258,10 @@ pub async fn init_paths(app: &AppHandle) {
             error!("Failed to create models directory: {}", error);
         });
     }
-    let multilingual_embedding_path = model_path.join("model.onnx").to_string_lossy().into_owned();
+    let multilingual_embedding_path = model_path
+        .join("multilingual_embedding.onnx")
+        .to_string_lossy()
+        .into_owned();
     MULTI_LANG_EMBEDDING_PATH
         .set(multilingual_embedding_path)
         .unwrap_or_else(|e| error!("Failed to set MULTI_LANG_EMBEDDING_PATH: {}", e));
@@ -267,7 +273,7 @@ pub async fn init_paths(app: &AppHandle) {
             .to_string()
     );
     let multilingual_tokenizer_path = model_path
-        .join("tokenizer.json")
+        .join("multilingual_tokenizer.json")
         .to_string_lossy()
         .into_owned();
     MULTI_LANG_TOKENIZER_PATH
@@ -295,10 +301,10 @@ pub async fn init_paths(app: &AppHandle) {
         TMP_PATH.get().unwrap_or(&String::new()).to_string()
     );
 
-    init_en_embedding_model_path(app);
+    init_embedding_model_path(app);
 }
 
-fn init_en_embedding_model_path(app_handle: &AppHandle) {
+fn init_embedding_model_path(app_handle: &AppHandle) {
     let app_dir = {
         #[cfg(debug_assertions)]
         {
@@ -336,8 +342,10 @@ fn init_en_embedding_model_path(app_handle: &AppHandle) {
             error!("Failed to create assets directory: {}", error);
         });
     }
+
+    // English embedding model
     let en_embedding_path = build_in_model_path
-        .join("all-minilm-l6-v2.onnx")
+        .join(MODEL_NAME_EN)
         .to_string_lossy()
         .into_owned();
     EN_EMBEDDING_PATH
@@ -351,7 +359,7 @@ fn init_en_embedding_model_path(app_handle: &AppHandle) {
             .to_string()
     );
     let en_tokenizer_path = build_in_model_path
-        .join("all-minilm-l6-v2-tokenizer.json")
+        .join(TOKENIZER_NAME_EN)
         .to_string_lossy()
         .into_owned();
     EN_TOKENIZER_PATH
@@ -360,6 +368,36 @@ fn init_en_embedding_model_path(app_handle: &AppHandle) {
     info!(
         "English tokenizer path: {}",
         EN_TOKENIZER_PATH
+            .get()
+            .unwrap_or(&String::new())
+            .to_string()
+    );
+
+    // Chinese embedding model
+    let zh_embedding_path = build_in_model_path
+        .join(MODEL_NAME_ZH)
+        .to_string_lossy()
+        .into_owned();
+    ZH_EMBEDDING_PATH
+        .set(zh_embedding_path)
+        .unwrap_or_else(|e| error!("Failed to set ZH_EMBEDDING_PATH: {}", e));
+    info!(
+        "Chinese embedding model path: {}",
+        ZH_EMBEDDING_PATH
+            .get()
+            .unwrap_or(&String::new())
+            .to_string()
+    );
+    let zh_tokenizer_path = build_in_model_path
+        .join(TOKENIZER_NAME_ZH)
+        .to_string_lossy()
+        .into_owned();
+    ZH_TOKENIZER_PATH
+        .set(zh_tokenizer_path)
+        .unwrap_or_else(|e| error!("Failed to set ZH_TOKENIZER_PATH: {}", e));
+    info!(
+        "Chinese tokenizer path: {}",
+        ZH_TOKENIZER_PATH
             .get()
             .unwrap_or(&String::new())
             .to_string()
@@ -388,6 +426,20 @@ pub fn get_multilingual_tokenizer_path() -> String {
         .to_string()
 }
 
+pub fn get_chinese_embedding_path() -> String {
+    ZH_EMBEDDING_PATH
+        .get()
+        .unwrap_or(&String::new())
+        .to_string()
+}
+
+pub fn get_chinese_tokenizer_path() -> String {
+    ZH_TOKENIZER_PATH
+        .get()
+        .unwrap_or(&String::new())
+        .to_string()
+}
+
 pub fn get_english_embedding_path() -> String {
     EN_EMBEDDING_PATH
         .get()
@@ -400,4 +452,13 @@ pub fn get_english_tokenizer_path() -> String {
         .get()
         .unwrap_or(&String::new())
         .to_string()
+}
+
+pub fn get_default_file_content_language() -> FileContentLanguage {
+    let locale = get_locale().unwrap_or_else(|| String::from("en-US"));
+    match locale.as_str() {
+        l if l.starts_with("zh") => FileContentLanguage::Chinese,
+        l if l.starts_with("en") => FileContentLanguage::English,
+        _ => FileContentLanguage::English, // 默认回退
+    }
 }

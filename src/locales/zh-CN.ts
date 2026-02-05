@@ -18,6 +18,7 @@ export default {
     delete: '删除',
     warning: '警告',
     tip: '提示',
+    restart: '重启',
     remove: '移除',
     removeAll: '移除所有',
     removeTip: '从索引文件列表中移除记录，不会删除磁盘中的文件',
@@ -243,7 +244,7 @@ export default {
     downloadFailed: '下载失败，可点击按钮重试',
     downloadModelManualTip:
       '如遇下载问题，可复制链接到浏览器或其他下载工具进行下载',
-    moveModelTip: '将 model.onnx 和 tokenizer.json 移动至：{modelPath}',
+    moveModelTip: '将 model_opt2_QInt8.onnx 和 tokenizer.json 移动至：{modelPath} 并分别重命名为 multilingual_embedding.onnx 和 multilingual_tokenizer.json',
     downloadLinks: '下载链接',
     downloadModelLink: 'model.onnx: {link} ',
     downloadTokenizerLink: 'tokenizer.json: {link}',

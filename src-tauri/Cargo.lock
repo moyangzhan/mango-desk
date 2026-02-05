@@ -3152,7 +3152,7 @@ checksum = "670fdfda89751bc4a84ac13eaa63e205cf0fd22b4c9a5fbfa085b63c1f1d3a30"
 
 [[package]]
 name = "mango-desk"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "aes",
  "aho-corasick",
@@ -3186,6 +3186,7 @@ dependencies = [
  "serde_json",
  "smallvec 1.15.0",
  "sqlite-vec",
+ "sys-locale",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
@@ -5713,6 +5714,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.114",
+]
+
+[[package]]
+name = "sys-locale"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8eab9a99a024a169fe8a903cf9d4a3b3601109bcc13bd9e3c6fff259138626c4"
+dependencies = [
+ "libc",
 ]
 
 [[package]]

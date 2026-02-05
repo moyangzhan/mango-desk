@@ -1,14 +1,16 @@
 use crate::enums::FileContentLanguage;
+use crate::global::{MODEL_NAME_EN, MODEL_NAME_MULTI, MODEL_NAME_ZH};
 use crate::utils::app_util::{
-    get_english_embedding_path, get_english_tokenizer_path, get_multilingual_embedding_path,
-    get_multilingual_tokenizer_path,
+    get_chinese_embedding_path, get_chinese_tokenizer_path, get_english_embedding_path,
+    get_english_tokenizer_path, get_multilingual_embedding_path, get_multilingual_tokenizer_path,
 };
 use crate::{errors::AppError, global::INDEXER_SETTING};
 use log::{error, info};
 use ort::{
-    session::{Session, builder::GraphOptimizationLevel},
+    session::{Session, SessionInputs, builder::GraphOptimizationLevel},
     value::Value,
 };
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Mutex;
 use tokenizers::Tokenizer;
@@ -25,18 +27,29 @@ pub struct EmbeddingService {
 impl EmbeddingService {
     pub async fn new() -> Result<Self, AppError> {
         info!("Initializing embedding service...");
-        let mut model_path = get_english_embedding_path();
-        let mut tokenizer_path = get_english_tokenizer_path();
-        let multilingual_embedding_path = get_multilingual_embedding_path();
-
-        let multilingual_model = Path::new(&multilingual_embedding_path);
         let content_language: FileContentLanguage =
             { INDEXER_SETTING.read().await.file_content_language.clone() };
 
-        if content_language == FileContentLanguage::Multilingual && multilingual_model.exists() {
-            model_path = multilingual_embedding_path;
-            tokenizer_path = get_multilingual_tokenizer_path();
-        }
+        let (model_path, tokenizer_path) = match content_language {
+            FileContentLanguage::Chinese => {
+                (get_chinese_embedding_path(), get_chinese_tokenizer_path())
+            }
+            FileContentLanguage::English => {
+                (get_english_embedding_path(), get_english_tokenizer_path())
+            }
+            FileContentLanguage::Multilingual => {
+                let multilingual_embedding_path = get_multilingual_embedding_path();
+                let multilingual_model = Path::new(&multilingual_embedding_path);
+                if multilingual_model.exists() {
+                    (
+                        multilingual_embedding_path,
+                        get_multilingual_tokenizer_path(),
+                    )
+                } else {
+                    (get_english_embedding_path(), get_english_tokenizer_path())
+                }
+            }
+        };
         let logical_cores = std::thread::available_parallelism()
             .map(|n| n.get().saturating_sub(2).max(2))
             .unwrap_or(2);
@@ -62,10 +75,16 @@ impl EmbeddingService {
     pub async fn model_name() -> &'static str {
         let content_language: FileContentLanguage =
             { INDEXER_SETTING.read().await.file_content_language.clone() };
-        if content_language != FileContentLanguage::English {
-            return "paraphrase-multilingual-MiniLM-L12-v2";
-        } else {
-            return "all-minilm-l6-v2";
+        match content_language {
+            FileContentLanguage::Chinese => {
+                return MODEL_NAME_ZH;
+            }
+            FileContentLanguage::English => {
+                return MODEL_NAME_EN;
+            }
+            FileContentLanguage::Multilingual => {
+                return MODEL_NAME_MULTI;
+            }
         }
     }
 
@@ -77,19 +96,15 @@ impl EmbeddingService {
             .iter()
             .map(|&id| id as i64)
             .collect();
-        let token_type_ids = vec![0i64; input_ids.len()];
 
+        let input_ids_len = input_ids.len();
         let input_tensor = Value::from_array(ndarray::Array::from_shape_vec(
-            (1, input_ids.len()),
+            (1, input_ids_len),
             input_ids,
         )?)?;
         let attention_tensor = Value::from_array(ndarray::Array::from_shape_vec(
             (1, attention_mask.len()),
             attention_mask,
-        )?)?;
-        let token_type_tensor = Value::from_array(ndarray::Array::from_shape_vec(
-            (1, token_type_ids.len()),
-            token_type_ids,
         )?)?;
         let embedding: Vec<f32> = {
             let mut guard = self.session.session.lock().map_err(|err| {
@@ -104,11 +119,23 @@ impl EmbeddingService {
             // for name in input_names {
             //     println!("Model input: {}", name);
             // }
-            let outputs = (*guard).run(ort::inputs![
-                input_tensor,
-                attention_tensor,
-                token_type_tensor
-            ])?;
+            let mut input_val = HashMap::new();
+            input_val.insert("input_ids", input_tensor);
+            input_val.insert("attention_mask", attention_tensor);
+            let needs_token_type = (*guard)
+                .inputs
+                .iter()
+                .any(|input| input.name == "token_type_ids");
+            if needs_token_type {
+                let token_type_ids = vec![0i64; input_ids_len];
+                let token_type_tensor = Value::from_array(ndarray::Array::from_shape_vec(
+                    (1, token_type_ids.len()),
+                    token_type_ids,
+                )?)?;
+                input_val.insert("token_type_ids", token_type_tensor);
+            }
+            let inputs = SessionInputs::from(input_val);
+            let outputs = (*guard).run(inputs)?;
             let (shape, data) = outputs[0].try_extract_tensor::<f32>()?;
             // tensor.1.iter().cloned().collect()
             match shape
