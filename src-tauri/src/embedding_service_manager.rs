@@ -1,11 +1,13 @@
 use crate::embedding_service::EmbeddingService;
 use crate::errors::AppError;
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 use tokio::sync::RwLock as AsyncRwLock;
 use tokio::time::Duration;
 
 static EMBEDDING_SERVICE_MANAGER: OnceLock<AsyncRwLock<EmbeddingServiceManager>> = OnceLock::new();
+pub static EMBEDDING_SERVICE_CREATING: AtomicBool = AtomicBool::new(false);
 pub static SERVICE_DURATION: Duration = Duration::from_secs(60 * 30);
 
 pub fn get_manager() -> &'static AsyncRwLock<EmbeddingServiceManager> {
@@ -28,13 +30,16 @@ impl Default for EmbeddingServiceManager {
 
 impl EmbeddingServiceManager {
     pub async fn warmup(&mut self) -> Result<(), AppError> {
-        if self.service.is_none() {
+        if self.service.is_none() && !EMBEDDING_SERVICE_CREATING.load(Ordering::SeqCst) {
+            EMBEDDING_SERVICE_CREATING.store(true, Ordering::SeqCst);
             match EmbeddingService::new().await {
                 Ok(service) => {
                     self.service = Some(service);
+                    EMBEDDING_SERVICE_CREATING.store(false, Ordering::SeqCst);
                 }
                 Err(e) => {
                     log::error!("EmbeddingService::new failed: {:?}", e);
+                    EMBEDDING_SERVICE_CREATING.store(false, Ordering::SeqCst);
                     return Err(e);
                 }
             }

@@ -456,6 +456,7 @@ pub fn get_english_tokenizer_path() -> String {
 
 pub fn get_default_file_content_language() -> FileContentLanguage {
     let locale = get_locale().unwrap_or_else(|| String::from("en-US"));
+    println!("locale: {}", locale);
     match locale.as_str() {
         l if l.starts_with("zh") => FileContentLanguage::Chinese,
         l if l.starts_with("en") => FileContentLanguage::English,

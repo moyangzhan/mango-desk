@@ -243,18 +243,22 @@ pub fn init_data() -> Result<()> {
 
     let (default_locale, default_file_content_language) =
         if get_default_file_content_language() == FileContentLanguage::Chinese {
-            ("zh-US", "zh")
+            ("zh-CN", "zh")
         } else {
             ("en-US", "en")
         };
     conn.execute(
-        "insert or ignore into config (name, value) VALUES ('active_locale', '?1')",
+        "insert or ignore into config (name, value) VALUES ('active_locale', ?1)",
         (default_locale,),
     )?;
+    let default_indexer_setting = format!(
+        r#"{{"is_private":true,"file_content_language":"{}","ignore_dirs":["node_modules"],"ignore_exts":["tmp"],"ignore_files":[],"save_parsed_content": {{"document":false,"image":true,"audio":true,"video":true}}}}"#,
+        default_file_content_language
+    );
     // is_private: Indicates whether the LLM(file parser) is running locally or remotely
     conn.execute(
-        r#"insert or ignore into config (name, value) VALUES ('indexer_setting', '{"is_private":true,"file_content_language":"?1","ignore_dirs":["node_modules"],"ignore_exts":["tmp"],"ignore_files":[],"save_parsed_content": {"document":false,"image":true,"audio":true,"video":true}}')"#,
-        (default_file_content_language,),
+        "insert or ignore into config (name, value) VALUES ('indexer_setting', ?1)",
+        (default_indexer_setting,),
     )?;
 
     conn.execute_batch(

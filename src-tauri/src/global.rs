@@ -166,7 +166,7 @@ pub const IGNORE_HIDDEN_FILES: bool = true;
 // }
 
 pub const TRAY_ID: &'static str = "main";
-pub const UI_MOUNTED: AtomicBool = AtomicBool::new(false);
+pub static UI_MOUNTED: AtomicBool = AtomicBool::new(false);
 
 pub static PATHS_CACHE: LazyLock<AsyncRwLock<Vec<String>>> =
     LazyLock::new(|| AsyncRwLock::new(vec![]));

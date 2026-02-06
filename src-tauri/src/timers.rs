@@ -59,8 +59,8 @@ async fn watch_path_indexing_job() {
         if EXIT_APP_SIGNAL.load(Ordering::SeqCst) {
             break;
         }
+        interval.tick().await;
         if SCANNING.load(Ordering::SeqCst) || INDEXING.load(Ordering::SeqCst) {
-            interval.tick().await;
             continue;
         }
         if INCREMENT_WATCH_PATHS.read().await.is_empty() {

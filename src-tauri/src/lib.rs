@@ -42,7 +42,7 @@ use rusqlite::ffi::sqlite3_auto_extension;
 use sqlite_vec::sqlite3_vec_init;
 use std::env;
 use std::panic;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Manager;
 use tauri::WindowEvent;
 use tauri::tray::{MouseButton, TrayIconBuilder, TrayIconEvent};
@@ -52,6 +52,8 @@ use tauri_plugin_log::{RotationStrategy, Target, TargetKind, TimezoneStrategy};
 extern crate rust_i18n;
 
 i18n!("locales", fallback = "en-US");
+
+static WARMUP_DONE: AtomicBool = AtomicBool::new(false);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -201,8 +203,10 @@ pub fn run() {
                     if *focused
                         && UI_MOUNTED.load(Ordering::SeqCst)
                         && file_content_embedding_repo::count().unwrap_or(0) > 0
+                        && WARMUP_DONE.load(Ordering::SeqCst)
                     {
-                        tokio::spawn(async move {
+                        WARMUP_DONE.store(false, Ordering::SeqCst);
+                        tauri::async_runtime::spawn(async move {
                             searcher::semantic_search_engine::warmup_embedding_service()
                                 .await
                                 .unwrap_or_else(|error| {
@@ -211,6 +215,7 @@ pub fn run() {
                                         error
                                     );
                                 });
+                            WARMUP_DONE.store(true, Ordering::SeqCst);
                         });
                     }
                 }

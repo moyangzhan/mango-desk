@@ -43,7 +43,10 @@ pub fn init() -> Result<()> {
         info!("db version:{}", a);
         match a {
             1 => {
-                db_v1::exec_ddl()?;
+                db_v1::exec_ddl().unwrap_or_else(|e| {
+                    error!("db_v1 exec_ddl error:{}", e);
+                    ()
+                });
                 db_v1::init_data()?;
             }
             2 => {
@@ -59,8 +62,8 @@ pub fn init() -> Result<()> {
     }
 
     conn.execute(
-        "update config set value=? where name=?",
-        [DB_VERSION.to_string(), CONFIG_NAME_DB_VERSION.to_string()],
+        "update config set value=?1 where name=?2",
+        (DB_VERSION, CONFIG_NAME_DB_VERSION),
     )?;
     return Ok(());
 }
