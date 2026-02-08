@@ -250,7 +250,7 @@ async function download() {
       switch (message.event) {
         case 'start': {
           downloading.value = true
-          if (message.data.url.includes('model.onnx')) {
+          if (message.data.url.includes('.onnx')) {
             modelDownloadState.value.url = message.data.url
             modelDownloadState.value.downloadId = message.data.downloadId
           } else {

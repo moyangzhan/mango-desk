@@ -415,6 +415,40 @@ pub async fn indexing_watch_paths() -> Result<(), String> {
     Ok(())
 }
 
+#[command]
+pub async fn open_directory(path: &str) -> Result<(), String> {
+    let path = Path::new(&path);
+    if !path.exists() {
+        return Err("Path does not exist".to_string());
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("explorer")
+            .arg(path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
 async fn chat() {
     let ai_model = ai_model_repo::get_one(
         ModelPlatformName::SiliconFlow.text(),

@@ -123,6 +123,14 @@ async function resetDataPath() {
   needRestart.value = true
 }
 
+async function openDataPath() {
+  try {
+    await invoke('open_directory', { path: dataPath.value })
+  } catch (e) {
+    console.error('open_directory failed', e)
+  }
+}
+
 async function restart() {
   try {
     await relaunch();
@@ -184,8 +192,13 @@ onMounted(async () => {
               <span>{{ t('common.change') }}</span>
             </NButton>
           </div>
-          <NButton @click="resetDataPath" :disabled="dataCopying" :loading="dataCopying">
-            {{ t('common.reset') }}
+          <div class="mr-2">
+            <NButton @click="resetDataPath" :disabled="dataCopying" :loading="dataCopying">
+              {{ t('common.reset') }}
+            </NButton>
+          </div>
+          <NButton @click="openDataPath" :disabled="dataCopying" :loading="dataCopying">
+            {{ t('common.open') }}
           </NButton>
         </div>
       </div>
