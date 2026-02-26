@@ -1,9 +1,6 @@
 use crate::enums::FileContentLanguage;
-use crate::global::{MODEL_NAME_EN, MODEL_NAME_MULTI, MODEL_NAME_ZH};
-use crate::utils::app_util::{
-    get_chinese_embedding_path, get_chinese_tokenizer_path, get_english_embedding_path,
-    get_english_tokenizer_path, get_multilingual_embedding_path, get_multilingual_tokenizer_path,
-};
+use crate::global::EMBEDDING_MODEL_NAME;
+use crate::utils::app_util::{get_multilingual_embedding_path, get_multilingual_tokenizer_path};
 use crate::{errors::AppError, global::INDEXER_SETTING};
 use log::{error, info};
 use ort::{
@@ -27,28 +24,12 @@ pub struct EmbeddingService {
 impl EmbeddingService {
     pub async fn new() -> Result<Self, AppError> {
         info!("Initializing embedding service...");
-        let content_language: FileContentLanguage =
-            { INDEXER_SETTING.read().await.file_content_language.clone() };
-
-        let (model_path, tokenizer_path) = match content_language {
-            FileContentLanguage::Chinese => {
-                (get_chinese_embedding_path(), get_chinese_tokenizer_path())
-            }
-            FileContentLanguage::English => {
-                (get_english_embedding_path(), get_english_tokenizer_path())
-            }
-            FileContentLanguage::Multilingual => {
-                let multilingual_embedding_path = get_multilingual_embedding_path();
-                let multilingual_model = Path::new(&multilingual_embedding_path);
-                if multilingual_model.exists() {
-                    (
-                        multilingual_embedding_path,
-                        get_multilingual_tokenizer_path(),
-                    )
-                } else {
-                    (get_english_embedding_path(), get_english_tokenizer_path())
-                }
-            }
+        let (model_path, tokenizer_path) = {
+            let multilingual_embedding_path = get_multilingual_embedding_path();
+            (
+                multilingual_embedding_path,
+                get_multilingual_tokenizer_path(),
+            )
         };
         let logical_cores = std::thread::available_parallelism()
             .map(|n| n.get().saturating_sub(2).max(2))
@@ -73,19 +54,7 @@ impl EmbeddingService {
     }
 
     pub async fn model_name() -> &'static str {
-        let content_language: FileContentLanguage =
-            { INDEXER_SETTING.read().await.file_content_language.clone() };
-        match content_language {
-            FileContentLanguage::Chinese => {
-                return MODEL_NAME_ZH;
-            }
-            FileContentLanguage::English => {
-                return MODEL_NAME_EN;
-            }
-            FileContentLanguage::Multilingual => {
-                return MODEL_NAME_MULTI;
-            }
-        }
+        EMBEDDING_MODEL_NAME
     }
 
     pub fn embed(&self, text: &str) -> Result<Vec<f32>, AppError> {

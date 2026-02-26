@@ -1,10 +1,9 @@
 use crate::enums::{FileContentLanguage, TrayMenuItem};
 use crate::global::{
-    APP_DATA_PATH, DB_PATH, DOWNLOADING, EN_EMBEDDING_PATH, EN_TOKENIZER_PATH, EXIT_APP_SIGNAL,
-    HOME_PATH, INDEXING, MODEL_NAME_EN, MODEL_NAME_MULTI, MODEL_NAME_ZH, MULTI_LANG_EMBEDDING_PATH,
-    MULTI_LANG_TOKENIZER_PATH, SCANNING, STOP_INDEX_SIGNAL, STORAGE_PATH, TMP_PATH,
-    TOKENIZER_NAME_EN, TOKENIZER_NAME_MULTI, TOKENIZER_NAME_ZH, TRAY_ID, ZH_EMBEDDING_PATH,
-    ZH_TOKENIZER_PATH,
+    APP_DATA_PATH, DB_PATH, DOWNLOADING, EMBEDDING_MODEL_NAME, EMBEDDING_MODEL_PATH,
+    EMBEDDING_TOKENIZER_NAME, EMBEDDING_TOKENIZER_PATH, EXIT_APP_SIGNAL, HOME_PATH, INDEXING,
+    SCANNING, STOP_INDEX_SIGNAL, STORAGE_PATH, TMP_PATH, TRAY_ID, VISION_MODEL_PATH, VISION_NAME,
+    VISION_TOKENIZER_NAME, VISION_TOKENIZER_PATH,
 };
 use crate::utils::file_util;
 use log::{error, info, warn};
@@ -116,12 +115,6 @@ pub async fn set_data_path(
         if ndp.join("storage").join("mango-desk.db").exists() {
             exist_files.push_str("mango-desk.db, ");
         }
-        if ndp.join("model").join("model.onnx").exists() {
-            exist_files.push_str("multilingual_embedding.onnx, ");
-        }
-        if ndp.join("model").join("tokenizer.json").exists() {
-            exist_files.push_str("multilingual_tokenizer.json, ");
-        }
         if !exist_files.is_empty() {
             return Ok("exist:".to_string() + &exist_files);
         }
@@ -147,18 +140,6 @@ pub async fn set_data_path(
             let new_db = ndp.join("storage").join("mango-desk.db");
             file_util::copy_file(&old_db, &new_db)
                 .map_err(|e| format!("Failed to copy db file: {}", e))?;
-        }
-        let old_model = old_path_buf.join("model").join(MODEL_NAME_MULTI);
-        if old_model.exists() {
-            let new_model = ndp.join("model").join(MODEL_NAME_MULTI);
-            file_util::copy_file(&old_model, &new_model)
-                .map_err(|e| format!("Failed to copy model file: {}", e))?;
-        }
-        let old_tokenizer = old_path_buf.join("model").join(TOKENIZER_NAME_MULTI);
-        if old_tokenizer.exists() {
-            let new_tokenizer = ndp.join("model").join(TOKENIZER_NAME_MULTI);
-            file_util::copy_file(&old_tokenizer, &new_tokenizer)
-                .map_err(|e| format!("Failed to copy tokenizer file: {}", e))?;
         }
     }
     let mut guard = APP_DATA_PATH.write().await;
@@ -251,41 +232,6 @@ pub async fn init_paths(app: &AppHandle) {
         "Database path: {}",
         DB_PATH.get().unwrap_or(&String::new()).to_string()
     );
-    // For download models
-    let model_path = Path::new(&data_path).join("model");
-    if !model_path.exists() {
-        create_dir(&model_path).unwrap_or_else(|error| {
-            error!("Failed to create models directory: {}", error);
-        });
-    }
-    let multilingual_embedding_path = model_path
-        .join("multilingual_embedding.onnx")
-        .to_string_lossy()
-        .into_owned();
-    MULTI_LANG_EMBEDDING_PATH
-        .set(multilingual_embedding_path)
-        .unwrap_or_else(|e| error!("Failed to set MULTI_LANG_EMBEDDING_PATH: {}", e));
-    info!(
-        "Multi-language embedding model path: {}",
-        MULTI_LANG_EMBEDDING_PATH
-            .get()
-            .unwrap_or(&String::new())
-            .to_string()
-    );
-    let multilingual_tokenizer_path = model_path
-        .join("multilingual_tokenizer.json")
-        .to_string_lossy()
-        .into_owned();
-    MULTI_LANG_TOKENIZER_PATH
-        .set(multilingual_tokenizer_path)
-        .unwrap_or_else(|e| error!("Failed to set MULTI_LANG_TOKENIZER_PATH: {}", e));
-    info!(
-        "Multi-language tokenizer path: {}",
-        MULTI_LANG_TOKENIZER_PATH
-            .get()
-            .unwrap_or(&String::new())
-            .to_string()
-    );
     // Tmp download directory
     let tmp_path = data_path.join("tmp");
     if !tmp_path.exists() {
@@ -343,65 +289,58 @@ fn init_embedding_model_path(app_handle: &AppHandle) {
         });
     }
 
-    // English embedding model
-    let en_embedding_path = build_in_model_path
-        .join(MODEL_NAME_EN)
+    let multilingual_embedding_path = build_in_model_path
+        .join(EMBEDDING_MODEL_NAME)
         .to_string_lossy()
         .into_owned();
-    EN_EMBEDDING_PATH
-        .set(en_embedding_path)
-        .unwrap_or_else(|e| error!("Failed to set EN_EMBEDDING_PATH: {}", e));
+    EMBEDDING_MODEL_PATH
+        .set(multilingual_embedding_path)
+        .unwrap_or_else(|e| error!("Failed to set EMBEDDING_MODEL_PATH: {}", e));
     info!(
-        "English embedding model path: {}",
-        EN_EMBEDDING_PATH
+        "Multi-language embedding model path: {}",
+        EMBEDDING_MODEL_PATH
             .get()
             .unwrap_or(&String::new())
             .to_string()
     );
-    let en_tokenizer_path = build_in_model_path
-        .join(TOKENIZER_NAME_EN)
+    let multilingual_tokenizer_path = build_in_model_path
+        .join(EMBEDDING_TOKENIZER_NAME)
         .to_string_lossy()
         .into_owned();
-    EN_TOKENIZER_PATH
-        .set(en_tokenizer_path)
-        .unwrap_or_else(|e| error!("Failed to set EN_TOKENIZER_PATH: {}", e));
+    EMBEDDING_TOKENIZER_PATH
+        .set(multilingual_tokenizer_path)
+        .unwrap_or_else(|e| error!("Failed to set EMBEDDING_TOKENIZER_PATH: {}", e));
     info!(
-        "English tokenizer path: {}",
-        EN_TOKENIZER_PATH
+        "Multi-language tokenizer path: {}",
+        EMBEDDING_TOKENIZER_PATH
             .get()
             .unwrap_or(&String::new())
             .to_string()
     );
 
-    // Chinese embedding model
-    let zh_embedding_path = build_in_model_path
-        .join(MODEL_NAME_ZH)
+    // Vision model
+    let vision_path = build_in_model_path
+        .join(VISION_NAME)
         .to_string_lossy()
         .into_owned();
-    ZH_EMBEDDING_PATH
-        .set(zh_embedding_path)
-        .unwrap_or_else(|e| error!("Failed to set ZH_EMBEDDING_PATH: {}", e));
+    VISION_MODEL_PATH
+        .set(vision_path)
+        .unwrap_or_else(|e| error!("Failed to set VISION_0_PATH: {}", e));
     info!(
-        "Chinese embedding model path: {}",
-        ZH_EMBEDDING_PATH
+        "Vision model path: {}",
+        VISION_MODEL_PATH
             .get()
             .unwrap_or(&String::new())
             .to_string()
     );
-    let zh_tokenizer_path = build_in_model_path
-        .join(TOKENIZER_NAME_ZH)
+
+    let vision_tokenizer_path = build_in_model_path
+        .join(VISION_TOKENIZER_NAME)
         .to_string_lossy()
         .into_owned();
-    ZH_TOKENIZER_PATH
-        .set(zh_tokenizer_path)
-        .unwrap_or_else(|e| error!("Failed to set ZH_TOKENIZER_PATH: {}", e));
-    info!(
-        "Chinese tokenizer path: {}",
-        ZH_TOKENIZER_PATH
-            .get()
-            .unwrap_or(&String::new())
-            .to_string()
-    );
+    VISION_TOKENIZER_PATH
+        .set(vision_tokenizer_path)
+        .unwrap_or_else(|e| error!("Failed to set VISION_TOKENIZER_PATH: {}", e));
 }
 
 pub fn get_db_path() -> String {
@@ -413,42 +352,28 @@ pub fn get_assets_tmp_path() -> String {
 }
 
 pub fn get_multilingual_embedding_path() -> String {
-    MULTI_LANG_EMBEDDING_PATH
+    EMBEDDING_MODEL_PATH
         .get()
         .unwrap_or(&String::new())
         .to_string()
 }
 
 pub fn get_multilingual_tokenizer_path() -> String {
-    MULTI_LANG_TOKENIZER_PATH
+    EMBEDDING_TOKENIZER_PATH
         .get()
         .unwrap_or(&String::new())
         .to_string()
 }
 
-pub fn get_chinese_embedding_path() -> String {
-    ZH_EMBEDDING_PATH
+pub fn get_vision_0_path() -> String {
+    VISION_MODEL_PATH
         .get()
         .unwrap_or(&String::new())
         .to_string()
 }
 
-pub fn get_chinese_tokenizer_path() -> String {
-    ZH_TOKENIZER_PATH
-        .get()
-        .unwrap_or(&String::new())
-        .to_string()
-}
-
-pub fn get_english_embedding_path() -> String {
-    EN_EMBEDDING_PATH
-        .get()
-        .unwrap_or(&String::new())
-        .to_string()
-}
-
-pub fn get_english_tokenizer_path() -> String {
-    EN_TOKENIZER_PATH
+pub fn get_vision_tokenizer_path() -> String {
+    VISION_TOKENIZER_PATH
         .get()
         .unwrap_or(&String::new())
         .to_string()

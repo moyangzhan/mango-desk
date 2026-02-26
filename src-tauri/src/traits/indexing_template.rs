@@ -190,7 +190,7 @@ pub async fn embedding_content(file_id: i64, content: &str) -> Result<(), Indexi
         if !keep_run {
             continue;
         }
-        let content_array: [f32; 768] = match chunk_embedding.try_into() {
+        let content_array: [f32; 1024] = match chunk_embedding.try_into() {
             Ok(embedding) => embedding,
             Err(_) => {
                 let _ = file_info_repo::update_content_index_status(
@@ -199,7 +199,7 @@ pub async fn embedding_content(file_id: i64, content: &str) -> Result<(), Indexi
                     "Failed to convert embedding to array",
                 );
                 keep_run = false;
-                [0.0; 768]
+                [0.0; 1024]
             }
         };
         if !keep_run {
@@ -254,7 +254,7 @@ pub async fn embedding_metadata(
             return Ok(());
         }
     };
-    let meta_array: [f32; 768] = meta_embedding.try_into().unwrap_or([0.0; 768]);
+    let meta_array: [f32; 1024] = meta_embedding.try_into().unwrap_or([0.0; 1024]);
     file_metadata_embedding_repo::insert(
         &(FileMetaEmbedding {
             id: 0,

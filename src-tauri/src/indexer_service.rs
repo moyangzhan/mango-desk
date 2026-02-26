@@ -2,10 +2,10 @@ use crate::embedding_service::EmbeddingService;
 use crate::enums::{FileCategory, IndexingEvent};
 use crate::errors::AppError;
 use crate::global::{
-    ACTIVE_MODEL_PLATFORM, CONFIG_NAME_INDEXER_SETTING, EVENT_SELECTOR_INDEXING,
-    EVENT_WATCHER_INDEXING, INDEXER_SETTING, INDEXING, INDEXING_FROM_SELECTOR,
+    ACTIVE_MODEL_PLATFORM, CONFIG_NAME_INDEXER_SETTING, INDEXER_SETTING, INDEXING,
     INDEXING_FROM_WATCHER, SCANNING, SCANNING_TOTAL, STOP_INDEX_SIGNAL,
 };
+use crate::indexers;
 use crate::initializer;
 use crate::repositories::{
     config_repo, file_content_embedding_repo, file_content_fts_repo, file_info_repo,
@@ -15,15 +15,12 @@ use crate::scanner;
 use crate::structs::indexer_setting::IndexerSetting;
 use crate::traits::indexing_template::IndexingTemplate;
 use crate::utils::{frontend_util, indexing_task_util};
-use crate::{embedding_service_manager, indexers};
 use rust_i18n::t;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
 pub async fn update_indexer_setting(indexer_setting: IndexerSetting) -> Result<usize, String> {
-    let content_language_changed =
-        indexer_setting.file_content_language != INDEXER_SETTING.read().await.file_content_language;
     let json = serde_json::to_string(&indexer_setting).map_err(|e| AppError::SerializeError(e))?;
     let result = config_repo::update_by_name(CONFIG_NAME_INDEXER_SETTING, &json)?;
     initializer::init_setting(
@@ -32,12 +29,6 @@ pub async fn update_indexer_setting(indexer_setting: IndexerSetting) -> Result<u
         &INDEXER_SETTING,
     )
     .await;
-    if content_language_changed {
-        embedding_service_manager::get_manager()
-            .write()
-            .await
-            .clear();
-    }
     Ok(result)
 }
 
@@ -129,8 +120,17 @@ pub async fn start_indexing(paths: Vec<String>, from: &str) -> Result<bool, Stri
     );
     indexing_task_util::summary_to_db().await;
 
+    if let Ok(mut image_indexer) = indexers::image_indexer::ImageIndexer::new().await {
+        println!("image indexing...");
+        let _ = image_indexer
+            .process(task.clone(), from)
+            .await
+            .unwrap_or_else(|e| println!("image indexing error,{}", e));
+        indexing_task_util::summary_to_db().await;
+    }
+
     if INDEXER_SETTING.read().await.is_private {
-        println!("--- private mode, skip indexing image and audio ---");
+        println!("--- private mode, skip indexing audio ---");
         indexing_finish(
             task.id,
             t!("message.indexing-skip-by-privacy").to_string().as_str(),
@@ -161,16 +161,6 @@ pub async fn start_indexing(paths: Vec<String>, from: &str) -> Result<bool, Stri
             platform_name
         ));
     }
-
-    if let Ok(mut image_indexer) = indexers::image_indexer::ImageIndexer::new().await {
-        println!("image indexing...");
-        let _ = image_indexer
-            .process(task.clone(), from)
-            .await
-            .unwrap_or_else(|e| println!("image indexing error,{}", e));
-        indexing_task_util::summary_to_db().await;
-    }
-
     if let Ok(mut audio_indexer) = indexers::audio_indexer::AudioIndexer::new().await {
         println!("audio indexing...");
         let _ = audio_indexer

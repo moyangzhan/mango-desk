@@ -1,4 +1,4 @@
-use crate::enums::{FileCategory, FileContentLanguage};
+use crate::enums::{FileCategory, FileParserMode};
 use serde::{Deserialize, Serialize};
 
 /// @see enums.rs FileCategory
@@ -36,7 +36,8 @@ impl SaveParsedContent {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct IndexerSetting {
     pub is_private: bool,
-    pub file_content_language: FileContentLanguage, // zh, en, multilingual
+    #[serde(default)]
+    pub image_parser_mode: FileParserMode, // local or remote
     pub ignore_dirs: Vec<String>,
     pub ignore_exts: Vec<String>,
     pub ignore_files: Vec<String>, // File absolute path
@@ -48,7 +49,7 @@ impl Default for IndexerSetting {
     fn default() -> Self {
         Self {
             is_private: false,
-            file_content_language: FileContentLanguage::English,
+            image_parser_mode: FileParserMode::Local,
             ignore_exts: vec![],
             ignore_files: vec![],
             ignore_dirs: vec![],

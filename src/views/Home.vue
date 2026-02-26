@@ -344,7 +344,7 @@ onUnmounted(() => {
         </div>
       </NImageGroup>
     </div>
-    <HowToUse />
+    <HowToUse v-if="searchResults.length === 0"/>
     <NModal v-model:show="showContentModal" preset="card" :title="t('indexer.parsedContent')"
       style="width: 80%; height:80%;">
       <div style="max-height: 600px;overflow-y: auto;" class="select-text">

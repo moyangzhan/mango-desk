@@ -143,6 +143,9 @@ export default {
     existPath: 'Exist Path',
     existFile: 'Exist File',
     changeSamePathError: 'Same path cannot be changed',
+    local: 'Local',
+    cloud: 'Cloud',
+    notSupport: 'Not Support',
   },
   proxy: {
     enable: 'Proxy Enable',
@@ -155,6 +158,7 @@ export default {
     platform: 'Model Platform',
     platformInfo: 'Model Platform Info',
     activePlatform: 'Active Model Platform',
+    selectForActivePlatform: 'Select Active Platform',
     platofrmSelector: 'Model Platform Selector',
     platformSetting: 'Model Platform Setting',
     embeddingModel: 'Embedding Model',
@@ -166,10 +170,11 @@ export default {
     privateMode: 'Private Mode',
     privateModeDesc:
       'All data processing is done locally without uploading to any external servers.',
+    privateModeSetting: 'Private Mode Setting',
     cloudMode: 'Cloud Mode',
     cloudModeDesc:
       'Images and audio need to be uploaded to remote servers for content recognition.',
-    cloudModeSetting: 'Cloud Mode Setting',
+    cloudModeSetting: 'Cloud Service Setting',
     cloudModeDescDynamic:
       'Images and audio need to be uploaded to {modelPlatform} for content recognition.',
     localParser: 'Local Parser',
@@ -195,7 +200,7 @@ export default {
     ignoreHiddenFolders: 'Ignore Hidden Folders',
     hiddenDirectoryDesc:
       'Whether to ignore hidden folders (folder starting with .) during indexing.',
-    disabledByPrivateMode: 'Disabled by Private Mode',
+    notSupportByPrivateMode: 'Not supported by Private Mode',
     indexFileMetadata: 'Index File Metadata',
     indexFileMetadataDesc:
       'Whether to index file metadata (such as file name, creation time, etc.) together.',
@@ -247,6 +252,7 @@ export default {
     clearSelected: 'Clear Selected',
     dataPath: 'Data storage path',
     allFilesIndexed: 'All files indexed',
+    detailConfig: 'Configuration Settings',
   },
   message: {
     downloadFailed: 'Download failed, retry or download manually',

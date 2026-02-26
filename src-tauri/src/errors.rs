@@ -87,6 +87,13 @@ pub enum AppError {
         #[from]
         source: tokio::task::JoinError,
     },
+    #[error("Image parser init error: {0}")]
+    ImageParserInitError(String),
+    #[error("Anyhow error: {source}")]
+    AnyhowError {
+        #[from]
+        source: anyhow::Error,
+    },
 }
 unsafe impl Send for AppError {}
 unsafe impl Sync for AppError {}

@@ -413,3 +413,16 @@ pub enum SearchSource {
     ContentKeyword,
     ContentSemantic,
 }
+
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum FileParserMode {
+    Local,
+    Remote,
+}
+
+impl Default for FileParserMode {
+    fn default() -> Self {
+        FileParserMode::Local
+    }
+}

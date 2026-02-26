@@ -8,6 +8,7 @@ mod enums;
 mod errors;
 mod fs_watcher;
 mod global;
+mod image_parser;
 mod indexer_service;
 mod indexers;
 mod initializer;
@@ -27,10 +28,10 @@ use crate::lib_commands::{
     add_watch_path, check_path_type, clear_index, count_files, count_indexing_tasks,
     delete_index_item, delete_indexing_task, download_multilingual_model, get_client_id,
     get_data_path, indexing_watch_paths, is_embedding_model_changed, keyword_search,
-    load_active_locale, load_active_platform, load_chunks, load_config_value,
-    load_embedding_models, load_file_detail, load_files, load_indexer_setting, load_indexing_tasks,
-    load_model_by_type, load_model_platforms, load_proxy_info, open_directory, quick_search,
-    read_file_data, remove_watch_path, reset_data_path, search, semantic_search, set_active_locale,
+    load_active_locale, load_active_platform, load_chunks, load_config_value, load_file_detail,
+    load_files, load_indexer_setting, load_indexing_tasks, load_model_by_type,
+    load_model_platforms, load_proxy_info, open_directory, quick_search, read_file_data,
+    remove_watch_path, reset_data_path, search, semantic_search, set_active_locale,
     set_active_platform, set_data_path, start_indexing, stop_indexing, ui_mounted,
     update_indexer_setting, update_model_platform, update_proxy_info,
 };
@@ -118,7 +119,6 @@ pub fn run() {
             load_active_platform,
             load_indexer_setting,
             load_model_by_type,
-            load_embedding_models,
             load_indexing_tasks,
             load_files,
             load_file_detail,

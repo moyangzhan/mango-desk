@@ -6,9 +6,10 @@ use crate::errors::AppError;
 use crate::fs_watcher::watcher;
 use crate::global::{
     ACTIVE_LOCALE, ACTIVE_MODEL_PLATFORM, APP_DATA_PATH, CLIENT_ID, CONFIG_NAME_INDEXER_SETTING,
-    CONFIG_NAME_PROXY, FS_WATCHER_SETTING, INDEXING, INDEXING_FROM_WATCHER, MODEL_NAME_EN,
-    MODEL_NAME_MULTI, MODEL_NAME_ZH, SCANNING, STOP_INDEX_SIGNAL, UI_MOUNTED,
+    CONFIG_NAME_PROXY, EMBEDDING_MODEL_NAME, FS_WATCHER_SETTING, INDEXING, INDEXING_FROM_WATCHER,
+    SCANNING, STOP_INDEX_SIGNAL, UI_MOUNTED,
 };
+use crate::image_parser::ImageParser;
 use crate::indexer_service;
 use crate::model_platform_services::siliconflow::SiliconFlow;
 use crate::repositories::{
@@ -67,17 +68,6 @@ pub async fn load_indexer_setting()
         })
         .unwrap_or_else(|| Ok(crate::structs::indexer_setting::IndexerSetting::default()))?;
     Ok(result)
-}
-
-#[command]
-pub async fn load_embedding_models() -> serde_json::Value {
-    let multilang_path = app_util::get_multilingual_embedding_path();
-    let multilang_model = Path::new(multilang_path.as_str());
-    json!({
-        MODEL_NAME_ZH: true,
-        MODEL_NAME_EN: true,
-        MODEL_NAME_MULTI: multilang_model.exists()
-    })
 }
 
 #[command]

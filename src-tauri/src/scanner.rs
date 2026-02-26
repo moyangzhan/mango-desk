@@ -2,8 +2,8 @@ use crate::entities::{FileInfo, IndexingTask};
 use crate::enums::{FileCategory, FileIndexStatus, IndexingEvent};
 use crate::errors::{AppError, IndexingError};
 use crate::global::{
-    EVENT_SELECTOR_INDEXING, EVENT_WATCHER_INDEXING, IGNORE_HIDDEN_DIRS, IGNORE_HIDDEN_FILES,
-    INDEXER_SETTING, INDEXING_FROM_SELECTOR, SCANNING, SCANNING_TOTAL, STOP_INDEX_SIGNAL,
+    IGNORE_HIDDEN_DIRS, IGNORE_HIDDEN_FILES, INDEXER_SETTING, SCANNING, SCANNING_TOTAL,
+    STOP_INDEX_SIGNAL,
 };
 use crate::indexer_service;
 use crate::repositories::file_info_repo;

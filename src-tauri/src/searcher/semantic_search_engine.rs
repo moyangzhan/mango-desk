@@ -35,24 +35,19 @@ pub async fn search(query: &str) -> Vec<SearchResult> {
     if embedding.is_empty() {
         return Vec::new();
     }
-    let checkpoint1 = start.elapsed();
-    println!("checkpoint1 {:?}", checkpoint1);
     let (content_result, meta_result) = try_join!(
         task::spawn_blocking({
             let embedding = embedding.clone();
-            move || file_content_embedding_repo::search(&embedding, 0.7).unwrap_or_default()
+            move || file_content_embedding_repo::search(&embedding, 0.4).unwrap_or_default()
         }),
         task::spawn_blocking({
             let embedding = embedding.clone();
-            move || file_metadata_embedding_repo::search(&embedding, 0.7).unwrap_or_default()
+            move || file_metadata_embedding_repo::search(&embedding, 0.4).unwrap_or_default()
         }),
     )
     .unwrap_or_default();
-    let checkpoint2 = start.elapsed();
-    println!("checkpoint2: {:?}", checkpoint2 - checkpoint1);
     let result = merge_and_filter_results(content_result, meta_result);
-    let checkpoint3 = start.elapsed();
-    println!("checkpoint3: {:?}", checkpoint3 - checkpoint2);
+    println!("cost: {:?}", start.elapsed());
     result
 }
 
@@ -77,6 +72,10 @@ fn merge_and_filter_results(
         if item.distance < entry.distance {
             entry.distance = item.distance;
         }
+        println!(
+            "file_id: {}, chunk_id: {}, distance: {}",
+            item.file_id, item.id, item.distance
+        );
     }
 
     for item in meta_result {
@@ -91,6 +90,10 @@ fn merge_and_filter_results(
                 entry.distance = item.distance;
             }
         }
+        println!(
+            "file_id: {}, meta_id: {}, distance: {}",
+            item.file_id, item.id, item.distance
+        );
     }
 
     let mut tmps: Vec<SearchTmp> = file_map.into_values().collect();

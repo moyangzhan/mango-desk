@@ -11,7 +11,9 @@ use crate::structs::indexer_setting::IndexerSetting;
 use crate::structs::proxy_setting::ProxyInfo;
 use anyhow::Context;
 use log::{error, info};
-use ort::execution_providers::{CPUExecutionProvider, CUDAExecutionProvider};
+use ort::execution_providers::{
+    CPUExecutionProvider, CUDAExecutionProvider, TensorRTExecutionProvider,
+};
 use serde::Deserialize;
 use serde_json;
 use std::sync::LazyLock;
@@ -49,6 +51,7 @@ pub async fn process() {
     if ONNX_EXEC_PROVIDERS_INITIALIZED.get().is_none() {
         let result = ort::init()
             .with_execution_providers(vec![
+                TensorRTExecutionProvider::default().into(),
                 CUDAExecutionProvider::default().into(),
                 CPUExecutionProvider::default().into(),
             ])
