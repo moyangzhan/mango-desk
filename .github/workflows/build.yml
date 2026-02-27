@@ -45,38 +45,38 @@ jobs:
           name: windows-build
           path: src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
 
-  build-linux:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          lfs: true
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - name: Install pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 10
-          run_install: false
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-unknown-linux-gnu
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Install Linux Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev
-      - name: Build Linux
-        run: pnpm tauri build --target x86_64-unknown-linux-gnu
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-build
-          path: src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/*/*
+  # build-linux:
+  #   runs-on: ubuntu-22.04
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         lfs: true
+  #     - name: Setup Node.js
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: 20
+  #     - name: Install pnpm
+  #       uses: pnpm/action-setup@v3
+  #       with:
+  #         version: 10
+  #         run_install: false
+  #     - name: Setup Rust
+  #       uses: dtolnay/rust-toolchain@stable
+  #       with:
+  #         targets: x86_64-unknown-linux-gnu
+  #     - name: Install Dependencies
+  #       run: pnpm install --frozen-lockfile
+  #     - name: Install Linux Dependencies
+  #       run: |
+  #         sudo apt-get update
+  #         sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev
+  #     - name: Build Linux
+  #       run: pnpm tauri build --target x86_64-unknown-linux-gnu
+  #     - name: Upload Artifact
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: linux-build
+  #         path: src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/*/*
 
   build-macos:
     runs-on: macos-latest
@@ -112,7 +112,7 @@ jobs:
             src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
 
   release:
-    needs: [build-windows, build-linux, build-macos]
+    needs: [build-windows, build-macos]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
@@ -162,9 +162,9 @@ jobs:
         with:
           files: |
             artifacts/windows-build/*.msi
-            artifacts/linux-build/deb/*.deb
-            artifacts/linux-build/rpm/*.rpm
-            artifacts/linux-build/appimage/*.AppImage
+            # artifacts/linux-build/deb/*.deb
+            # artifacts/linux-build/rpm/*.rpm
+            # artifacts/linux-build/appimage/*.AppImage
             artifacts/macos-build/aarch64-apple-darwin/release/bundle/dmg/*.dmg
             artifacts/macos-build/x86_64-apple-darwin/release/bundle/dmg/*.dmg
           name: Release ${{ github.ref_name }}
