@@ -122,6 +122,23 @@ pnpm i
 
 [https://tauri.app/start/prerequisites/](https://tauri.app/start/prerequisites/)
 
+### 4. 下载模型文件
+
+请从以下任一来源下载所需的模型文件：
+
+1. **GitHub Release**: [model.zip](https://github.com/moyangzhan/mango-desk/releases/download/v0.1.0/model.zip) - 包含所有必需文件
+2. **Hugging Face**: [moyangzhan/mango-desk](https://huggingface.co/moyangzhan/mango-desk/tree/main) - 需要手动下载以下文件：
+   - *.onnx 模型文件
+   - *_tokenizer.json 分词器文件
+
+下载完成后，请将文件解压到 `src-tauri/assets/model` 目录中。
+
+**所需文件列表**：
+- embedding.onnx
+- embedding_tokenizer.json
+- vision.onnx
+- vision_tokenizer.json
+
 ## ▶️ 运行项目（开发模式）
 
 Tauri 应用至少包含两个进程（详见 [官方文档](https://tauri.app/concept/process-model/)）：

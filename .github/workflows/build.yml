@@ -14,8 +14,9 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          lfs: true
+        # replace with the huggingface download
+        # with:
+        #   lfs: true
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -29,9 +30,25 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
+      - name: Install Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Install Hugging Face Hub
+        run: pip install huggingface_hub
+      - name: Download Models from Hugging Face
+        run: |
+          python -c "
+          from huggingface_hub import hf_hub_download
+          hf_hub_download(repo_id='moyangzhan/mango-desk', filename='embedding.onnx', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-desk', filename='embedding_tokenizer.json', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-desk', filename='vision.onnx', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-desk', filename='vision_tokenizer.json', local_dir='./src-tauri/assets/model')
+          "
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
-
       - name: Clean Tauri WiX Cache
         run: |
           Remove-Item -Path "$env:LOCALAPPDATA\tauri\WixTools*" -Recurse -Force -ErrorAction SilentlyContinue
@@ -45,45 +62,60 @@ jobs:
           name: windows-build
           path: src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
 
-  # build-linux:
-  #   runs-on: ubuntu-22.04
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #       with:
-  #         lfs: true
-  #     - name: Setup Node.js
-  #       uses: actions/setup-node@v4
-  #       with:
-  #         node-version: 20
-  #     - name: Install pnpm
-  #       uses: pnpm/action-setup@v3
-  #       with:
-  #         version: 10
-  #         run_install: false
-  #     - name: Setup Rust
-  #       uses: dtolnay/rust-toolchain@stable
-  #       with:
-  #         targets: x86_64-unknown-linux-gnu
-  #     - name: Install Dependencies
-  #       run: pnpm install --frozen-lockfile
-  #     - name: Install Linux Dependencies
-  #       run: |
-  #         sudo apt-get update
-  #         sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev
-  #     - name: Build Linux
-  #       run: pnpm tauri build --target x86_64-unknown-linux-gnu
-  #     - name: Upload Artifact
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: linux-build
-  #         path: src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/*/*
+  build-linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        # with:
+        #   lfs: true
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 10
+          run_install: false
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu
+      - name: Install Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Install Hugging Face Hub
+        run: pip install huggingface_hub
+      - name: Download Models from Hugging Face
+        run: |
+          python -c "
+          from huggingface_hub import hf_hub_download
+          hf_hub_download(repo_id='moyangzhan/mango-desk', filename='embedding.onnx', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-desk', filename='embedding_tokenizer.json', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-desk', filename='vision.onnx', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-desk', filename='vision_tokenizer.json', local_dir='./src-tauri/assets/model')
+          "
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install Linux Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev
+      - name: Build Linux
+        run: pnpm tauri build --target x86_64-unknown-linux-gnu
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/*/*
 
   build-macos:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          lfs: true
+        # with:
+        #   lfs: true
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -97,6 +129,21 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-darwin, x86_64-apple-darwin
+      - name: Install Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Install Hugging Face Hub
+        run: pip install huggingface_hub
+      - name: Download Models from Hugging Face
+        run: |
+          python -c "
+          from huggingface_hub import hf_hub_download
+          hf_hub_download(repo_id='moyangzhan/mango-desk', filename='embedding.onnx', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-desk', filename='embedding_tokenizer.json', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-desk', filename='vision.onnx', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-desk', filename='vision_tokenizer.json', local_dir='./src-tauri/assets/model')
+          "
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
       - name: Build macOS (Apple Silicon)
@@ -112,7 +159,7 @@ jobs:
             src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
 
   release:
-    needs: [build-windows, build-macos]
+    needs: [build-windows, build-linux, build-macos]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     permissions:

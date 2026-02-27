@@ -120,6 +120,25 @@ Install tools: [https://www.rust-lang.org/tools/install](https://www.rust-lang.o
 Install Tauri Prerequisites: 
 [https://tauri.app/start/prerequisites/](https://tauri.app/start/prerequisites/)
 
+### 4. Download Model Files
+
+Download the required model files from one of the following sources:
+
+1. **GitHub Release**: [model.zip](https://github.com/moyangzhan/mango-desk/releases/download/v0.1.0/model.zip) - Contains all required files
+2. **Hugging Face**: [moyangzhan/mango-desk](https://huggingface.co/moyangzhan/mango-desk/tree/main) - Manually download the following files:
+   - *.onnx model files
+   - *_tokenizer.json tokenizer files
+
+After downloading, extract the files to the `src-tauri/assets/model` directory.
+
+**Required Files**:
+- embedding.onnx
+- embedding_tokenizer.json
+- vision.onnx
+- vision_tokenizer.json
+
+## 🚀 Getting Started
+
 ## ▶️ Development Run
 
 A Tauri app has at least [two processes](https://tauri.app/concept/process-model/):
