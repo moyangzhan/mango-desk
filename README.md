@@ -68,13 +68,13 @@ Mango Finder is especially useful in scenarios where you have **a large amount o
 
 **Indexing**
 
-![indexing](./screenshots/mango-finder-indexing.png)
+![indexing](./screenshots/indexing.png)
 
 `The self-hosted model part is under development and will be integrated according to the ollama interface.`
 
 **Search**
 
-![search](./screenshots/mango-finder-search.png)
+![search](./screenshots/search.png)
 
 ### 🛠️ Technology Stack
 
