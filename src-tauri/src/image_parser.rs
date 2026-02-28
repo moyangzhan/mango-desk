@@ -3,7 +3,6 @@ use anyhow::{Ok, Result};
 use image::ImageReader;
 use log::info;
 use ndarray::{Array, Array2, Array4, IxDyn, s};
-use ort::execution_providers::CPUExecutionProvider;
 use ort::{
     session::SessionInputValue,
     session::{Session, builder::GraphOptimizationLevel},

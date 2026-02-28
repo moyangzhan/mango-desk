@@ -1,16 +1,16 @@
 <sup>[English](./README.md) | [中文](./README_CN.md)</sup>
 
-# Mango Desk
+# Mango Finder
 
 **🥭 Awake your data**  
 
 ![image](./screenshots/work.png)
 
-[![Download](./screenshots/download-ready.svg)](https://github.com/moyangzhan/mango-desk/releases)
+[![Download](./screenshots/download-ready.svg)](https://github.com/moyangzhan/mango-finder/releases)
 
-## What is Mango Desk?
+## What is Mango Finder?
 
-Mango Desk is a local-first desktop app for searching your local documents with natural language.
+Mango Finder (formerly MangoDesk) is a local-first desktop app for searching your local documents with natural language.
 
 It helps you find information based on what you remember, not file names or folder structures.
 
@@ -18,7 +18,7 @@ It helps you find information based on what you remember, not file names or fold
 
 ### 📌 Use Cases
 
-Mango Desk is especially useful in scenarios where you have **a large amount of local documents** and want to retrieve information using natural language.
+Mango Finder is especially useful in scenarios where you have **a large amount of local documents** and want to retrieve information using natural language.
 
 
 #### Typical Use Cases
@@ -53,7 +53,7 @@ Mango Desk is especially useful in scenarios where you have **a large amount of 
   - Locate documents using keywords from file paths or content, ideal for finding files when you remember specific terms or phrases
 
 - 📂 **Works with your existing local files**
-  - No need to reorganize folders or rename files — Mango Desk works with what you already have
+  - No need to reorganize folders or rename files — Mango Finder works with what you already have
 
 - 👀 **Real-time file & directory watching**
   - Automatically detects file and folder changes (add / modify / delete) and keeps index and search results up to date
@@ -68,13 +68,13 @@ Mango Desk is especially useful in scenarios where you have **a large amount of 
 
 **Indexing**
 
-![indexing](./screenshots/mango-desk-indexing.png)
+![indexing](./screenshots/mango-finder-indexing.png)
 
 `The self-hosted model part is under development and will be integrated according to the ollama interface.`
 
 **Search**
 
-![search](./screenshots/mango-desk-search.png)
+![search](./screenshots/mango-finder-search.png)
 
 ### 🛠️ Technology Stack
 
@@ -124,8 +124,8 @@ Install Tauri Prerequisites:
 
 Download the required model files from one of the following sources:
 
-1. **GitHub Release**: [model.zip](https://github.com/moyangzhan/mango-desk/releases/download/v0.1.0/model.zip) - Contains all required files
-2. **Hugging Face**: [moyangzhan/mango-desk](https://huggingface.co/moyangzhan/mango-desk/tree/main) - Manually download the following files:
+1. **GitHub Release**: [model.zip](https://github.com/moyangzhan/mango-finder/releases/download/v0.1.0/model.zip) - Contains all required files
+2. **Hugging Face**: [moyangzhan/mango-finder](https://huggingface.co/moyangzhan/mango-finder/tree/main) - Manually download the following files:
    - *.onnx model files
    - *_tokenizer.json tokenizer files
 
@@ -161,12 +161,12 @@ pnpm tauri build
 
 After building, the executable file is usually located in `src-tauri/target/release/`.
 
-windows: `src-tauri/target/release/bundle/msi/Mango Desk_0.1.0_x64_en-US.msi`
+windows: `src-tauri/target/release/bundle/msi/Mango Finder_0.1.0_x64_en-US.msi`
 
 ## ❓ FAQ
-### Q: How does Mango Desk ensure data privacy?
+### Q: How does Mango Finder ensure data privacy?
 
-A: Mango Desk follows a local-first architecture to ensure data privacy:
+A: Mango Finder follows a local-first architecture to ensure data privacy:
 
 #### Local Data Processing
 - All document indexing and search operations are performed locally on your device
@@ -228,7 +228,7 @@ Before submitting a pull request, please consider:
 
 ## ⭐ Support the Project
 
-Support Mango Desk if you find it helpful:
+Support Mango Finder if you find it helpful:
 - Starring the repository on GitHub
 - Recommending it to others
 - Sharing your experience

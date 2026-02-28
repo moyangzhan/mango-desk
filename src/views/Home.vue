@@ -223,7 +223,7 @@ onUnmounted(() => {
 <template>
   <div class="h-full flex flex-col items-center p-4 text-center">
     <div v-if="searchResults.length === 0" class="mb-4 flex items-center">
-      <NImage src="/mango-desk.png" alt="MangoDesk" width="100" height="100"
+      <NImage src="/mango-desk.png" alt="MangoFinder" width="100" height="100"
         class="transition-all duration-300 hover:scale-105" style="opacity: 0.8; filter: saturate(0.9)"
         preview-disabled />
       <div class="text-sm text-gray-400 mt-2">

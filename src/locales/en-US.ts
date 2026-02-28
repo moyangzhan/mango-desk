@@ -268,7 +268,7 @@ export default {
   },
   about: {
     description:
-      'MangoDesk is a local file search tool that lets you search with just vague memories. Local-first and privacy-friendly.',
+      'MangoFinder is a local file search tool that lets you search with just vague memories. Local-first and privacy-friendly.',
     moreDetail: 'More details or contribute code',
     currentVersion: 'Current Version',
     appClientId: 'App Client ID',

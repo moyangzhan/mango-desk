@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    mango_desk_lib::run()
+    mango_finder_lib::run()
 }

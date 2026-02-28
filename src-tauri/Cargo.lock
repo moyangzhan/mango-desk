@@ -3423,8 +3423,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "670fdfda89751bc4a84ac13eaa63e205cf0fd22b4c9a5fbfa085b63c1f1d3a30"
 
 [[package]]
-name = "mango-desk"
-version = "0.6.0"
+name = "mango-finder"
+version = "0.7.0"
 dependencies = [
  "aes",
  "aho-corasick",

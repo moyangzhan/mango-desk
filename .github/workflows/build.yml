@@ -40,10 +40,10 @@ jobs:
         run: |
           python -c "
           from huggingface_hub import hf_hub_download
-          hf_hub_download(repo_id='moyangzhan/mango-desk', filename='embedding.onnx', local_dir='./src-tauri/assets/model')
-          hf_hub_download(repo_id='moyangzhan/mango-desk', filename='embedding_tokenizer.json', local_dir='./src-tauri/assets/model')
-          hf_hub_download(repo_id='moyangzhan/mango-desk', filename='vision.onnx', local_dir='./src-tauri/assets/model')
-          hf_hub_download(repo_id='moyangzhan/mango-desk', filename='vision_tokenizer.json', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-finder', filename='embedding.onnx', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-finder', filename='embedding_tokenizer.json', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-finder', filename='vision.onnx', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-finder', filename='vision_tokenizer.json', local_dir='./src-tauri/assets/model')
           "
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
@@ -91,10 +91,10 @@ jobs:
         run: |
           python -c "
           from huggingface_hub import hf_hub_download
-          hf_hub_download(repo_id='moyangzhan/mango-desk', filename='embedding.onnx', local_dir='./src-tauri/assets/model')
-          hf_hub_download(repo_id='moyangzhan/mango-desk', filename='embedding_tokenizer.json', local_dir='./src-tauri/assets/model')
-          hf_hub_download(repo_id='moyangzhan/mango-desk', filename='vision.onnx', local_dir='./src-tauri/assets/model')
-          hf_hub_download(repo_id='moyangzhan/mango-desk', filename='vision_tokenizer.json', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-finder', filename='embedding.onnx', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-finder', filename='embedding_tokenizer.json', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-finder', filename='vision.onnx', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-finder', filename='vision_tokenizer.json', local_dir='./src-tauri/assets/model')
           "
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
@@ -139,10 +139,10 @@ jobs:
         run: |
           python -c "
           from huggingface_hub import hf_hub_download
-          hf_hub_download(repo_id='moyangzhan/mango-desk', filename='embedding.onnx', local_dir='./src-tauri/assets/model')
-          hf_hub_download(repo_id='moyangzhan/mango-desk', filename='embedding_tokenizer.json', local_dir='./src-tauri/assets/model')
-          hf_hub_download(repo_id='moyangzhan/mango-desk', filename='vision.onnx', local_dir='./src-tauri/assets/model')
-          hf_hub_download(repo_id='moyangzhan/mango-desk', filename='vision_tokenizer.json', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-finder', filename='embedding.onnx', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-finder', filename='embedding_tokenizer.json', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-finder', filename='vision.onnx', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-finder', filename='vision_tokenizer.json', local_dir='./src-tauri/assets/model')
           "
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile

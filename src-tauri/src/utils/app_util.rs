@@ -112,8 +112,8 @@ pub async fn set_data_path(
     let ndp = PathBuf::from(new_data_path);
     if !force {
         let mut exist_files = "".to_string();
-        if ndp.join("storage").join("mango-desk.db").exists() {
-            exist_files.push_str("mango-desk.db, ");
+        if ndp.join("storage").join("mango-finder.db").exists() {
+            exist_files.push_str("mango-finder.db, ");
         }
         if !exist_files.is_empty() {
             return Ok("exist:".to_string() + &exist_files);
@@ -135,9 +135,9 @@ pub async fn set_data_path(
     }
     let old_path_buf = PathBuf::from(old_data_path);
     if old_path_buf.exists() {
-        let old_db = old_path_buf.join("storage").join("mango-desk.db");
+        let old_db = old_path_buf.join("storage").join("mango-finder.db");
         if old_db.exists() {
-            let new_db = ndp.join("storage").join("mango-desk.db");
+            let new_db = ndp.join("storage").join("mango-finder.db");
             file_util::copy_file(&old_db, &new_db)
                 .map_err(|e| format!("Failed to copy db file: {}", e))?;
         }
@@ -172,7 +172,7 @@ pub async fn init_paths(app: &AppHandle) {
         .join(env!("CARGO_PKG_NAME"));
     info!("system data path: {}", data_path.display());
     let config_path = data_path.join(".config");
-    info!("MangoDesk config file: {}", config_path.display());
+    info!("MangoFinder config file: {}", config_path.display());
     // Default to use user data directory. Otherwise, use the path from .config file.
     if !config_path.exists() {
         if let Err(e) = std::fs::write(&config_path, data_path.to_str().unwrap_or("")) {
@@ -201,7 +201,7 @@ pub async fn init_paths(app: &AppHandle) {
     }
     info!("data_path: {}", data_path.display());
     let data_path_str = data_path.to_string_lossy().into_owned();
-    info!("MangoDesk data directory: {}", data_path_str);
+    info!("MangoFinder data directory: {}", data_path_str);
     let mut guard = APP_DATA_PATH.write().await;
     *guard = data_path_str;
     drop(guard);
@@ -224,7 +224,7 @@ pub async fn init_paths(app: &AppHandle) {
         "Storage directory: {}",
         STORAGE_PATH.get().unwrap_or(&String::new())
     );
-    let db_path = Path::new(&data_path).join("storage").join("mango-desk.db");
+    let db_path = Path::new(&data_path).join("storage").join("mango-finder.db");
     DB_PATH
         .set(db_path.to_string_lossy().into_owned())
         .unwrap_or_else(|error| error!("Failed to set DB_PATH: {}", error));

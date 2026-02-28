@@ -259,7 +259,7 @@ export default {
   },
   about: {
     description:
-      'MangoDesk 是一个本地文件搜索工具，仅凭模糊的记忆即可搜索以定位文件。',
+      'MangoFinder 是一个本地文件搜索工具，仅凭模糊的记忆即可搜索以定位文件。',
     moreDetail: '了解更多或贡献代码',
     currentVersion: '当前版本',
     appClientId: '客户端ID',

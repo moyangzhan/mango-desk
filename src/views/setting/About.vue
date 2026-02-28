@@ -28,7 +28,7 @@ onMounted(async () => {
 <template>
   <div class="flex flex-col h-full p-4 text-left space-y-8 w-full">
     <div class="flex flex-col w-full items-center justify-center pr-8">
-      <NImage src="/mango-desk.png" alt="MangoDesk" width="200" height="200" preview-disabled />
+      <NImage src="/mango-desk.png" alt="MangoFinder" width="200" height="200" preview-disabled />
       <p class="text-gray-700 dark:text-gray-300 mb-4">
         {{ t('about.description') }}
       </p>
@@ -46,13 +46,13 @@ onMounted(async () => {
         {{ t('about.moreDetail') }}
       </div>
       <div>
-        <NButton text @click="openUrl('https://github.com/moyangzhan/mango-desk')">
+        <NButton text @click="openUrl('https://github.com/moyangzhan/mango-finder')">
           <template #icon>
             <NIcon>
               <LogoGithub />
             </NIcon>
           </template>
-          <span class="hover:underline text-xs">MangoDesk on GitHub</span>
+          <span class="hover:underline text-xs">MangoFinder on GitHub</span>
         </NButton>
       </div>
       <div class="text-xs mt-2 flex flex-col space-y-2">

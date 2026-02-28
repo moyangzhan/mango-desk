@@ -1,6 +1,6 @@
 [package]
-name = "mango-desk"
-version = "0.6.0"
+name = "mango-finder"
+version = "0.7.0"
 edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -9,7 +9,7 @@ edition = "2024"
 # The `_lib` suffix may seem redundant but it is necessary
 # to make the lib name unique and wouldn't conflict with the bin name.
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
-name = "mango_desk_lib"
+name = "mango_finder_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

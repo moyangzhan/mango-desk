@@ -1,16 +1,16 @@
 <sup>[English](./README.md) | [中文](./README_CN.md)</sup>
 
-# Mango Desk
+# Mango Finder
 
 **🥭 Awake your data**
 
 ![1691585544443](./screenshots/work.png)
 
-[![Download](./screenshots/download-ready.svg)](https://github.com/moyangzhan/mango-desk/releases)
+[![Download](./screenshots/download-ready.svg)](https://github.com/moyangzhan/mango-finder/releases)
 
 ## 📖 项目简介
 
-Mango Desk 是一款用自然语言搜索本地文件的桌面应用。
+Mango Finder（原名 MangoDesk）是一款用自然语言搜索本地文件的桌面应用。
 
 帮助您根据记忆中的内容查找信息，而不需要记住文件名或文件夹结构。
 
@@ -50,7 +50,7 @@ Mango Desk 是一款用自然语言搜索本地文件的桌面应用。
   - 如果您记得文件路径的部分关键词，也可以通过这些关键词来进行精确查找
 
 - 📂 **兼容现有本地文件**
-  - 无需重新整理文件夹或重命名文件 — Mango Desk 直接使用您已有的文件
+  - 无需重新整理文件夹或重命名文件 — Mango Finder 直接使用您已有的文件
 
 - ⚡ **快速轻量**
   - 即时获得搜索结果，不会拖慢系统运行
@@ -65,13 +65,13 @@ Mango Desk 是一款用自然语言搜索本地文件的桌面应用。
 
 **索引**
 
-![indexing](./screenshots/mango-desk-indexing.png)
+![indexing](./screenshots/indexing.png)
 
 `自托管模型这块功能正在开发中，将按照ollama的接口进行接入`
 
 **搜索**
 
-![search](./screenshots/mango-desk-search.png)
+![search](./screenshots/search.png)
 
 
 ### 🛠️ 技术栈
@@ -126,8 +126,8 @@ pnpm i
 
 请从以下任一来源下载所需的模型文件：
 
-1. **GitHub Release**: [model.zip](https://github.com/moyangzhan/mango-desk/releases/download/v0.1.0/model.zip) - 包含所有必需文件
-2. **Hugging Face**: [moyangzhan/mango-desk](https://huggingface.co/moyangzhan/mango-desk/tree/main) - 需要手动下载以下文件：
+1. **GitHub Release**: [model.zip](https://github.com/moyangzhan/mango-finder/releases/download/v0.1.0/model.zip) - 包含所有必需文件
+2. **Hugging Face**: [moyangzhan/mango-finder](https://huggingface.co/moyangzhan/mango-finder/tree/main) - 需要手动下载以下文件：
    - *.onnx 模型文件
    - *_tokenizer.json 分词器文件
 
@@ -167,12 +167,12 @@ src-tauri/target/release/
 
 不同平台生成的安装包格式可能有所不同，如
 
-windows: `src-tauri/target/release/bundle/msi/Mango Desk_0.1.0_x64_en-US.msi`
+windows: `src-tauri/target/release/bundle/msi/Mango Finder_0.1.0_x64_en-US.msi`
 
 ## ❓ FAQ
-### Q: Mango Desk 如何确保数据隐私？
+### Q: Mango Finder 如何确保数据隐私？
 
-A: Mango Desk 采用本地优先（local-first）架构来确保数据隐私：
+A: Mango Finder 采用本地优先（local-first）架构来确保数据隐私：
 
 #### 本地数据处理
 - 所有文档索引和搜索操作都在本地设备上执行
@@ -235,7 +235,7 @@ A: 代码库包含多个模型，各自服务于不同目的：
 
 ## ⭐ 支持我们
 
-如果 Mango Desk 对您有帮助，欢迎：
+如果 Mango Finder 对您有帮助，欢迎：
 * 在 GitHub 上给项目一个 Star
 * 向朋友推荐
 * 分享使用体验

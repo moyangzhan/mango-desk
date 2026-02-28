@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Mango Desk",
-  "version": "0.6.0",
-  "identifier": "myz.mango-desk",
+  "productName": "Mango Finder",
+  "version": "0.7.0",
+  "identifier": "myz.mango-finder",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:5173",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Mango Desk",
+        "title": "Mango Finder",
         "width": 1000,
         "height": 760,
         "resizable": true,
@@ -47,9 +47,9 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "copyright": "© 2026 Copyright Mango Desk",
-    "shortDescription": "Search your data using nature language",
-    "longDescription": "Search your data using nature language",
-    "publisher": "Mango Desk"
+    "copyright": "© 2026 Copyright Mango Finder",
+    "shortDescription": "Search your data using natural language",
+    "longDescription": "Search your data using natural language",
+    "publisher": "Mango Finder"
   }
 }
