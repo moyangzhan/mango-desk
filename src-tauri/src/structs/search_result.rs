@@ -5,7 +5,7 @@ use std::collections::HashSet;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct SearchResult {
-    pub score: f32,
+    pub score: usize, // 0 - 100
     pub sources: Vec<SearchSource>,
     pub file_info: FileInfo,
     pub matched_keywords: HashSet<String>, // For keyword search

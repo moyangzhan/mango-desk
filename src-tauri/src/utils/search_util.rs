@@ -1,4 +1,30 @@
 use crate::enums::QueryIntent;
+use std::collections::HashSet;
+use std::sync::LazyLock;
+
+pub static STOPWORDS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
+    let mut s = HashSet::new();
+    // 英文常用噪音词 (Prepositions, Conjunctions, Articles)
+    let en_words = [
+        "a", "an", "the", "and", "or", "but", "if", "then", "else", "when", "at", "by", "from",
+        "for", "in", "off", "on", "out", "over", "to", "with", "is", "was", "are", "were", "be",
+        "been", "being", "has", "have", "had", "do", "does", "did", "of", "about",
+    ];
+    // 中文常用噪音词 (助词、连词、介词)
+    let cn_words = [
+        "的", "了", "在", "是", "我", "有", "和", "就", "不", "人", "都", "一", "一个", "上", "也",
+        "很", "到", "说", "要", "去", "你", "会", "着", "没有", "看", "好", "自己", "这", "与",
+        "于", "之",
+    ];
+
+    for word in en_words {
+        s.insert(word);
+    }
+    for word in cn_words {
+        s.insert(word);
+    }
+    s
+});
 
 pub fn detect_intent(query: &str) -> QueryIntent {
     let q = query.trim();

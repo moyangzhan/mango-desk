@@ -147,18 +147,31 @@ pub fn exec_ddl() -> Result<()> {
         CREATE INDEX IF NOT EXISTS idx_md5 ON file_info(md5);
         CREATE INDEX IF NOT EXISTS idx_metadata ON file_info(metadata);
 
-        create virtual table if not exists file_metadata_embedding using vec0(
-            id integer primary key autoincrement,
-            file_id integer default 0 not null,          -- foreign key to file_info.id
-            embedding float[384] distance_metric=cosine  -- document metadata embedding, source text from file_info.metadata
+        CREATE virtual table IF NOT EXISTS file_content_fts USING fts5(
+            file_id UNINDEXED, chunk_id UNINDEXED, content, tokenize='porter'
         );
-        create virtual table if not exists file_content_embedding using vec0(
+        create virtual table if not exists file_metadata_vec using vec0(
             id integer primary key autoincrement,
-            file_id integer default 0 not null,          -- foreign key to file_info.id
-            chunk_index integer default 0 not null,
-            chunk_text text default '' not null,
-            embedding float[384] distance_metric=cosine
+            embedding float[256] distance_metric=cosine -- document metadata embedding, source text from file_info.metadata
         );
+        CREATE TABLE IF NOT EXISTS file_metadata_data(
+            id INTEGER PRIMARY KEY,                 -- file_metadata_vec.id
+            file_id integer default 0 not null,     -- foreign key to file_info.id
+            sparse_weights blob                     -- for hybrid search, store sparse vector in binary format
+        );
+        create virtual table if not exists file_content_vec using vec0(
+            id integer primary key autoincrement,
+            embedding float[1024] distance_metric=cosine
+        );
+        create table file_content_data(
+            id INTEGER PRIMARY KEY,                   -- file_content_vec.id
+            file_id INTEGER default 0 not null,       -- foreign key to file_info.id
+            chunk_index INTEGER default 0 not null,
+            chunk_text text default '' NOT NULL,
+            sparse_weights BLOB NOT NULL              -- for hybrid search, store sparse vector in binary format
+        );
+        create index if not exists idx_fcd_file_id on file_content_data(file_id);
+        
         create trigger if not exists file_info_create_time 
         after insert on file_info
         for each row
@@ -174,6 +187,14 @@ pub fn exec_ddl() -> Result<()> {
         begin
             update file_info set update_time = datetime('now', 'localtime')
             where id = new.id;
+        end;
+        -- delete related content and metadata when delete a file_info record
+        create trigger if not exists trg_delete_file_content_data
+        before delete on file_info
+        for each row
+        begin
+            delete from file_content_vec where id in (select id from file_content_data where file_id = old.id);
+            delete from file_content_data where file_id = old.id;
         end;
         "#,
     )?;
@@ -194,6 +215,7 @@ pub fn exec_ddl() -> Result<()> {
             content_indexed_skipped_cnt integer not null default 0, -- Skipped contents. e.g., binary file, encrypted file
             remark text not null default '',                        -- Task remarks
             config_json text not null default '{}',                 -- JSON configuration for indexing task (e.g., filters, rules)
+            triggered_by integer DEFAULT 1 not null,                -- 1: file selector, 2: file watcher
             create_time text not null default '',
             update_time text not null default ''
         );

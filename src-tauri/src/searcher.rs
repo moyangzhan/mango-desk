@@ -79,7 +79,7 @@ fn fuse_results(
         let matched_keywords = r.matched_keywords.clone();
         map.entry(r.file_info.path.clone())
             .and_modify(|e| {
-                e.score = e.score * 0.6 + r.score * 0.4;
+                e.score = (e.score as f32 * 0.6 + r.score as f32 * 0.4).round() as usize;
                 e.sources.append(&mut r.sources);
                 e.matched_chunk_ids.extend(matched_chunk_ids.clone());
                 e.matched_keywords.extend(matched_keywords.clone());
@@ -93,11 +93,11 @@ fn fuse_results(
                     sources,
                     matched_chunk_ids,
                     matched_keywords,
-                    score: score * 0.4,
+                    score: (score as f32 * 0.4).round() as usize,
                 }
             });
     }
     let mut results: Vec<_> = map.into_values().collect();
-    results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+    results.sort_by(|a, b| b.score.cmp(&a.score));
     results
 }

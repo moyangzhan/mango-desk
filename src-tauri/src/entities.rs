@@ -1,5 +1,6 @@
 use crate::enums::{FileIndexStatus, IndexingTaskStatus};
 use crate::structs::file_metadata::FileMetadata;
+use crate::structs::sparse_vector::SparseVector;
 use crate::utils::datetime_util;
 use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
@@ -135,8 +136,12 @@ pub struct FileMetaEmbedding {
     pub id: i64,
     pub file_id: i64,
     #[serde(skip, default = "default_embedding")]
-    pub embedding: [f32; 1024],
+    pub embedding: [f32; 256],
+    pub sparse_vec: SparseVector,
+
     pub distance: f32, // for search result
+    pub sparse_score: f32, // for search result
+    pub score: usize,      // for search result, distance 和 sparse_score 的加权总分
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -145,9 +150,13 @@ pub struct FileContentEmbedding {
     pub file_id: i64,
     pub chunk_index: i64,
     pub chunk_text: String,
-    #[serde(skip, default = "default_embedding")]
+    #[serde(skip, default = "default_embedding_1024")]
     pub embedding: [f32; 1024],
-    pub distance: f32, // for search result
+    pub sparse_vec: SparseVector,
+
+    pub distance: f32,     // for search result
+    pub sparse_score: f32, // for search result
+    pub score: usize,      // for search result, distance 和 sparse_score 的加权总分
 }
 
 impl Default for FileContentEmbedding {
@@ -155,15 +164,23 @@ impl Default for FileContentEmbedding {
         Self {
             id: 0,
             file_id: 0,
-            embedding: default_embedding(),
+            embedding: default_embedding_1024(),
             chunk_index: 0,
             chunk_text: "".to_string(),
+            sparse_vec: SparseVector::default(),
+
             distance: -0.1,
+            sparse_score: 0.0,
+            score: 0,
         }
     }
 }
 
-fn default_embedding() -> [f32; 1024] {
+fn default_embedding() -> [f32; 256] {
+    [0.0; 256]
+}
+
+fn default_embedding_1024() -> [f32; 1024] {
     [0.0; 1024]
 }
 
@@ -217,5 +234,5 @@ pub struct FtsSearchResult {
     pub file_id: i64,
     pub chunk_ids: HashSet<i64>,
     pub matched_keywords: HashSet<String>,
-    pub score: f64,
+    pub score: usize, // 0 - 100
 }

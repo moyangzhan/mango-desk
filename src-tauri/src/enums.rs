@@ -406,12 +406,13 @@ pub enum QueryIntent {
     Hybrid,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Hash)]
 #[serde(rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum SearchSource {
     PathKeyword,
     ContentKeyword,
     ContentSemantic,
+    MetaSemantic,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]

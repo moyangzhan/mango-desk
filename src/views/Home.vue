@@ -336,7 +336,7 @@ onUnmounted(() => {
             </div>
             <div v-if="item.matched_chunk_ids && item.matched_chunk_ids.length > 0" class="ml-2">
               <NButton size="tiny" text
-                @click="loadChunks(item.matched_chunk_ids, item.sources.includes('contentKeyword') ? item.matched_keywords : [])">
+                @click="loadChunks(item.matched_chunk_ids, item.matched_keywords)">
                 {{ t('common.matchedSegments', { count: item.matched_chunk_ids.length }) }}
               </NButton>
             </div>

@@ -1,5 +1,6 @@
 use crate::embedding_service::EmbeddingService;
 use crate::errors::AppError;
+use crate::structs::embed_result::EmbedResult;
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
@@ -65,7 +66,7 @@ impl EmbeddingServiceManager {
         self.service = None;
     }
 
-    pub async fn embed(&mut self, text: &str) -> Result<Vec<f32>, AppError> {
+    pub async fn embed(&mut self, text: &str) -> Result<EmbedResult, AppError> {
         let service = self.service().await?;
         let result = service.embed(text);
         self.update_last_used();

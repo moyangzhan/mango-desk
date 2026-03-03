@@ -1,14 +1,13 @@
-use crate::enums::FileContentLanguage;
+use crate::errors::AppError;
 use crate::global::EMBEDDING_MODEL_NAME;
+use crate::structs::embed_result::EmbedResult;
 use crate::utils::app_util::{get_multilingual_embedding_path, get_multilingual_tokenizer_path};
-use crate::{errors::AppError, global::INDEXER_SETTING};
 use log::{error, info};
 use ort::{
     session::{Session, SessionInputs, builder::GraphOptimizationLevel},
     value::Value,
 };
 use std::collections::HashMap;
-use std::path::Path;
 use std::sync::Mutex;
 use tokenizers::Tokenizer;
 
@@ -57,7 +56,7 @@ impl EmbeddingService {
         EMBEDDING_MODEL_NAME
     }
 
-    pub fn embed(&self, text: &str) -> Result<Vec<f32>, AppError> {
+    pub fn embed(&self, text: &str) -> Result<EmbedResult, AppError> {
         let encoding = self.tokenizer.encode(text, true)?;
         let input_ids: Vec<i64> = encoding.get_ids().iter().map(|&id| id as i64).collect();
         let attention_mask: Vec<i64> = encoding
@@ -69,74 +68,42 @@ impl EmbeddingService {
         let input_ids_len = input_ids.len();
         let input_tensor = Value::from_array(ndarray::Array::from_shape_vec(
             (1, input_ids_len),
-            input_ids,
+            input_ids.clone(),
         )?)?;
         let attention_tensor = Value::from_array(ndarray::Array::from_shape_vec(
             (1, attention_mask.len()),
             attention_mask,
         )?)?;
-        let embedding: Vec<f32> = {
-            let mut guard = self.session.session.lock().map_err(|err| {
-                error!("Failed to lock session: {}", err);
-                AppError::EmbeddingSizeMismatch(err.to_string())
-            })?;
-            // let input_names: Vec<String> = (*guard)
-            //     .inputs
-            //     .iter()
-            //     .map(|input| input.name.clone())
-            //     .collect();
-            // for name in input_names {
-            //     println!("Model input: {}", name);
-            // }
-            let mut input_val = HashMap::new();
-            input_val.insert("input_ids", input_tensor);
-            input_val.insert("attention_mask", attention_tensor);
-            let needs_token_type = (*guard)
-                .inputs
-                .iter()
-                .any(|input| input.name == "token_type_ids");
-            if needs_token_type {
-                let token_type_ids = vec![0i64; input_ids_len];
-                let token_type_tensor = Value::from_array(ndarray::Array::from_shape_vec(
-                    (1, token_type_ids.len()),
-                    token_type_ids,
-                )?)?;
-                input_val.insert("token_type_ids", token_type_tensor);
-            }
-            let inputs = SessionInputs::from(input_val);
-            let outputs = (*guard).run(inputs)?;
-            let (shape, data) = outputs[0].try_extract_tensor::<f32>()?;
-            // tensor.1.iter().cloned().collect()
-            match shape
-                .iter()
-                .map(|&x| x as usize)
-                .collect::<Vec<_>>()
-                .as_slice()
-            {
-                &[1, seq_len, embed_dim] => {
-                    // Shape [1, 128, 384]
-                    // take the last sequence
-                    let start = ((seq_len - 1) * embed_dim) as usize;
-                    let end = (seq_len * embed_dim) as usize;
-                    data[start..end].to_vec()
-                }
-                &[1, embed_dim] => {
-                    // Shape [1, 384]
-                    data[..embed_dim].to_vec()
-                }
-                &[embed_dim] => {
-                    // Shape [384]
-                    data[..embed_dim].to_vec()
-                }
-                _ => {
-                    return Err(AppError::EmbeddingSizeMismatch(format!(
-                        "Unexpected output shape: {:?}",
-                        shape
-                    )));
-                }
-            }
-        };
-        Ok(embedding)
+        let mut guard = self.session.session.lock().map_err(|err| {
+            error!("Failed to lock session: {}", err);
+            AppError::EmbeddingSizeMismatch(err.to_string())
+        })?;
+        // let input_names: Vec<String> = (*guard)
+        //     .inputs
+        //     .iter()
+        //     .map(|input| input.name.clone())
+        //     .collect();
+        // for name in input_names {
+        //     println!("Model input: {}", name);
+        // }
+        let mut input_val = HashMap::new();
+        input_val.insert("input_ids", input_tensor);
+        input_val.insert("attention_mask", attention_tensor);
+        let needs_token_type = (*guard)
+            .inputs
+            .iter()
+            .any(|input| input.name == "token_type_ids");
+        if needs_token_type {
+            let token_type_ids = vec![0i64; input_ids_len];
+            let token_type_tensor = Value::from_array(ndarray::Array::from_shape_vec(
+                (1, token_type_ids.len()),
+                token_type_ids,
+            )?)?;
+            input_val.insert("token_type_ids", token_type_tensor);
+        }
+        let inputs = SessionInputs::from(input_val);
+        let outputs: ort::session::SessionOutputs<'_> = (*guard).run(inputs)?;
+        Ok(EmbedResult::from_outputs(&outputs, &input_ids).unwrap_or_default())
     }
 }
 

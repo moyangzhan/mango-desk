@@ -28,7 +28,7 @@ pub async fn search(query: &str) -> Vec<SearchResult> {
         if let Some(mfts_item) = match_fts_item {
             results.push(SearchResult {
                 file_info: file_info.clone(),
-                score: mfts_item.score as f32,
+                score: mfts_item.score,
                 sources: vec![SearchSource::ContentKeyword],
                 matched_keywords: mfts_item.matched_keywords.clone(),
                 matched_chunk_ids: mfts_item.chunk_ids.clone(),

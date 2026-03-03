@@ -1,32 +1,17 @@
 use crate::entities::FtsSearchResult;
 use crate::repositories::RepositoryError;
 use crate::utils::app_util::get_db_path;
-use jieba_rs::Jieba;
+use crate::utils::jieba_util;
 use regex::Regex;
 use rusqlite::{Connection, Result, named_params, params};
 use std::collections::{HashMap, HashSet};
-use std::sync::LazyLock;
 use std::time::Instant;
-use tokio::sync::RwLock as AsyncRwLock;
-
-pub static JIEBA: LazyLock<AsyncRwLock<Jieba>> = LazyLock::new(|| AsyncRwLock::new(Jieba::new()));
-
-async fn tokenize(text: &str) -> String {
-    let jieba = JIEBA.read().await;
-    jieba
-        .cut(text, true)
-        .into_iter()
-        .map(|w| w.to_lowercase())
-        .filter(|w| !w.is_empty())
-        .collect::<Vec<_>>()
-        .join(" ")
-}
 
 pub async fn insert(file_id: i64, chunk_id: i64, chunk_text: &str) -> Result<(), RepositoryError> {
     if chunk_text.is_empty() {
         return Ok(());
     }
-    let content = tokenize(chunk_text).await;
+    let content = jieba_util::tokenize(chunk_text).await;
     let conn = Connection::open(get_db_path())?;
     let mut stmt =
         conn.prepare("insert into file_content_fts (file_id, chunk_id, content) values (:file_id, :chunk_id, :content)")?;
@@ -46,7 +31,7 @@ pub async fn update(file_id: i64, chunk_id: i64, chunk_text: &str) -> Result<(),
     if chunk_text.is_empty() {
         return Ok(());
     }
-    let content = tokenize(chunk_text).await;
+    let content = jieba_util::tokenize(chunk_text).await;
     let conn = Connection::open(get_db_path())?;
     let mut stmt =
         conn.prepare("update file_content_fts set content = :content where file_id = :file_id and chunk_id = :chunk_id")?;
@@ -100,7 +85,7 @@ pub fn clear() -> Result<usize, RepositoryError> {
 /// Multi-word search set to OR operator by default
 pub async fn search(query: &str, limit: usize) -> Result<Vec<FtsSearchResult>, RepositoryError> {
     let start = Instant::now();
-    let tokens = tokenize(&query).await;
+    let tokens = jieba_util::tokenize(&query).await;
     let keywords: Vec<&str> = tokens
         .split_whitespace()
         .filter(|s| !s.is_empty())
@@ -131,35 +116,50 @@ pub async fn search(query: &str, limit: usize) -> Result<Vec<FtsSearchResult>, R
     })?;
     println!("search file_content_fts time: {:?}", start.elapsed());
     let mut file_map: HashMap<i64, FtsSearchResult> = HashMap::new();
+    let kw_len = keywords.len() as f64;
     for row in rows {
         let (file_id, chunk_id, content, rank) = row?;
-        let mut hit_count = 0;
         let mut matched_keyword = HashSet::new();
         for kw in &keywords {
             if content.contains(kw) {
-                hit_count += 1;
                 matched_keyword.insert(kw.to_string());
             }
         }
-        let score = rank.max(hit_count as f64);
+
+        // 1. 计算关键词覆盖率 (0.0 - 1.0)
+        let mut matched_keywords = HashSet::new();
+        for kw in &keywords {
+            if content.contains(kw) {
+                matched_keywords.insert(kw.to_string());
+            }
+        }
+        let coverage = matched_keywords.len() as f64 / kw_len;
+        // 2. 将 FTS5 Rank 转换为 0-1 之间的正向分
+        // FTS5 rank 越小越好（通常是负数），取反后越大越好
+        // 使用简单的逻辑回归函数映射
+        let rank_score = 1.0 / (1.0 + (rank + 1.0).exp());
+        // 3. 综合计算 0-100 分
+        // 公式逻辑：覆盖率占 70% 权重（保证搜到词的排在前面），BM25 排名占 30% 权重
+        let final_score_f64 = coverage * 70.0 + rank_score * 30.0;
+        let final_score = final_score_f64.clamp(0.0, 100.0) as usize;
+
         // Vue will do this
         // let snippet = make_snippet(&content, &keywords, 40);
         let entry = file_map.entry(file_id).or_insert_with(|| FtsSearchResult {
             file_id,
             chunk_ids: HashSet::new(),
             matched_keywords: HashSet::new(),
-            score: 0.0,
+            score: 0,
         });
         entry.chunk_ids.insert(chunk_id);
         entry.matched_keywords.extend(matched_keyword.into_iter());
-        entry.score = entry.score.max(score);
+
+        if final_score > entry.score {
+            entry.score = final_score;
+        }
     }
     let mut results: Vec<FtsSearchResult> = file_map.into_values().collect();
-    results.sort_by(|a, b| {
-        b.score
-            .partial_cmp(&a.score)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
+    results.sort_by(|a, b| b.score.cmp(&a.score));
     results.truncate(limit);
     println!("search file_content_fts total cost: {:?}", start.elapsed());
     Ok(results)

@@ -8,6 +8,7 @@ use crate::repositories::{
     file_content_embedding_repo, file_content_fts_repo, file_info_repo,
     file_metadata_embedding_repo,
 };
+use crate::structs::embed_result::EmbedResult;
 use crate::structs::file_metadata::FileMetadata;
 use crate::utils::{file_util, frontend_util, indexing_task_util, text_util};
 use rust_i18n::t;
@@ -170,7 +171,7 @@ pub async fn embedding_content(file_id: i64, content: &str) -> Result<(), Indexi
     for (chunk_index, chunk_text) in chunks.into_iter().enumerate() {
         println!("Chunk text: {}", chunk_text.len());
         let mut keep_run = true;
-        let chunk_embedding = {
+        let chunk_embed_result = {
             let mut manager = get_manager().write().await;
             match manager.embed(&chunk_text).await {
                 Ok(embedding) => embedding,
@@ -183,35 +184,35 @@ pub async fn embedding_content(file_id: i64, content: &str) -> Result<(), Indexi
                         op.to_string().as_str(),
                     );
                     keep_run = false;
-                    Vec::new()
+                    EmbedResult::default()
                 }
             }
         };
         if !keep_run {
             continue;
         }
-        let content_array: [f32; 1024] = match chunk_embedding.try_into() {
-            Ok(embedding) => embedding,
-            Err(_) => {
-                let _ = file_info_repo::update_content_index_status(
-                    file_id,
-                    FileIndexStatus::IndexFailed.value(),
-                    "Failed to convert embedding to array",
-                );
-                keep_run = false;
-                [0.0; 1024]
-            }
-        };
+        if chunk_embed_result.dense.is_empty() {
+            let _ = file_info_repo::update_content_index_status(
+                file_id,
+                FileIndexStatus::IndexFailed.value(),
+                "Failed to convert embedding to array",
+            );
+            keep_run = false;
+        }
         if !keep_run {
             continue;
         }
         let new_embedding_data = FileContentEmbedding {
             id: 0,
             file_id,
-            embedding: content_array,
+            embedding: chunk_embed_result.dense.try_into().unwrap_or([0.0; 1024]),
             chunk_index: chunk_index as i64,
             chunk_text,
+            sparse_vec: chunk_embed_result.sparse,
+            
             distance: -0.1,
+            sparse_score: 0.0,
+            score: 0,
         };
         let embedding_result = file_content_embedding_repo::insert(&new_embedding_data)?;
         if let Some(embedding_result) = embedding_result {
@@ -238,7 +239,7 @@ pub async fn embedding_metadata(
 ) -> Result<(), IndexingError> {
     // File meta embedding
     let mut guard = get_manager().write().await;
-    let meta_embedding = match guard.embed(file_meta.to_text().as_str()).await {
+    let meta_embed_result = match guard.embed(file_meta.to_text().as_str()).await {
         Ok(embedding) => {
             drop(guard);
             embedding
@@ -254,13 +255,17 @@ pub async fn embedding_metadata(
             return Ok(());
         }
     };
-    let meta_array: [f32; 1024] = meta_embedding.try_into().unwrap_or([0.0; 1024]);
+    let meta_array: [f32; 256] = meta_embed_result.dense.try_into().unwrap_or([0.0; 256]);
     file_metadata_embedding_repo::insert(
         &(FileMetaEmbedding {
             id: 0,
             file_id,
             embedding: meta_array,
+            sparse_vec: meta_embed_result.sparse,
+
             distance: -0.1,
+            sparse_score: 0.0,
+            score: 0,
         }),
     )?;
     file_info_repo::update_meta_index_status(file_id, FileIndexStatus::Indexed.value(), "success")?;

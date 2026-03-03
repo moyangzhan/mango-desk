@@ -18,7 +18,7 @@ use std::sync::{Arc, LazyLock, OnceLock};
 use tauri::AppHandle;
 use tokio::sync::RwLock as AsyncRwLock;
 
-pub const DB_VERSION: i32 = 4;
+pub const DB_VERSION: i32 = 1;
 pub const DEFAULT_PAGE_SIZE: usize = 20;
 pub const HUGGINFACE_WEBSITE: &str = "https://huggingface.co";
 pub const HUGGINFACE_MIRROR: &str = "https://hf-mirror.com";
@@ -171,3 +171,6 @@ pub const EVENT_WATCHER_INDEXING: &'static str = "watcher-indexing";
 
 pub const INDEXING_FROM_SELECTOR: &'static str = "selector";
 pub const INDEXING_FROM_WATCHER: &'static str = "watcher";
+
+pub const SHORT_QUERY_LEN: usize = 8;
+pub const QUERY_MIN_SCORE: usize = 50;

@@ -64,7 +64,7 @@ pub async fn search(query: &str) -> Vec<SearchResult> {
                         file_ext: ext,
                         ..Default::default()
                     },
-                    score: matches.len() as f32,
+                    score: matches.len(),
                     sources: vec![SearchSource::PathKeyword],
                     matched_keywords: match_keywords,
                     matched_chunk_ids: HashSet::new(),
