@@ -114,7 +114,6 @@ pub async fn search(query: &str, limit: usize) -> Result<Vec<FtsSearchResult>, R
             row.get::<_, f64>("rank").unwrap_or(0.0),
         ))
     })?;
-    println!("search file_content_fts time: {:?}", start.elapsed());
     let mut file_map: HashMap<i64, FtsSearchResult> = HashMap::new();
     let kw_len = keywords.len() as f64;
     for row in rows {
@@ -161,7 +160,7 @@ pub async fn search(query: &str, limit: usize) -> Result<Vec<FtsSearchResult>, R
     let mut results: Vec<FtsSearchResult> = file_map.into_values().collect();
     results.sort_by(|a, b| b.score.cmp(&a.score));
     results.truncate(limit);
-    println!("search file_content_fts total cost: {:?}", start.elapsed());
+    println!("search file_content_fts cost: {:?}", start.elapsed());
     Ok(results)
 }
 

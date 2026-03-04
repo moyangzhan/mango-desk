@@ -6,10 +6,9 @@ use crate::errors::AppError;
 use crate::fs_watcher::watcher;
 use crate::global::{
     ACTIVE_LOCALE, ACTIVE_MODEL_PLATFORM, APP_DATA_PATH, CLIENT_ID, CONFIG_NAME_INDEXER_SETTING,
-    CONFIG_NAME_PROXY, EMBEDDING_MODEL_NAME, FS_WATCHER_SETTING, INDEXING, INDEXING_FROM_WATCHER,
-    SCANNING, STOP_INDEX_SIGNAL, UI_MOUNTED,
+    CONFIG_NAME_PROXY, FS_WATCHER_SETTING, INDEXING, INDEXING_FROM_WATCHER, SCANNING,
+    STOP_INDEX_SIGNAL, UI_MOUNTED,
 };
-use crate::image_parser::ImageParser;
 use crate::indexer_service;
 use crate::model_platform_services::siliconflow::SiliconFlow;
 use crate::repositories::{
@@ -23,7 +22,6 @@ use crate::structs::search_result::SearchResult;
 use crate::traits::chat_capable::ChatCapable;
 use crate::utils::{app_util, download_util};
 use rust_i18n::t;
-use serde_json::json;
 use std::fs::read;
 use std::path::Path;
 use std::sync::atomic::Ordering;

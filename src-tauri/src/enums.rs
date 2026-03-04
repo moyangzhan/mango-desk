@@ -408,7 +408,7 @@ pub enum QueryIntent {
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Hash)]
 #[serde(rename_all = "camelCase", rename_all_fields = "camelCase")]
-pub enum SearchSource {
+pub enum HitType {
     PathKeyword,
     ContentKeyword,
     ContentSemantic,

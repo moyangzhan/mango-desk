@@ -139,7 +139,7 @@ async function search() {
     }
     searchResults.value = res
     searchResults.value.forEach((item) => {
-      if (item.sources.includes('pathKeyword') && item.matched_keywords.length > 0) {
+      if (item.hit_types.includes('pathKeyword') && item.matched_keywords.length > 0) {
         item.file_info.html_path = highlightText(item.file_info.path, item.matched_keywords)
       } else {
         item.file_info.html_path = item.file_info.path

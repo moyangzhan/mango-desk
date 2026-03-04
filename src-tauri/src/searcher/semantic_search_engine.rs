@@ -1,6 +1,6 @@
 use crate::embedding_service_manager::get_manager;
 use crate::entities::{FileContentEmbedding, FileInfo, FileMetaEmbedding};
-use crate::enums::SearchSource;
+use crate::enums::HitType;
 use crate::errors::AppError;
 use crate::global::{QUERY_MIN_SCORE, SHORT_QUERY_LEN};
 use crate::repositories::{
@@ -11,6 +11,7 @@ use crate::structs::embed_result::EmbedResult;
 use crate::structs::search_result::SearchResult;
 use crate::utils::search_util::STOPWORDS;
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 use std::time::Instant;
 use tokio::{task, try_join};
 
@@ -19,7 +20,7 @@ struct SearchTmp {
     file_id: i64,
     max_score: usize,
     chunk_ids: HashSet<i64>,
-    sources: HashSet<SearchSource>,
+    hit_types: HashSet<HitType>,
     match_keywords: HashSet<String>,
 }
 
@@ -43,62 +44,49 @@ pub async fn search(query: &str) -> Vec<SearchResult> {
         return Vec::new();
     }
     let short_query = embed_result.sparse.indices.len() <= SHORT_QUERY_LEN;
+    let embedding = Arc::new(embed_result.dense);
+    let indices = Arc::new(embed_result.sparse.indices);
+    let values = Arc::new(embed_result.sparse.values);
     let (content_result, meta_result, fts_result) = try_join!(
         task::spawn_blocking({
-            let embedding = embed_result.dense.clone();
-            let sparse_indices = embed_result.sparse.indices.clone();
-            let sparse_values = embed_result.sparse.values.clone();
-            move || match file_content_embedding_repo::hybrid_search(
-                &embedding,
-                &sparse_indices,
-                &sparse_values,
-                QUERY_MIN_SCORE,
-            ) {
-                Ok(result) => result,
-                Err(e) => {
-                    log::error!("content search failed, error: {:?}", e);
-                    Vec::new()
-                }
-            }
-        }),
-        task::spawn_blocking({
-            let embedding = embed_result.dense.clone();
-            let sparse_indices = embed_result.sparse.indices.clone();
-            let sparse_values = embed_result.sparse.values.clone();
-            move || match file_metadata_embedding_repo::hybrid_search(
-                &embedding,
-                &sparse_indices,
-                &sparse_values,
-                QUERY_MIN_SCORE,
-            ) {
-                Ok(result) => result,
-                Err(e) => {
-                    log::error!("meta search failed, error: {:?}", e);
-                    Vec::new()
-                }
-            }
-        }),
-        task::spawn_blocking({
-            let query = query.to_string();
+            let (emb, idx, val) = (embedding.clone(), indices.clone(), values.clone());
             move || {
-                if embed_result.sparse.indices.is_empty() || !short_query {
-                    return Vec::new();
-                }
-                let words: Vec<&str> = query
-                    .split(|c: char| c.is_whitespace() || c.is_ascii_punctuation())
-                    .filter(|word| !word.is_empty())
-                    .filter(|word| {
-                        let lower = word.to_lowercase();
-                        !STOPWORDS.contains(lower.as_str())
+                file_content_embedding_repo::hybrid_search(&emb, &idx, &val, QUERY_MIN_SCORE)
+                    .map_err(|e| {
+                        log::error!("content search failed: {:?}", e);
+                        e
                     })
-                    .collect();
-                let q = words.join(" ");
-                tokio::runtime::Handle::current()
-                    .block_on(async { fts_search_engine::search(&q).await })
+                    .unwrap_or_default()
             }
         }),
+        task::spawn_blocking({
+            let (emb, idx, val) = (embedding.clone(), indices.clone(), values.clone());
+            move || {
+                file_metadata_embedding_repo::hybrid_search(&emb, &idx, &val, QUERY_MIN_SCORE)
+                    .map_err(|e| {
+                        log::error!("meta search failed: {:?}", e);
+                        e
+                    })
+                    .unwrap_or_default()
+            }
+        }),
+        async {
+            if indices.is_empty() || !short_query {
+                return Ok(Vec::new());
+            }
+            let lower_query = query.to_lowercase();
+            let q = lower_query
+                .split(|c: char| c.is_whitespace() || c.is_ascii_punctuation())
+                .filter(|w| !w.is_empty() && !STOPWORDS.contains(w))
+                .collect::<Vec<_>>()
+                .join(" ");
+            Ok(fts_search_engine::search(&q).await)
+        },
     )
-    .unwrap_or_default();
+    .unwrap_or_else(|error| {
+        println!("error: {:?}", error);
+        (vec![], vec![], vec![])
+    });
     let result = merge_and_filter_results(content_result, meta_result, fts_result);
     println!("cost: {:?}", start.elapsed());
     result
@@ -110,7 +98,7 @@ fn merge_and_filter_results(
     meta_result: Vec<FileMetaEmbedding>,
     fts_result: Vec<SearchResult>,
 ) -> Vec<SearchResult> {
-    if content_result.is_empty() && meta_result.is_empty() {
+    if content_result.is_empty() && meta_result.is_empty() && fts_result.is_empty() {
         return Vec::new();
     }
     let mut file_map: HashMap<i64, SearchTmp> = HashMap::new();
@@ -125,11 +113,11 @@ fn merge_and_filter_results(
             file_id: item.file_id,
             max_score: 0,
             chunk_ids: HashSet::new(),
-            sources: HashSet::new(),
+            hit_types: HashSet::new(),
             match_keywords: HashSet::new(),
         });
         entry.chunk_ids.insert(item.id);
-        entry.sources.insert(SearchSource::ContentSemantic);
+        entry.hit_types.insert(HitType::ContentSemantic);
         if item.score > entry.max_score {
             entry.max_score = item.score;
         }
@@ -146,10 +134,10 @@ fn merge_and_filter_results(
             file_id: item.file_id,
             max_score: 0,
             chunk_ids: HashSet::new(),
-            sources: HashSet::new(),
+            hit_types: HashSet::new(),
             match_keywords: HashSet::new(),
         });
-        entry.sources.insert(SearchSource::MetaSemantic);
+        entry.hit_types.insert(HitType::MetaSemantic);
         if boosted_score > entry.max_score {
             entry.max_score = boosted_score;
         }
@@ -164,10 +152,10 @@ fn merge_and_filter_results(
             file_id: item.file_info.id,
             max_score: 0,
             chunk_ids: HashSet::new(),
-            sources: HashSet::new(),
+            hit_types: HashSet::new(),
             match_keywords: HashSet::new(),
         });
-        entry.sources.insert(SearchSource::ContentKeyword);
+        entry.hit_types.insert(HitType::ContentKeyword);
         for match_keyword in item.matched_keywords {
             println!(
                 "FTS Search - file_id: {}, keyword: {}",
@@ -187,7 +175,7 @@ fn merge_and_filter_results(
     if extact_words_match {
         for entry in file_map.values_mut() {
             // 如果该文档在 FTS 全文检索中完全没有出现
-            if !entry.sources.contains(&SearchSource::ContentKeyword) {
+            if !entry.hit_types.contains(&HitType::ContentKeyword) {
                 // 策略：得分打 6 折。例如：90分降至 54分，70分降至 42分
                 // 这能有效让出高位给包含硬核关键词的结果
                 entry.max_score = (entry.max_score as f32 * 0.6) as usize;
@@ -197,7 +185,9 @@ fn merge_and_filter_results(
 
     let mut tmps: Vec<SearchTmp> = file_map.into_values().collect();
     tmps.sort_by(|a, b| b.max_score.cmp(&a.max_score));
-    tmps.retain(|t| t.max_score >= QUERY_MIN_SCORE || t.sources.contains(&SearchSource::ContentKeyword));
+    tmps.retain(|t| {
+        t.max_score >= QUERY_MIN_SCORE || t.hit_types.contains(&HitType::ContentKeyword)
+    });
 
     let file_ids: Vec<i64> = tmps.iter().map(|t| t.file_id).collect();
     let file_infos = file_info_repo::list_by_ids(&file_ids).unwrap_or_default();
@@ -219,7 +209,7 @@ fn merge_and_filter_results(
             Some(SearchResult {
                 file_info: info.unwrap_or_default(),
                 score: tmp.max_score,
-                sources: tmp.sources.into_iter().collect(),
+                hit_types: tmp.hit_types.into_iter().collect(),
                 matched_keywords: tmp.match_keywords.into_iter().collect(),
                 matched_chunk_ids: tmp.chunk_ids.into_iter().collect(),
             })

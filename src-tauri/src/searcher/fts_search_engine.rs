@@ -1,4 +1,4 @@
-use crate::enums::SearchSource;
+use crate::enums::HitType;
 use crate::global::DEFAULT_PAGE_SIZE;
 use crate::repositories::file_content_fts_repo;
 use crate::repositories::file_info_repo;
@@ -16,6 +16,7 @@ pub async fn search(query: &str) -> Vec<SearchResult> {
             Vec::new()
         });
 
+    // TODO filter out duplicate file ids
     let mut file_ids = Vec::new();
     fts_results.iter().for_each(|fts_result| {
         file_ids.push(fts_result.file_id);
@@ -25,16 +26,25 @@ pub async fn search(query: &str) -> Vec<SearchResult> {
         let match_fts_item = fts_results
             .iter()
             .find(|fts_result| fts_result.file_id == file_info.id);
-        if let Some(mfts_item) = match_fts_item {
-            results.push(SearchResult {
-                file_info: file_info.clone(),
-                score: mfts_item.score,
-                sources: vec![SearchSource::ContentKeyword],
-                matched_keywords: mfts_item.matched_keywords.clone(),
-                matched_chunk_ids: mfts_item.chunk_ids.clone(),
-            });
+        match match_fts_item {
+            Some(mfts_item) => {
+                results.push(SearchResult {
+                    file_info: file_info.clone(),
+                    score: mfts_item.score,
+                    hit_types: vec![HitType::ContentKeyword],
+                    matched_keywords: mfts_item.matched_keywords.clone(),
+                    matched_chunk_ids: mfts_item.chunk_ids.clone(),
+                });
+            }
+            None => {
+                println!("no match fts item for file id: {}", file_info.id);
+            }
         }
     });
-    println!("content search time: {:?}", start.elapsed());
+    println!(
+        "fts5 search cost: {:?}, results len: {}",
+        start.elapsed(),
+        results.len()
+    );
     results
 }

@@ -1,5 +1,5 @@
 use crate::entities::FileInfo;
-use crate::enums::{FileCategory, SearchSource};
+use crate::enums::{FileCategory, HitType};
 use crate::global::DEFAULT_PAGE_SIZE;
 use crate::global::{PATHS_CACHE, PATHS_CACHE_BUILD_TIME};
 use crate::repositories::file_info_repo;
@@ -65,7 +65,7 @@ pub async fn search(query: &str) -> Vec<SearchResult> {
                         ..Default::default()
                     },
                     score: matches.len(),
-                    sources: vec![SearchSource::PathKeyword],
+                    hit_types: vec![HitType::PathKeyword],
                     matched_keywords: match_keywords,
                     matched_chunk_ids: HashSet::new(),
                 };

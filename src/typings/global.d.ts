@@ -132,7 +132,7 @@ interface WatchSetting {
 
 interface SearchResult {
   score: number,
-  sources: string[],
+  hit_types: string[],
   file_info: FileInfo,
   matched_keywords: string[],
   matched_chunk_ids: number[],

@@ -49,8 +49,11 @@ Mango Finder is especially useful in scenarios where you have **a large amount o
 - 💭 **Search by meaning**
   - Find documents by describing what you remember, even if you don’t recall exact titles or locations
 
-- 📍 **Search by Path & Content**
-  - Locate documents using keywords from file paths or content, ideal for finding files when you remember specific terms or phrases
+- 🌐 **Multilingual & Cross-language Search**
+  - Search across **100+ languages** seamlessly. Find English documents using Chinese queries, or vice versa, with zero configuration required
+
+- 📍 **Exact Keyword Match**
+  - Instantly locate files using precise terms from file paths or content, ideal for finding specific phrases or technical strings.
 
 - 📂 **Works with your existing local files**
   - No need to reorganize folders or rename files — Mango Finder works with what you already have
@@ -58,8 +61,8 @@ Mango Finder is especially useful in scenarios where you have **a large amount o
 - 👀 **Real-time file & directory watching**
   - Automatically detects file and folder changes (add / modify / delete) and keeps index and search results up to date
 
-- ⚡ **Fast and lightweight**
-  - Instant search results without slowing down your system
+- ⚡ **Fast and efficient**
+  - Instant search results with optimized indexing system
 
 - 🔒 **Private by default**
   - All data stays on your device, ensuring your privacy

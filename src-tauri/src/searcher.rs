@@ -80,17 +80,16 @@ fn fuse_results(
         map.entry(r.file_info.path.clone())
             .and_modify(|e| {
                 e.score = (e.score as f32 * 0.6 + r.score as f32 * 0.4).round() as usize;
-                e.sources.append(&mut r.sources);
+                e.hit_types.append(&mut r.hit_types);
                 e.matched_chunk_ids.extend(matched_chunk_ids.clone());
                 e.matched_keywords.extend(matched_keywords.clone());
             })
             .or_insert_with(|| {
                 let score = r.score;
                 let file_info = r.file_info.clone();
-                let sources = r.sources.clone();
                 SearchResult {
                     file_info,
-                    sources,
+                    hit_types: r.hit_types.clone(),
                     matched_chunk_ids,
                     matched_keywords,
                     score: (score as f32 * 0.4).round() as usize,
