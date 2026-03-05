@@ -36,7 +36,7 @@ onMounted(async () => {
     <HowToUse :show-steps="true">
       <template #tip>
         <div class="font-semibold mb-2">
-          {{ t('common.howToUse') }}
+          {{ t('common.usageGaide') }}
         </div>
       </template>
     </HowToUse>

@@ -22,20 +22,6 @@ const showGuideStep = ref(props.showSteps)
       </div>
     </slot>
     <NSteps v-if="showGuideStep" size="small" class="pt-2" style="filter: saturate(0.5)">
-      <NStep title="Setting" status="process">
-        <div class="flex flex-col">
-          <div class="n-step-description text-left">
-            {{ t('common.useStep1Desc') }}
-          </div>
-          <div
-            class="hover:underline cursor-pointer hover:text-(--primary-color) flex w-12"
-            @click="router.push({ name: 'Setting', query: { tab: 'indexer' } })"
-          >
-            GO
-            <SvgIcon name="right-top-arrow" />
-          </div>
-        </div>
-      </NStep>
       <NStep title="Indexing" status="process">
         <div class="flex flex-col">
           <div class="n-step-description text-left">
