@@ -1,3 +1,4 @@
+mod audio_parser;
 mod db_initializer;
 mod db_migrations;
 mod document_loaders;

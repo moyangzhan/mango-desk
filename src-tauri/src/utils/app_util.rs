@@ -1,9 +1,11 @@
 use crate::enums::{FileContentLanguage, TrayMenuItem};
 use crate::global::{
-    APP_DATA_PATH, DB_PATH, DOWNLOADING, EMBEDDING_MODEL_NAME, EMBEDDING_MODEL_PATH,
-    EMBEDDING_TOKENIZER_NAME, EMBEDDING_TOKENIZER_PATH, EXIT_APP_SIGNAL, HOME_PATH, INDEXING,
-    SCANNING, STOP_INDEX_SIGNAL, STORAGE_PATH, TMP_PATH, TRAY_ID, VISION_MODEL_PATH, VISION_NAME,
-    VISION_TOKENIZER_NAME, VISION_TOKENIZER_PATH,
+    APP_DATA_PATH, AUDIO_DECODER_NAME, AUDIO_DECODER_PATH, AUDIO_ENCODER_NAME, AUDIO_ENCODER_PATH,
+    AUDIO_TOKENIZER_NAME, AUDIO_TOKENIZER_PATH, DB_PATH, DOWNLOADING, EMBEDDING_MODEL_NAME,
+    EMBEDDING_MODEL_PATH, EMBEDDING_TOKENIZER_NAME, EMBEDDING_TOKENIZER_PATH, EXIT_APP_SIGNAL,
+    HOME_PATH, INDEXING, SCANNING, STOP_INDEX_SIGNAL, STORAGE_PATH, TMP_PATH, TRAY_ID,
+    VISION_MODEL_PATH, VISION_NAME, VISION_TOKENIZER_NAME, VISION_TOKENIZER_PATH,
+    WHISPER_MODEL_NAME, WHISPER_MODEL_PATH,
 };
 use crate::utils::file_util;
 use log::{error, info, warn};
@@ -224,7 +226,9 @@ pub async fn init_paths(app: &AppHandle) {
         "Storage directory: {}",
         STORAGE_PATH.get().unwrap_or(&String::new())
     );
-    let db_path = Path::new(&data_path).join("storage").join("mango-finder.db");
+    let db_path = Path::new(&data_path)
+        .join("storage")
+        .join("mango-finder.db");
     DB_PATH
         .set(db_path.to_string_lossy().into_owned())
         .unwrap_or_else(|error| error!("Failed to set DB_PATH: {}", error));
@@ -341,6 +345,46 @@ fn init_embedding_model_path(app_handle: &AppHandle) {
     VISION_TOKENIZER_PATH
         .set(vision_tokenizer_path)
         .unwrap_or_else(|e| error!("Failed to set VISION_TOKENIZER_PATH: {}", e));
+
+    // Audio model
+    let audio_encoder_path = build_in_model_path
+        .join(AUDIO_ENCODER_NAME)
+        .to_string_lossy()
+        .into_owned();
+    AUDIO_ENCODER_PATH
+        .set(audio_encoder_path)
+        .unwrap_or_else(|e| {
+            error!("Failed to set AUDIO_ENCODER_PATH: {}", e);
+        });
+    let audio_decoder_path = build_in_model_path
+        .join(AUDIO_DECODER_NAME)
+        .to_string_lossy()
+        .into_owned();
+    AUDIO_DECODER_PATH
+        .set(audio_decoder_path)
+        .unwrap_or_else(|e| {
+            error!("Failed to set AUDIO_DECODER_PATH: {}", e);
+        });
+    let audio_tokenizer_path = build_in_model_path
+        .join(AUDIO_TOKENIZER_NAME)
+        .to_string_lossy()
+        .into_owned();
+    AUDIO_TOKENIZER_PATH
+        .set(audio_tokenizer_path)
+        .unwrap_or_else(|e| {
+            error!("Failed to set AUDIO_TOKENIZER_PATH: {}", e);
+        });
+
+    // Whisper.cpp model
+    let whisper_model_path = build_in_model_path
+        .join(WHISPER_MODEL_NAME)
+        .to_string_lossy()
+        .into_owned();
+    WHISPER_MODEL_PATH
+        .set(whisper_model_path)
+        .unwrap_or_else(|e| {
+            error!("Failed to set WHISPER_MODEL_PATH: {}", e);
+        });
 }
 
 pub fn get_db_path() -> String {
@@ -374,6 +418,34 @@ pub fn get_vision_0_path() -> String {
 
 pub fn get_vision_tokenizer_path() -> String {
     VISION_TOKENIZER_PATH
+        .get()
+        .unwrap_or(&String::new())
+        .to_string()
+}
+
+pub fn get_audio_encoder_path() -> String {
+    AUDIO_ENCODER_PATH
+        .get()
+        .unwrap_or(&String::new())
+        .to_string()
+}
+
+pub fn get_audio_decoder_path() -> String {
+    AUDIO_DECODER_PATH
+        .get()
+        .unwrap_or(&String::new())
+        .to_string()
+}
+
+pub fn get_audio_tokenizer_path() -> String {
+    AUDIO_TOKENIZER_PATH
+        .get()
+        .unwrap_or(&String::new())
+        .to_string()
+}
+
+pub fn get_whisper_model_path() -> String {
+    WHISPER_MODEL_PATH
         .get()
         .unwrap_or(&String::new())
         .to_string()

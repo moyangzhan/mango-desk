@@ -17,24 +17,24 @@ impl Default for SparseVector {
 }
 
 impl SparseVector {
-    /// 将模型输出的 HashMap 转换为有序存储结构
+    /// 将模型输出的 HashMap 转换为有序存储结构 | Convert model output HashMap to ordered storage structure
     pub fn from_map(map: HashMap<u32, f32>) -> Self {
         let mut pairs: Vec<(u32, f32)> = map.into_iter().collect();
-        // 关键：必须按索引升序排列，才能支持搜索时的双指针 O(n) 计算
+        // 关键：必须按索引升序排列，才能支持搜索时的双指针 O(n) 计算 | Critical: must sort by index ascending to support O(n) two-pointer search
         pairs.sort_by_key(|&(id, _)| id);
 
         let (indices, values) = pairs.into_iter().unzip();
         Self { indices, values }
     }
 
-    /// 转换为存入 SQLite 的 BLOB
+    /// 转换为存入 SQLite 的 BLOB | Convert to SQLite BLOB for storage
     pub fn to_blob(&self) -> Vec<u8> {
         bincode::serialize(self)
             .map_err(|e| anyhow::anyhow!("Failed to serialize sparse vector: {}", e))
             .unwrap_or_default()
     }
 
-    /// 从 SQLite BLOB 解析
+    /// 从 SQLite BLOB 解析 | Parse from SQLite BLOB
     pub fn from_blob(blob: &[u8]) -> Self {
         bincode::deserialize(blob).unwrap_or_else(|_| SparseVector {
             indices: vec![],
@@ -42,11 +42,11 @@ impl SparseVector {
         })
     }
 
-    /// 计算两个有序稀疏向量的内积 (极速版)
+    /// 计算两个有序稀疏向量的内积 (极速版) | Compute dot product of two sorted sparse vectors (fast version)
     pub fn dot_product(&self, query_indices: &[u32], query_values: &[f32]) -> f32 {
         let mut score = 0.0;
-        let mut i = 0; // Doc 指针
-        let mut j = 0; // Query 指针
+        let mut i = 0; // Doc 指针 | Doc pointer
+        let mut j = 0; // Query 指针 | Query pointer
 
         let doc_indices = &self.indices;
         let doc_values = &self.values;
@@ -62,7 +62,7 @@ impl SparseVector {
                 j += 1;
             }
         }
-        // 归一化到 0-1 范围
+        // 归一化到 0-1 范围 | Normalize to 0-1 range
         let query_norm = query_values.iter().map(|x| x * x).sum::<f32>().sqrt() + 1e-8;
         let doc_norm = self.values.iter().map(|x| x * x).sum::<f32>().sqrt() + 1e-8;
         (score / (query_norm * doc_norm)).min(1.0).max(0.0)

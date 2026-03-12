@@ -120,123 +120,34 @@ pub async fn start_indexing(paths: Vec<String>, from: &str) -> Result<bool, Stri
     );
     indexing_task_util::summary_to_db().await;
 
-    if let Ok(mut image_indexer) = indexers::image_indexer::ImageIndexer::new().await {
-        println!("image indexing...");
-        let _ = image_indexer
-            .process(task.clone(), from)
-            .await
-            .unwrap_or_else(|e| println!("image indexing error,{}", e));
-        indexing_task_util::summary_to_db().await;
+    let unindex_images_cnt = file_info_repo::count_unindexed_files(FileCategory::Image.value())?;
+    println!("Total image to index: {}", unindex_images_cnt);
+    if unindex_images_cnt > 0 {
+        if let Ok(mut image_indexer) = indexers::image_indexer::ImageIndexer::new().await {
+            println!("image indexing...");
+            let _ = image_indexer
+                .process(task.clone(), from)
+                .await
+                .unwrap_or_else(|e| println!("image indexing error,{}", e));
+            indexing_task_util::summary_to_db().await;
+        }
     }
 
-    if INDEXER_SETTING.read().await.is_private {
-        println!("--- private mode, skip indexing audio ---");
-        indexing_finish(
-            task.id,
-            t!("message.indexing-skip-by-privacy").to_string().as_str(),
-            from,
-        )
-        .await?;
-        return Ok(true);
-    }
-
-    let (enabled, platform_name) = {
-        let platform = ACTIVE_MODEL_PLATFORM.read().await;
-        (platform.is_enable(), platform.name.clone())
-    };
-    if !enabled {
-        println!(
-            "--- active model platform disabled, name: {} ---",
-            platform_name
-        );
-        indexing_finish(
-            task.id,
-            format!("Active model platform disabled, name: {}", platform_name).as_str(),
-            from,
-        )
-        .await?;
-
-        return Err(format!(
-            "Model platform '{}' is missing API key configuration",
-            platform_name
-        ));
-    }
-    if let Ok(mut audio_indexer) = indexers::audio_indexer::AudioIndexer::new().await {
-        println!("audio indexing...");
-        let _ = audio_indexer
-            .process(task.clone(), from)
-            .await
-            .unwrap_or_else(|e| println!("audio indexing error,{}", e));
-        indexing_task_util::summary_to_db().await;
+    let unindex_audio_cnt = file_info_repo::count_unindexed_files(FileCategory::Audio.value())?;
+    println!("Total audio to index: {}", unindex_audio_cnt);
+    if unindex_audio_cnt > 0 {
+        if let Ok(mut audio_indexer) = indexers::audio_indexer::AudioIndexer::new().await {
+            println!("audio indexing...");
+            let _ = audio_indexer
+                .process(task.clone(), from)
+                .await
+                .unwrap_or_else(|e| println!("audio indexing error,{}", e));
+            indexing_task_util::summary_to_db().await;
+        }
     }
 
     indexing_finish(task.id, "done", from).await?;
 
-    return Ok(true);
-}
-
-pub async fn background_indexing(path: &str) -> Result<bool, String> {
-    log::info!("background indexing... path:{}", path);
-    if path.is_empty() {
-        return Ok(false);
-    }
-    let paths = vec![path.to_string()];
-    let embedding_model = EmbeddingService::model_name().await;
-    let task = indexing_task_util::task_new(&paths, embedding_model).await?;
-    let task = Arc::new(task);
-
-    // Scan specified paths and store file metadata in database
-    scanner::start(&paths, task.clone(), INDEXING_FROM_WATCHER).await;
-    // Embedding processing
-
-    let mut document_indexer = indexers::document_indexer::DocumentIndexer::new();
-    let _ = document_indexer
-        .process(task.clone(), INDEXING_FROM_WATCHER)
-        .await
-        .unwrap_or_else(|e| log::error!("Document indexing error,{}", e));
-
-    if INDEXER_SETTING.read().await.is_private {
-        log::info!("--- private mode, skip indexing image and audio ---");
-        return Ok(true);
-    }
-
-    let (enabled, platform_name) = {
-        let platform = ACTIVE_MODEL_PLATFORM.read().await;
-        (platform.is_enable(), platform.name.clone())
-    };
-    if !enabled {
-        log::info!(
-            "--- active model platform disabled, name: {} ---",
-            platform_name
-        );
-        indexing_finish(
-            task.id,
-            format!("Active model platform disabled, name: {}", platform_name).as_str(),
-            INDEXING_FROM_WATCHER,
-        )
-        .await?;
-
-        return Err(format!(
-            "Model platform '{}' is missing API key configuration",
-            platform_name
-        ));
-    }
-
-    if let Ok(mut image_indexer) = indexers::image_indexer::ImageIndexer::new().await {
-        let _ = image_indexer
-            .process(task.clone(), INDEXING_FROM_WATCHER)
-            .await
-            .unwrap_or_else(|e| log::error!("image indexing error,{}", e));
-    }
-
-    if let Ok(mut audio_indexer) = indexers::audio_indexer::AudioIndexer::new().await {
-        let _ = audio_indexer
-            .process(task.clone(), INDEXING_FROM_WATCHER)
-            .await
-            .unwrap_or_else(|e| log::error!("audio indexing error,{}", e));
-    }
-
-    indexing_finish(task.id, "done", INDEXING_FROM_WATCHER).await?;
     return Ok(true);
 }
 

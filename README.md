@@ -25,24 +25,23 @@ Mango Finder is especially useful in scenarios where you have **a large amount o
 
 - 📝 **Personal Document Libraries**
   - Years of accumulated notes, PDFs, Word files, Markdown files. etc
-  - Example: *“That note where I summarized Rust ownership rules”*
+  - Example: *“that note about how rust handles memory ownership”*
 
 - 📂 **SVN / Git Repositories**
   - Search through design docs, READMEs, technical proposals, and historical solutions
-  - Example: *“Where is the document about the permission refactor?”*
+  - Example: *“the solution we used for the permission system refactor”*
 
 - 🏢 **Team or Company Knowledge Base**
   - Internal documents, project docs, meeting notes, onboarding materials
-  - Example: *"Find all Q4 meeting notes about budget planning"*
-  - Example: *"What are the company policies regarding remote work?"*
+  - Example: *"Q4 budget planning and team feedback from last year"*
 
 - 📚 **Research and Study Materials**
   - Papers, experiment records, literature notes
-  - Example: *“What is the latest research on AI?”*
+  - Example: *“recent breakthroughs in large language model efficiency”*
 
 - ⚖️ **Legal and Financial Documents**
   - Contracts, policy documents, reports
-  - Example: *“What is the latest company policy on data privacy?”*
+  - Example: *“clauses regarding data privacy and user consent”*
 
 ### ✨ Features
 
@@ -120,10 +119,88 @@ Install tools: [https://www.rust-lang.org/tools/install](https://www.rust-lang.o
 
 ### 3. Tauri
 
-Install Tauri Prerequisites: 
+Install Tauri Prerequisites:
 [https://tauri.app/start/prerequisites/](https://tauri.app/start/prerequisites/)
 
-### 4. Download Model Files
+### 4. Whisper.cpp Dependencies
+
+The audio transcription feature uses [whisper.cpp](https://github.com/ggerganov/whisper.cpp). Different operating systems require different dependencies.
+
+#### Windows
+
+Compiling on Windows requires **CMake** and **LLVM/Clang 18** (Note: LLVM 19/20/22 have compatibility issues, please use LLVM 18).
+
+1. **Install CMake 4.3**
+
+   Download from [cmake-4.3.0](https://github.com/Kitware/CMake/releases/tag/v4.3.0-rc2)
+
+2. **Download and Install LLVM 18**
+   - Visit [LLVM 18.1.8 Release](https://github.com/llvm/llvm-project/releases/tag/llvmorg-18.1.8)
+   - Download `LLVM-18.1.8-win64.exe`
+   - Check **"Add LLVM to the system PATH for all users"** during installation
+
+3. **Verify installation**
+   ```sh
+   cmake --version
+   clang --version
+   ```
+   The clang version should show `18.1.8`
+
+4. **Set environment variables (permanent)**
+   - Press `Win + R`, type `sysdm.cpl`, press Enter
+   - Click **"Advanced"** tab → **"Environment Variables"**
+   - Under **"User variables"**, click **"New"** and add:
+
+   | Variable name | Value |
+   |---------------|-------|
+   | `CXXFLAGS` | `/utf-8` |
+   | `CFLAGS` | `/utf-8` |
+
+   - Click OK and **restart your terminal** for changes to take effect
+
+5. **Build the project (first time only)**
+
+   Open **"x64 Native Tools Command Prompt for VS 2022"** (search from Start Menu), then build:
+   ```cmd
+   cd your-project-path\src-tauri
+   cargo build
+   ```
+
+   > ⚠️ **Important Notes**:
+   > - The `/utf-8` flag is required to resolve encoding issues
+   > - If previous build failed, run `cargo clean -p whisper-rs-sys` to clear cache first
+   > - After whisper is compiled successfully, subsequent builds can use `pnpm tauri dev` directly in any terminal
+   > - VSCode's rust-analyzer plugin auto-checks code on startup. Without MSVC environment, whisper-rs-sys build will fail and show as red in `target/debug/build` directory. If you've successfully built in "x64 Native Tools Command Prompt for VS 2022", you can ignore this error
+
+#### macOS
+
+macOS usually has Clang built-in. If you encounter issues, install Xcode Command Line Tools:
+
+```sh
+xcode-select --install
+```
+
+#### Linux
+
+Most Linux distributions require C/C++ build tools:
+
+**Ubuntu/Debian:**
+```sh
+sudo apt update
+sudo apt install build-essential cmake
+```
+
+**Fedora/RHEL:**
+```sh
+sudo dnf install gcc-c++ make cmake
+```
+
+**Arch Linux:**
+```sh
+sudo pacman -S base-devel cmake
+```
+
+### 5. Download Model Files
 
 Download the required model files from one of the following sources:
 
@@ -131,6 +208,7 @@ Download the required model files from one of the following sources:
 2. **Hugging Face**: [moyangzhan/mango-finder](https://huggingface.co/moyangzhan/mango-finder/tree/main) - Manually download the following files:
    - *.onnx model files
    - *_tokenizer.json tokenizer files
+   - whisper-small-q8_0.bin
 
 After downloading, extract the files to the `src-tauri/assets/model` directory.
 
@@ -139,6 +217,7 @@ After downloading, extract the files to the `src-tauri/assets/model` directory.
 - embedding_tokenizer.json
 - vision.onnx
 - vision_tokenizer.json
+- whisper-small-q8_0.bin
 
 ## 🚀 Getting Started
 
@@ -190,7 +269,7 @@ As shown in the architecture diagram above, the entire processing pipeline is de
 A: The codebase includes multiple models serving different purposes:
 
 #### 1. Active Local Models (Enabled by Default)
-- `bge-base-*`
+- `src-tauri/assets/model/*`
 - These models run locally on users' computers for basic document processing
 - Prioritized for privacy and performance
 

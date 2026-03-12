@@ -23,6 +23,13 @@ const showChunksModal = ref(false)
 const matchChunks = ref<string[]>([])
 const searchType = ref(SEMANTIC_SEARCH) // 1: semantic search, 2: path search
 
+const hitTypeLabels = computed<Record<string, string>>(() => ({
+  pathKeyword: t('common.hitType.pathKeyword'),
+  contentKeyword: t('common.hitType.contentKeyword'),
+  contentSemantic: t('common.hitType.contentSemantic'),
+  metaSemantic: t('common.hitType.metaSemantic'),
+}))
+
 const focusInput = () => {
   inputRef.value?.focus()
 }
@@ -298,53 +305,80 @@ onUnmounted(() => {
 
       <NImageGroup v-else>
         <div v-for="(item, idx) in searchResults" :key="item.file_info.path"
-          class="flex w-full space-x-2 p-2 border-b border-(--border-color)"
+          class="group w-full p-2 border-b border-(--border-color)"
           :style="selectedIndex === idx ? 'background-color: var(--secondary-bg-color);border: 1px solid var(--primary-color); box-sizing: border-box;border-radius: 0.25rem;' : ''">
-          <div class="flex justify-center items-center">
-            <NImage v-if="item.file_info.file_data" width="100" height="100" :src="item.file_info.file_data" />
-            <div v-else-if="!item.file_info.file_data && !extIcons.includes(item.file_info.file_ext.toLowerCase())"
-              class="w-[50px] h-[50px] flex justify-center items-center text-xl font-bold"
-              style="opacity: 0.7;filter: saturate(0.5)">
-              {{
-                item.file_info.file_ext.toUpperCase()
-              }}
+          <!-- Icon + File info -->
+          <div class="flex space-x-2">
+            <!-- Large image: top aligned -->
+            <div v-if="item.file_info.file_data && item.file_info.category === 2" class="flex justify-center items-start shrink-0 pt-0.5">
+              <NImage width="100" :src="item.file_info.file_data" />
             </div>
-            <SvgIcon v-else :name="item.file_info.file_ext.toLowerCase()" width="50" height="50"
-              style="opacity: 0.7;filter: saturate(0.5)" />
-          </div>
-          <div class="flex-1 flex flex-col text-left h-[50px]">
-            <div class="cursor-pointer hover:underline hover:text-(--primary-color)"
-              @click="openFile(item.file_info.path)">
-              {{
-                item.file_info.name }}
+            <!-- Small icon: vertically centered -->
+            <div v-else class="flex justify-center items-center shrink-0">
+              <NImage v-if="item.file_info.file_data" width="40" height="40" :src="item.file_info.file_data" />
+              <div v-else-if="!item.file_info.file_data && !extIcons.includes(item.file_info.file_ext.toLowerCase())"
+                class="w-10 h-10 flex justify-center items-center text-sm font-bold"
+                style="opacity: 0.7;filter: saturate(0.5)">
+                {{ item.file_info.file_ext.toUpperCase() }}
+              </div>
+              <SvgIcon v-else :name="item.file_info.file_ext.toLowerCase()" width="40" height="40"
+                style="opacity: 0.7;filter: saturate(0.5)" />
             </div>
-            <div class="text-xs text-gray-500">
-              <div v-html="item.file_info.html_path"></div>
-            </div>
-          </div>
-          <div class="flex justify-center items-center">
-            <div v-if="indexerStore.indexerSetting.save_parsed_content.document && item.file_info.category === 1">
-              <NButton size="tiny" text @click="loadFileDetail(item.file_info.id)">
-                {{ t('indexer.parsedContent') }}
-              </NButton>
-            </div>
-            <div
-              v-if="indexerStore.indexerSetting.save_parsed_content.image && item.file_info.category === 2 || (indexerStore.indexerSetting.save_parsed_content.audio && item.file_info.category === 3)">
-              <NButton size="tiny" text @click="loadFileDetail(item.file_info.id)">
-                {{ t('indexer.recognitionText') }}
-              </NButton>
-            </div>
-            <div v-if="item.matched_chunk_ids && item.matched_chunk_ids.length > 0" class="ml-2">
-              <NButton size="tiny" text
-                @click="loadChunks(item.matched_chunk_ids, item.matched_keywords)">
-                {{ t('common.matchedSegments', { count: item.matched_chunk_ids.length }) }}
-              </NButton>
+            <div class="flex-1 flex flex-col justify-between text-left min-w-0 min-h-14">
+              <div class="min-h-11">
+                <div class="cursor-pointer hover:underline hover:text-(--primary-color) truncate"
+                  style="font-weight: 550"
+                  @click="openFile(item.file_info.path)">
+                  {{ item.file_info.name }}
+                </div>
+                <div class="text-xs truncate">
+                  <div v-html="item.file_info.html_path"></div>
+                </div>
+              </div>
+              <!-- Third row: Actions + Metadata -->
+              <div class="flex justify-between items-center text-xs text-gray-400">
+                <div class="flex items-center gap-2">
+                  <NButton v-if="indexerStore.indexerSetting.save_parsed_content.document && item.file_info.category === 1"
+                    size="tiny" @click="loadFileDetail(item.file_info.id)">
+                    {{ t('indexer.parsedContent') }}
+                  </NButton>
+                  <NButton
+                    v-if="indexerStore.indexerSetting.save_parsed_content.image && item.file_info.category === 2 || (indexerStore.indexerSetting.save_parsed_content.audio && item.file_info.category === 3)"
+                    size="tiny" @click="loadFileDetail(item.file_info.id)">
+                    {{ t('indexer.recognitionText') }}
+                  </NButton>
+                  <NButton v-if="item.matched_chunk_ids && item.matched_chunk_ids.length > 0" size="tiny"
+                    @click="loadChunks(item.matched_chunk_ids, item.matched_keywords)">
+                    {{ t('common.matchedSegments', { count: item.matched_chunk_ids.length }) }}
+                  </NButton>
+                </div>
+                <div class="flex items-center gap-2">
+                  <NTooltip v-if="item.hit_types && item.hit_types.length > 0">
+                    <template #trigger>
+                      <span class="flex gap-1">
+                        <NTag v-for="hitType in item.hit_types" :key="hitType" size="tiny" :bordered="false">
+                          {{ hitTypeLabels[hitType] || hitType }}
+                        </NTag>
+                      </span>
+                    </template>
+                    {{ t('common.hitTypeTip') }}
+                  </NTooltip>
+                  <NTooltip v-if="item.score">
+                    <template #trigger>
+                      <NTag size="tiny" :bordered="false">
+                        {{ item.score }}%
+                      </NTag>
+                    </template>
+                    {{ t('common.score') }}: {{ item.score }}%
+                  </NTooltip>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </NImageGroup>
     </div>
-    <HowToUse v-if="searchResults.length === 0"/>
+    <HowToUse v-if="searchResults.length === 0" />
     <NModal v-model:show="showContentModal" preset="card" :title="t('indexer.parsedContent')"
       style="width: 80%; height:80%;">
       <div style="max-height: 600px;overflow-y: auto;" class="select-text">

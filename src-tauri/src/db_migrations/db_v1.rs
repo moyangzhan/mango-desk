@@ -274,7 +274,7 @@ pub fn init_data() -> Result<()> {
         (default_locale,),
     )?;
     let default_indexer_setting = format!(
-        r#"{{"is_private":true,"file_content_language":"{}","image_parser_mode":"local","ignore_dirs":["node_modules"],"ignore_exts":["tmp"],"ignore_files":[],"save_parsed_content": {{"document":false,"image":true,"audio":true,"video":true}}}}"#,
+        r#"{{"is_private":true,"file_content_language":"{}","image_parser_mode":"local","audio_parser_mode":"local","ignore_dirs":["node_modules"],"ignore_exts":["tmp"],"ignore_files":[],"save_parsed_content": {{"document":false,"image":true,"audio":true,"video":true}}}}"#,
         default_file_content_language
     );
     // is_private: Indicates whether the LLM(file parser) is running locally or remotely

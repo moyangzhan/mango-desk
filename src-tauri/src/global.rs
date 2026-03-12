@@ -33,12 +33,28 @@ pub const EMBEDDING_TOKENIZER_NAME: &str = "embedding_tokenizer.json";
 pub const VISION_NAME: &str = "vision.onnx";
 pub const VISION_TOKENIZER_NAME: &str = "vision_tokenizer.json";
 
+// audio model
+pub const AUDIO_ENCODER_NAME: &str = "audio_encoder.onnx";
+pub const AUDIO_DECODER_NAME: &str = "audio_decoder.onnx";
+pub const AUDIO_TOKENIZER_NAME: &str = "audio_tokenizer.json";
+
+// whisper.cpp model
+pub const WHISPER_MODEL_NAME: &str = "whisper-small-q8_0.bin";
+
 // assets/model/model.onnx
 pub static EMBEDDING_MODEL_PATH: OnceLock<String> = OnceLock::new();
 // assets/model/tokenizer.json
 pub static EMBEDDING_TOKENIZER_PATH: OnceLock<String> = OnceLock::new();
 pub static VISION_MODEL_PATH: OnceLock<String> = OnceLock::new();
 pub static VISION_TOKENIZER_PATH: OnceLock<String> = OnceLock::new();
+
+// Audio model
+pub static AUDIO_ENCODER_PATH: OnceLock<String> = OnceLock::new();
+pub static AUDIO_DECODER_PATH: OnceLock<String> = OnceLock::new();
+pub static AUDIO_TOKENIZER_PATH: OnceLock<String> = OnceLock::new();
+
+// Whisper.cpp model path
+pub static WHISPER_MODEL_PATH: OnceLock<String> = OnceLock::new();
 
 pub static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
 

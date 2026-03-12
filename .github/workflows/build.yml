@@ -12,6 +12,9 @@ on:
 jobs:
   build-windows:
     runs-on: windows-latest
+    env:
+      CXXFLAGS: /utf-8
+      CFLAGS: /utf-8
     steps:
       - uses: actions/checkout@v4
         # replace with the huggingface download
@@ -30,6 +33,16 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
+      - name: Install CMake
+        uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: 4.2.3
+      - name: Install LLVM 18
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.8/LLVM-18.1.8-win64.exe" -OutFile "LLVM-18.1.8-win64.exe"
+          Start-Process -FilePath ".\LLVM-18.1.8-win64.exe" -ArgumentList "/S" -NoNewWindow -Wait
+          echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
+        shell: pwsh
       - name: Install Python
         uses: actions/setup-python@v4
         with:
@@ -44,6 +57,7 @@ jobs:
           hf_hub_download(repo_id='moyangzhan/mango-finder', filename='embedding_tokenizer.json', local_dir='./src-tauri/assets/model')
           hf_hub_download(repo_id='moyangzhan/mango-finder', filename='vision.onnx', local_dir='./src-tauri/assets/model')
           hf_hub_download(repo_id='moyangzhan/mango-finder', filename='vision_tokenizer.json', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-finder', filename='whisper-small-q8_0.bin', local_dir='./src-tauri/assets/model')
           "
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
@@ -95,6 +109,7 @@ jobs:
           hf_hub_download(repo_id='moyangzhan/mango-finder', filename='embedding_tokenizer.json', local_dir='./src-tauri/assets/model')
           hf_hub_download(repo_id='moyangzhan/mango-finder', filename='vision.onnx', local_dir='./src-tauri/assets/model')
           hf_hub_download(repo_id='moyangzhan/mango-finder', filename='vision_tokenizer.json', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-finder', filename='whisper-small-q8_0.bin', local_dir='./src-tauri/assets/model')
           "
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
@@ -143,6 +158,7 @@ jobs:
           hf_hub_download(repo_id='moyangzhan/mango-finder', filename='embedding_tokenizer.json', local_dir='./src-tauri/assets/model')
           hf_hub_download(repo_id='moyangzhan/mango-finder', filename='vision.onnx', local_dir='./src-tauri/assets/model')
           hf_hub_download(repo_id='moyangzhan/mango-finder', filename='vision_tokenizer.json', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-finder', filename='whisper-small-q8_0.bin', local_dir='./src-tauri/assets/model')
           "
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile

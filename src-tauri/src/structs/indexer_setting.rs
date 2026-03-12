@@ -38,6 +38,8 @@ pub struct IndexerSetting {
     pub is_private: bool,
     #[serde(default)]
     pub image_parser_mode: FileParserMode, // local or remote
+    #[serde(default)]
+    pub audio_parser_mode: FileParserMode,
     pub ignore_dirs: Vec<String>,
     pub ignore_exts: Vec<String>,
     pub ignore_files: Vec<String>, // File absolute path
@@ -50,6 +52,7 @@ impl Default for IndexerSetting {
         Self {
             is_private: false,
             image_parser_mode: FileParserMode::Local,
+            audio_parser_mode: FileParserMode::Local,
             ignore_exts: vec![],
             ignore_files: vec![],
             ignore_dirs: vec![],

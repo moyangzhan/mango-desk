@@ -22,24 +22,23 @@ Mango Finder（原名 MangoDesk）是一款用自然语言搜索本地文件的�
 
 - 📝 **个人文档库**
   - 多年来积累的笔记、PDF、Word 文件、Markdown 文件等
-  - 示例：*"我总结 Rust 所有权规则的那份笔记"*
+  - 示例：*"总结 Rust 所有权和借用规则的文件"*
 
 - 📂 **SVN / Git 仓库**
   - 搜索设计文档、README、技术方案和历史解决方案
-  - 示例：*"关于权限重构的文档在哪里？"*
+  - 示例：*"去年关于权限系统重构的技术方案和思路"*
 
 - 🏢 **团队或公司知识库**
   - 内部文档、项目文档、会议记录、入职材料
-  - 示例：*"查找所有关于预算规划的第四季度会议记录"*
-  - 示例：*"公司关于远程工作的政策是什么？"*
+  - 示例：*"第四季度关于预算规划的会议内容及团队反馈"*
 
 - 📚 **研究与学术资料**
   - 论文、实验记录、文献笔记
-  - 示例：*"关于 AI 的最新研究有哪些？"*
+  - 示例：*"大语言模型在提高推理效率方面的最新突破"*
 
 - ⚖️ **法律与财务文档**
   - 合同、政策文件、报告
-  - 示例：*"最新的公司数据隐私政策是什么？"*
+  - 示例：*"公司章程中关于数据隐私和用户授权的相关条款"*
 
 ### ✨ 特性
 
@@ -125,7 +124,85 @@ pnpm i
 
 [https://tauri.app/start/prerequisites/](https://tauri.app/start/prerequisites/)
 
-### 4. 下载模型文件
+### 4. Whisper.cpp 依赖
+
+音频转文字功能使用 [whisper.cpp](https://github.com/ggerganov/whisper.cpp)，不同操作系统需要安装不同的依赖。
+
+#### Windows
+
+在 Windows 上编译需要安装 **CMake** 和 **LLVM/Clang 18**（注意：LLVM 19/20/22 版本存在兼容性问题，请使用 LLVM 18）。
+
+1. **安装 CMake 4.3**
+
+   从 [cmake-4.3.0](https://github.com/Kitware/CMake/releases/tag/v4.3.0-rc2) 下载安装
+
+2. **下载并安装 LLVM 18**
+   - 访问 [LLVM 18.1.8 Release](https://github.com/llvm/llvm-project/releases/tag/llvmorg-18.1.8)
+   - 下载 `LLVM-18.1.8-win64.exe`
+   - 安装时勾选 **"Add LLVM to the system PATH for all users"**
+
+3. **验证安装**
+   ```sh
+   cmake --version
+   clang --version
+   ```
+   clang 版本应显示 `18.1.8`
+
+4. **设置环境变量（永久）**
+   - 按 `Win + R`，输入 `sysdm.cpl`，回车
+   - 点击 **"高级"** 选项卡 → **"环境变量"**
+   - 在 **"用户变量"** 区域点击 **"新建"**，添加：
+
+   | 变量名 | 值 |
+   |--------|-----|
+   | `CXXFLAGS` | `/utf-8` |
+   | `CFLAGS` | `/utf-8` |
+
+   - 点击确定，**重启终端** 使环境变量生效
+
+5. **编译项目（仅首次需要）**
+
+   打开 **"x64 Native Tools Command Prompt for VS 2022"**（从开始菜单搜索），然后编译：
+   ```cmd
+   cd your-project-path\src-tauri
+   cargo build
+   ```
+
+   > ⚠️ **重要提示**：
+   > - `/utf-8` 参数是必需的，用于解决中文编码问题
+   > - 如果之前编译失败，先运行 `cargo clean -p whisper-rs-sys` 清理缓存
+   > - whisper 编译成功后，后续可直接在任意终端使用 `pnpm tauri dev`
+   > - VSCode 的 rust-analyzer 插件会在启动时自动检查代码，由于没有 MSVC 环境，whisper-rs-sys 的构建会失败并以红色标识显示在 `target/debug/build` 目录中。如果你已在 "x64 Native Tools Command Prompt for VS 2022" 中构建成功，可以忽略此错误
+
+#### macOS
+
+macOS 通常已内置 Clang，无需额外安装。如果遇到问题，可以安装 Xcode Command Line Tools：
+
+```sh
+xcode-select --install
+```
+
+#### Linux
+
+大多数 Linux 发行版需要安装 C/C++ 编译工具：
+
+**Ubuntu/Debian:**
+```sh
+sudo apt update
+sudo apt install build-essential cmake
+```
+
+**Fedora/RHEL:**
+```sh
+sudo dnf install gcc-c++ make cmake
+```
+
+**Arch Linux:**
+```sh
+sudo pacman -S base-devel cmake
+```
+
+### 5. 下载模型文件
 
 请从以下任一来源下载所需的模型文件：
 
@@ -133,6 +210,7 @@ pnpm i
 2. **Hugging Face**: [moyangzhan/mango-finder](https://huggingface.co/moyangzhan/mango-finder/tree/main) - 需要手动下载以下文件：
    - *.onnx 模型文件
    - *_tokenizer.json 分词器文件
+   - whisper-small-q8_0.bin
 
 下载完成后，请将文件解压到 `src-tauri/assets/model` 目录中。
 
@@ -141,6 +219,7 @@ pnpm i
 - embedding_tokenizer.json
 - vision.onnx
 - vision_tokenizer.json
+- whisper-small-q8_0.bin
 
 ## ▶️ 运行项目（开发模式）
 
@@ -196,8 +275,8 @@ A: Mango Finder 采用本地优先（local-first）架构来确保数据隐私�
 A: 代码库包含多个模型，各自服务于不同目的：
 
 #### 1. 本地模型（默认启用）
-- `bge-base-*`
-- 这些模型在用户计算机上本地运行，用于基本的文档处理
+- `src-tauri/assets/model`中为本地模型文件
+- 这些模型在用户计算机上本地运行，用于基本的文档及图片处理
 - 优先考虑隐私和性能
 
 #### 2. 远程模型（可选）

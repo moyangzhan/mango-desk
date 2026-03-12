@@ -13,18 +13,18 @@ use crate::traits::indexing_template::IndexingTemplate;
 
 pub struct ImageIndexer {
     category: FileCategory,
-    ai_model: Option<AiModel>,
-    platform_service: Option<Box<dyn ImageAnalyzer>>,
+    remote_model: Option<AiModel>,
+    remote_service: Option<Box<dyn ImageAnalyzer>>,
     local_parser: Option<ImageParser>,
 }
 
 impl ImageIndexer {
     pub async fn new() -> Result<ImageIndexer, AppError> {
-        let mut platform_service_option: Option<Box<dyn ImageAnalyzer>> = None;
-        let mut local_parser: Option<ImageParser> = None;
-        let mut ai_model_option: Option<AiModel> = None;
+        let mut local_parser_option: Option<ImageParser> = None;
+        let mut remote_service_option: Option<Box<dyn ImageAnalyzer>> = None;
+        let mut remote_model_option: Option<AiModel> = None;
         if INDEXER_SETTING.read().await.image_parser_mode == FileParserMode::Local {
-            local_parser = Some(ImageParser::new().map_err(|e| {
+            local_parser_option = Some(ImageParser::new().map_err(|e| {
                 AppError::ImageParserInitError(format!(
                     "Failed to initialize local image parser: {:?}",
                     e
@@ -56,16 +56,16 @@ impl ImageIndexer {
                             Box::new(OpenAiCompatibleService::new(&platform_name, &base_url).await)
                         }
                     };
-                platform_service_option = Some(platform_service);
-                ai_model_option = Some(ai_model);
+                remote_service_option = Some(platform_service);
+                remote_model_option = Some(ai_model);
             }
         }
-        if platform_service_option.is_some() || local_parser.is_some() {
+        if remote_service_option.is_some() || local_parser_option.is_some() {
             return Ok(Self {
                 category: FileCategory::Image,
-                ai_model: ai_model_option,
-                platform_service: platform_service_option,
-                local_parser: local_parser,
+                remote_model: remote_model_option,
+                remote_service: remote_service_option,
+                local_parser: local_parser_option,
             });
         }
         let vision: &str = ModelType::Vision.into();
@@ -86,9 +86,9 @@ impl IndexingTemplate for ImageIndexer {
                     String::new()
                 }
             },
-            None => match &self.platform_service {
+            None => match &self.remote_service {
                 Some(service) => {
-                    let model = match &self.ai_model {
+                    let model = match &self.remote_model {
                         Some(m) => m,
                         None => {
                             eprintln!("No AI model configured for image analysis");
