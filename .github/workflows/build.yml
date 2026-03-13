@@ -127,6 +127,10 @@ jobs:
 
   build-macos:
     runs-on: macos-latest
+    env:
+      WHISPER_NO_I8MM: 1
+      CMAKE_C_FLAGS: -DWHISPER_NO_I8MM=1
+      CMAKE_CXX_FLAGS: -DWHISPER_NO_I8MM=1
     steps:
       - uses: actions/checkout@v4
         # with:
@@ -144,6 +148,8 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-darwin, x86_64-apple-darwin
+      - name: Install CMake
+        uses: lukka/get-cmake@latest
       - name: Install Python
         uses: actions/setup-python@v4
         with:
