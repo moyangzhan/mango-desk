@@ -38,9 +38,7 @@
       "assets/model/embedding_tokenizer.json",
       "assets/model/vision.onnx",
       "assets/model/vision_tokenizer.json",
-      "assets/model/audio_encoder.onnx",
-      "assets/model/audio_decoder.onnx",
-      "assets/model/audio_tokenizer.json"
+      "assets/model/whisper-small-q8_0.bin"
     ],
     "targets": "all",
     "icon": [
