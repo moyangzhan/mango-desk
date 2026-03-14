@@ -128,8 +128,8 @@ jobs:
   build-macos:
     runs-on: macos-latest
     env:
-      CFLAGS: -march=armv8.5-a
-      CXXFLAGS: -march=armv8.5-a
+      CFLAGS: -march=armv8-a
+      CXXFLAGS: -march=armv8-a
     steps:
       - uses: actions/checkout@v4
         # with:
