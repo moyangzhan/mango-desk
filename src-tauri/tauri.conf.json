@@ -33,6 +33,9 @@
   },
   "bundle": {
     "active": true,
+    "macOS": {
+      "minimumSystemVersion": "10.15"
+    },
     "resources": [
       "assets/model/embedding.onnx",
       "assets/model/embedding_tokenizer.json",

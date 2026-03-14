@@ -126,9 +126,10 @@ jobs:
           path: src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/*/*
 
   build-macos:
-    runs-on: macos-latest
+    runs-on: macos-14
     env:
       CFLAGS: -U__ARM_FEATURE_MATMUL_INT8
+      MACOSX_DEPLOYMENT_TARGET: "10.15"
     steps:
       - uses: actions/checkout@v4
         # with:
