@@ -129,8 +129,7 @@ jobs:
     runs-on: macos-latest
     env:
       WHISPER_NO_I8MM: 1
-      CMAKE_C_FLAGS: -DWHISPER_NO_I8MM=1
-      CMAKE_CXX_FLAGS: -DWHISPER_NO_I8MM=1
+      CMAKE_ARGS: "-DGGML_CPU_I8MM=OFF -DWHISPER_NO_I8MM=ON"
     steps:
       - uses: actions/checkout@v4
         # with:
