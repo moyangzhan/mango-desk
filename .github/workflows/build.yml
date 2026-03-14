@@ -128,8 +128,9 @@ jobs:
   build-macos:
     runs-on: macos-latest
     env:
-      WHISPER_NO_I8MM: 1
-      CMAKE_ARGS: "-DGGML_NATIVE=OFF -DGGML_I8MM=OFF"
+      CFLAGS: -DWHISPER_NO_I8MM=1
+      CXXFLAGS: -DWHISPER_NO_I8MM=1
+      CMAKE_ARGS: "-DGGML_NATIVE=OFF"
     steps:
       - uses: actions/checkout@v4
         # with:
