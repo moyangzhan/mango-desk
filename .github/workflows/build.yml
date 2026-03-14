@@ -169,15 +169,16 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Build macOS (Apple Silicon)
         run: pnpm tauri build --target aarch64-apple-darwin
-      - name: Build macOS (Intel)
-        run: pnpm tauri build --target x86_64-apple-darwin
+      # Intel Mac build disabled - uncomment if needed for Intel Mac users
+      # - name: Build macOS (Intel)
+      #   run: pnpm tauri build --target x86_64-apple-darwin
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: macos-build
           path: |
             src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
-            src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
+            # src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
 
   release:
     needs: [build-windows, build-linux, build-macos]
@@ -234,7 +235,7 @@ jobs:
             # artifacts/linux-build/rpm/*.rpm
             # artifacts/linux-build/appimage/*.AppImage
             artifacts/macos-build/aarch64-apple-darwin/release/bundle/dmg/*.dmg
-            artifacts/macos-build/x86_64-apple-darwin/release/bundle/dmg/*.dmg
+            # artifacts/macos-build/x86_64-apple-darwin/release/bundle/dmg/*.dmg
           name: Release ${{ github.ref_name }}
           body: |
             ### Release ${{ github.ref_name }}
