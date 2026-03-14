@@ -234,7 +234,7 @@ jobs:
             artifacts/linux-build/deb/*.deb
             # artifacts/linux-build/rpm/*.rpm
             # artifacts/linux-build/appimage/*.AppImage
-            artifacts/macos-build/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+            artifacts/macos-build/*.dmg
             # artifacts/macos-build/x86_64-apple-darwin/release/bundle/dmg/*.dmg
           name: Release ${{ github.ref_name }}
           body: |
