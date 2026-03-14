@@ -129,8 +129,6 @@ jobs:
     runs-on: macos-latest
     env:
       CFLAGS: -U__ARM_FEATURE_MATMUL_INT8
-      CXXFLAGS: -U__ARM_FEATURE_MATMUL_INT8
-      CMAKE_ARGS: "-DGGML_NATIVE=OFF"
     steps:
       - uses: actions/checkout@v4
         # with:
