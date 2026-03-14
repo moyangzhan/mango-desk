@@ -128,9 +128,8 @@ jobs:
   build-macos:
     runs-on: macos-latest
     env:
-      WHISPER_NO_I8MM: 1
-      CFLAGS: -DWHISPER_NO_I8MM=1
-      CXXFLAGS: -DWHISPER_NO_I8MM=1
+      CFLAGS: -march=armv8.5-a
+      CXXFLAGS: -march=armv8.5-a
     steps:
       - uses: actions/checkout@v4
         # with:
