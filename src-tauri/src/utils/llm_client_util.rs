@@ -1,4 +1,5 @@
 use crate::entities::ModelPlatform;
+use crate::entities::SelfHostedPlatform;
 use crate::errors::AppError;
 use crate::global::PROXY;
 use crate::repositories::model_platform_repo;
@@ -63,6 +64,23 @@ pub fn create_client(
     } else {
         Client::with_config(open_ai_config)
     };
+
+    Ok(client)
+}
+
+/// Create client for self-hosted platform (Ollama, vLLM, etc.)
+/// Self-hosted platforms don't require API key and don't use proxy
+pub fn create_client_for_self_hosted(
+    platform: &SelfHostedPlatform,
+) -> Result<Client<OpenAIConfig>, AppError> {
+    // Ollama and vLLM OpenAI-compatible API endpoint requires /v1 suffix
+    let base_url = format!("http://{}:{}/v1", platform.host, platform.port);
+
+    let open_ai_config = OpenAIConfig::new()
+        .with_api_key("none") // Self-hosted platforms typically don't require API key
+        .with_api_base(base_url);
+
+    let client = Client::with_config(open_ai_config);
 
     Ok(client)
 }

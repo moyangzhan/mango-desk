@@ -14,6 +14,35 @@ pub struct Config {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct SelfHostedPlatform {
+    pub id: i64,
+    pub name: String,
+    pub title: String,
+    pub host: String,
+    pub port: i32,
+    pub remark: String,
+    #[serde(with = "datetime_util")]
+    pub create_time: DateTime<Local>,
+    #[serde(with = "datetime_util")]
+    pub update_time: DateTime<Local>,
+}
+
+impl Default for SelfHostedPlatform {
+    fn default() -> Self {
+        Self {
+            id: 0,
+            name: "".to_string(),
+            title: "".to_string(),
+            host: "127.0.0.1".to_string(),
+            port: 11434,
+            remark: "".to_string(),
+            create_time: Local::now(),
+            update_time: Local::now(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ModelPlatform {
     pub id: i64,
     pub name: String,
@@ -95,6 +124,13 @@ pub struct FileInfo {
     pub meta_index_status_msg: String,
     pub is_invalid: bool,
     pub invalid_reason: String,
+    /// Audio type classification (only for audio category files)
+    /// Values: 0=Unknown, 1=Speech, 2=Music, 3=Mixed
+    pub audio_type: i32,
+    /// Perceptual hash for image similarity (only for image category files)
+    /// 8 bytes for 8x8 gradient hash
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image_hash: Option<Vec<u8>>,
     #[serde(with = "datetime_util")]
     pub file_create_time: DateTime<Local>,
     #[serde(with = "datetime_util")]
@@ -121,6 +157,8 @@ impl Default for FileInfo {
             md5: "".to_string(),
             is_invalid: false,
             invalid_reason: "".to_string(),
+            audio_type: 0, // 0=Unknown (default for non-audio files and unindexed audio)
+            image_hash: None, // No hash by default (only for image files)
             content_index_status: FileIndexStatus::Waiting.value(),
             content_index_status_msg: "".to_string(),
             meta_index_status: FileIndexStatus::Waiting.value(),

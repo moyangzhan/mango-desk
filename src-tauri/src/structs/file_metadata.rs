@@ -3,6 +3,33 @@ use crate::utils::file_util::get_file_attributes_desc;
 use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
 
+/// Audio type classification for audio files
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Default)]
+pub enum AudioType {
+    #[default]
+    Unknown = 0,
+    Speech = 1,  // Podcasts, audiobooks, voice recordings - use transcription text similarity
+    Music = 2,   // Songs, instrumental - need audio fingerprint
+    Mixed = 3,   // Music with vocals
+}
+
+impl From<i32> for AudioType {
+    fn from(value: i32) -> Self {
+        match value {
+            1 => AudioType::Speech,
+            2 => AudioType::Music,
+            3 => AudioType::Mixed,
+            _ => AudioType::Unknown,
+        }
+    }
+}
+
+impl From<AudioType> for i32 {
+    fn from(value: AudioType) -> Self {
+        value as i32
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct FileMetadata {
     pub name: String,
@@ -15,6 +42,9 @@ pub struct FileMetadata {
     #[serde(with = "datetime_util")]
     pub modified: DateTime<Local>,
     pub author: String,
+    /// Audio type classification (only applicable for audio category files)
+    #[serde(default)]
+    pub audio_type: Option<i32>,
 }
 
 impl FileMetadata {
@@ -28,6 +58,7 @@ impl FileMetadata {
             created: DateTime::default(),
             modified: DateTime::default(),
             author: String::new(),
+            audio_type: None,
         }
     }
 

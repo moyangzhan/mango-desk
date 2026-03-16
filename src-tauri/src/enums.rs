@@ -415,10 +415,33 @@ pub enum HitType {
     MetaSemantic,
 }
 
+/// Types of similarity detection
+/// 相似性检测类型
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Hash)]
+#[serde(rename_all = "camelCase", rename_all_fields = "camelCase")]
+pub enum SimilarityType {
+    /// Perceptual hash similarity (for images)
+    /// 感知哈希相似（用于图片）
+    ImageHash,
+    /// Semantic similarity using embeddings (for images)
+    /// 语义相似（嵌入向量，用于图片）
+    ImageSemantic,
+    /// Semantic similarity using embeddings (for documents)
+    /// 语义相似（嵌入向量，用于文档）
+    DocumentSemantic,
+    /// Audio fingerprint similarity (for music)
+    /// 音频指纹相似（用于音乐）
+    AudioFingerprint,
+    /// Audio transcription similarity (for speech)
+    /// 音频转写相似（用于语音）
+    AudioTranscription,
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum FileParserMode {
     Local,
+    SelfHosted,
     Remote,
 }
 

@@ -5,7 +5,7 @@ use crate::document_loaders::odt::OdtLoader;
 use crate::document_loaders::pdf::PdfLoader;
 use crate::document_loaders::plain_text::PlainTextLoader;
 use crate::document_loaders::pptx::PptxLoader;
-use crate::entities::ModelPlatform;
+use crate::entities::{ModelPlatform, SelfHostedPlatform};
 use crate::structs::fs_watcher_setting::FsWatcherSetting;
 use crate::structs::indexer_setting::IndexerSetting;
 use crate::structs::indexing_summary::IndexingSummary;
@@ -18,7 +18,7 @@ use std::sync::{Arc, LazyLock, OnceLock};
 use tauri::AppHandle;
 use tokio::sync::RwLock as AsyncRwLock;
 
-pub const DB_VERSION: i32 = 1;
+pub const DB_VERSION: i32 = 2;
 pub const DEFAULT_PAGE_SIZE: usize = 20;
 pub const HUGGINFACE_WEBSITE: &str = "https://huggingface.co";
 pub const HUGGINFACE_MIRROR: &str = "https://hf-mirror.com";
@@ -64,6 +64,7 @@ pub const CONFIG_NAME_INDEXER_SETTING: &'static str = "indexer_setting";
 pub const CONFIG_NAME_WATCHER_SETTING: &'static str = "fs_watcher_setting";
 pub const CONFIG_NAME_ACTIVE_LOCALE: &'static str = "active_locale";
 pub const CONFIG_NAME_DB_VERSION: &'static str = "db_version";
+pub const CONFIG_NAME_ACTIVE_SELF_HOSTED_PLATFORM: &'static str = "active_self_hosted_platform";
 
 pub static APP_DATA_PATH: LazyLock<AsyncRwLock<String>> =
     LazyLock::new(|| AsyncRwLock::new("".to_string()));
@@ -75,6 +76,8 @@ pub static TMP_PATH: OnceLock<String> = OnceLock::new();
 pub static EXIT_APP_SIGNAL: AtomicBool = AtomicBool::new(false);
 pub static ACTIVE_MODEL_PLATFORM: LazyLock<AsyncRwLock<ModelPlatform>> =
     LazyLock::new(|| AsyncRwLock::new(ModelPlatform::default()));
+pub static ACTIVE_SELF_HOSTED_PLATFORM: LazyLock<AsyncRwLock<SelfHostedPlatform>> =
+    LazyLock::new(|| AsyncRwLock::new(SelfHostedPlatform::default()));
 
 pub static PROXY: LazyLock<AsyncRwLock<ProxyInfo>> = LazyLock::new(|| {
     AsyncRwLock::new(ProxyInfo {

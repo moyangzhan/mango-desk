@@ -93,6 +93,7 @@ fn fuse_results(
                     matched_chunk_ids,
                     matched_keywords,
                     score: (score as f32 * 0.4).round() as usize,
+                    similarity_type: None,
                 }
             });
     }

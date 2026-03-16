@@ -22,36 +22,48 @@ impl<'a> AudioIndexer {
         let mut local_parser_option: Option<AudioParser> = None;
         let mut remote_service_option: Option<Box<dyn AudioAnalyzer>> = None;
         let mut remote_model_option: Option<AiModel> = None;
-        if INDEXER_SETTING.read().await.audio_parser_mode == FileParserMode::Local {
-            local_parser_option = Some(AudioParser::new()?);
-        } else {
-            let (platform_name, base_url) = {
-                let active_platform = ACTIVE_MODEL_PLATFORM.read().await;
-                (
-                    active_platform.name.clone(),
-                    active_platform.base_url.clone(),
-                )
-            };
-            if let Ok(Some(ai_model)) =
-                ai_model_repo::get_one_by_type(platform_name.as_str(), ModelType::Asr.into())
-            {
-                let platform_service: Box<dyn AudioAnalyzer> =
-                    match ModelPlatformName::from(platform_name.as_str()) {
-                        ModelPlatformName::OpenAi => Box::new(OpenAi::new().await),
-                        ModelPlatformName::SiliconFlow => Box::new(SiliconFlow::new().await),
-                        ModelPlatformName::DashScope | ModelPlatformName::DeepSeek => {
-                            println!("DeepSeek and DashScope do not support audio analysis yet.");
-                            return Err(AppError::UnsupportedAudioAnalyze(
-                                "Deepseek and Dashscope".to_string(),
-                            ));
-                        }
-                        _ => {
-                            Box::new(OpenAiCompatibleService::new(&platform_name, &base_url).await)
-                        }
-                    };
 
-                remote_service_option = Some(platform_service);
-                remote_model_option = Some(ai_model);
+        let audio_parser_mode = INDEXER_SETTING.read().await.audio_parser_mode.clone();
+
+        match audio_parser_mode {
+            FileParserMode::Local => {
+                local_parser_option = Some(AudioParser::new()?);
+            }
+            FileParserMode::SelfHosted => {
+                // Self-hosted platforms (Ollama/vLLM) do not support ASR
+                return Err(AppError::UnsupportedAudioAnalyze(
+                    "Self-hosted platforms (Ollama/vLLM) do not support ASR".to_string(),
+                ));
+            }
+            FileParserMode::Remote => {
+                let (platform_name, base_url) = {
+                    let active_platform = ACTIVE_MODEL_PLATFORM.read().await;
+                    (
+                        active_platform.name.clone(),
+                        active_platform.base_url.clone(),
+                    )
+                };
+                if let Ok(Some(ai_model)) =
+                    ai_model_repo::get_one_by_type(platform_name.as_str(), ModelType::Asr.into())
+                {
+                    let platform_service: Box<dyn AudioAnalyzer> =
+                        match ModelPlatformName::from(platform_name.as_str()) {
+                            ModelPlatformName::OpenAi => Box::new(OpenAi::new().await),
+                            ModelPlatformName::SiliconFlow => Box::new(SiliconFlow::new().await),
+                            ModelPlatformName::DashScope | ModelPlatformName::DeepSeek => {
+                                println!("DeepSeek and DashScope do not support audio analysis yet.");
+                                return Err(AppError::UnsupportedAudioAnalyze(
+                                    "Deepseek and Dashscope".to_string(),
+                                ));
+                            }
+                            _ => {
+                                Box::new(OpenAiCompatibleService::new(&platform_name, &base_url).await)
+                            }
+                        };
+
+                    remote_service_option = Some(platform_service);
+                    remote_model_option = Some(ai_model);
+                }
             }
         }
 

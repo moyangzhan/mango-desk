@@ -18,6 +18,8 @@ mod model_platform_services;
 mod repositories;
 mod scanner;
 mod searcher;
+mod self_hosted_services;
+mod similarity;
 mod structs;
 mod timers;
 mod traits;
@@ -27,14 +29,15 @@ mod utils;
 use crate::global::{APP_HANDLE, UI_MOUNTED};
 use crate::lib_commands::{
     add_watch_path, check_path_type, clear_index, count_files, count_indexing_tasks,
-    delete_index_item, delete_indexing_task, download_multilingual_model, get_client_id,
-    get_data_path, indexing_watch_paths, is_embedding_model_changed, keyword_search,
-    load_active_locale, load_active_platform, load_chunks, load_config_value, load_file_detail,
-    load_files, load_indexer_setting, load_indexing_tasks, load_model_by_type,
-    load_model_platforms, load_proxy_info, open_directory, quick_search, read_file_data,
-    remove_watch_path, reset_data_path, search, semantic_search, set_active_locale,
-    set_active_platform, set_data_path, start_indexing, stop_indexing, ui_mounted,
-    update_indexer_setting, update_model_platform, update_proxy_info,
+    delete_index_item, delete_indexing_task, download_multilingual_model, find_similars_by_file_id,
+    get_client_id, get_data_path, indexing_watch_paths, is_embedding_model_changed, keyword_search,
+    load_active_locale, load_active_platform, load_active_self_hosted_platform, load_chunks,
+    load_config_value, load_file_detail, load_files, load_indexer_setting, load_indexing_tasks,
+    load_model_by_type, load_model_platforms, load_proxy_info, load_self_hosted_platforms,
+    open_directory, quick_search, read_file_data, remove_watch_path, reset_data_path, search,
+    semantic_search, set_active_locale, set_active_platform, set_active_self_hosted_platform,
+    set_data_path, start_indexing, stop_indexing, ui_mounted, update_ai_model, update_indexer_setting,
+    update_model_platform, update_proxy_info, update_self_hosted_platform,
 };
 use crate::repositories::file_content_embedding_repo;
 use crate::utils::app_util;
@@ -120,6 +123,8 @@ pub fn run() {
             load_active_platform,
             load_indexer_setting,
             load_model_by_type,
+            update_ai_model,
+            update_ai_model,
             load_indexing_tasks,
             load_files,
             load_file_detail,
@@ -152,8 +157,14 @@ pub fn run() {
             remove_watch_path,
             keyword_search,
             semantic_search,
+            find_similars_by_file_id,
             get_client_id,
             open_directory,
+            // Self-hosted platform commands
+            load_self_hosted_platforms,
+            load_active_self_hosted_platform,
+            set_active_self_hosted_platform,
+            update_self_hosted_platform,
         ])
         .setup(|app| {
             APP_HANDLE.set(app.handle().clone()).unwrap_or_else(|_| {

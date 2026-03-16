@@ -6,6 +6,7 @@ pub mod file_info_repo;
 pub mod file_metadata_embedding_repo;
 pub mod indexing_task_repo;
 pub mod model_platform_repo;
+pub mod self_hosted_platform_repo;
 
 use crate::errors::AppError;
 use thiserror::Error;

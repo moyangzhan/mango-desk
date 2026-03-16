@@ -34,6 +34,7 @@ pub async fn search(query: &str) -> Vec<SearchResult> {
                     hit_types: vec![HitType::ContentKeyword],
                     matched_keywords: mfts_item.matched_keywords.clone(),
                     matched_chunk_ids: mfts_item.chunk_ids.clone(),
+                    similarity_type: None,
                 });
             }
             None => {

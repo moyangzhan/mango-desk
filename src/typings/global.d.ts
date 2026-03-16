@@ -24,12 +24,32 @@ interface ModelPlatform {
   is_proxy_enable: boolean;
 }
 
+interface SelfHostedPlatform {
+  id: number;
+  name: string;
+  title: string;
+  host: string;
+  port: number;
+  remark: string;
+}
+
 interface AiModel {
+  id: number;
   name: string;
   title: string;
   platform: string;
-  model_types: string; // text;image;vision;audio;video
+  model_types: string;
   remark: string;
+  setting: string;
+  context_window: number;
+  max_input_tokens: number;
+  max_output_tokens: number;
+  input_types: string;
+  properties: string;
+  is_reasoner: boolean;
+  is_thinking_closable: boolean;
+  is_free: boolean;
+  is_enable: boolean;
 }
 
 interface ProxyInfo {
@@ -46,7 +66,10 @@ interface SaveParsedContent {
 }
 
 interface IndexerSetting {
-  is_private: boolean;
+  is_private: boolean; // Deprecated: kept for backward compatibility
+  parser_mode: string; // "local" | "selfhosted" | "remote" | "mixed"
+  image_parser_mode: string;
+  audio_parser_mode: string;
   file_content_language: string;
   ignore_dirs: string[];
   ignore_exts: string[];
@@ -136,6 +159,7 @@ interface SearchResult {
   file_info: FileInfo,
   matched_keywords: string[],
   matched_chunk_ids: number[],
+  similarity_type?: 'imageHash' | 'imageSemantic' | 'documentSemantic' | 'audioFingerprint' | 'audioTranscription',
 }
 
 //  Start { task_id: i64 },

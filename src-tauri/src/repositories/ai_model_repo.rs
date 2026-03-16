@@ -91,6 +91,20 @@ pub fn update(ai_model: &AiModel) -> Result<usize, RepositoryError> {
     Ok(affected)
 }
 
+pub fn update_basic(id: i64, name: &str, title: &str, remark: &str) -> Result<usize, RepositoryError> {
+    let conn = Connection::open(get_db_path())?;
+    let mut stmt = conn.prepare(
+        "update ai_model set name = :name, title = :title, remark = :remark, update_time = datetime('now', 'localtime') where id = :id",
+    )?;
+    let affected = stmt.execute(named_params! {
+        ":id": id,
+        ":name": name,
+        ":title": title,
+        ":remark": remark,
+    })?;
+    Ok(affected)
+}
+
 fn build_ai_model(row: &Row<'_>) -> Result<AiModel, RepositoryError> {
     let create_time_str: String = row.get("create_time")?;
     let update_time_str: String = row.get("update_time")?;

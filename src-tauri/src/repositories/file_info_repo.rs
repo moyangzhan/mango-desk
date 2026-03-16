@@ -5,7 +5,7 @@ use crate::utils::datetime_util;
 use chrono::{DateTime, Local};
 use rusqlite::{Connection, Result, Row, named_params};
 
-const ALL_COLUMNS_EXCEPT_CONTENT: &str = "id, name, category, path, file_ext, file_size, content, content_index_status, content_index_status_msg, meta_index_status, meta_index_status_msg, is_invalid, invalid_reason, md5, metadata, file_create_time, file_update_time, create_time, update_time";
+const ALL_COLUMNS_EXCEPT_CONTENT: &str = "id, name, category, path, file_ext, file_size, content, content_index_status, content_index_status_msg, meta_index_status, meta_index_status_msg, is_invalid, invalid_reason, md5, metadata, audio_type, image_hash, file_create_time, file_update_time, create_time, update_time";
 
 pub fn insert(file_info: &FileInfo) -> Result<Option<FileInfo>, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
@@ -318,13 +318,121 @@ pub fn count_by_min_update_time(min_update_time: &DateTime<Local>) -> Result<i64
     Ok(count)
 }
 
+/// Get all file IDs by a single category (for similarity search filtering)
+pub fn list_ids_by_category(category: i64) -> Result<Vec<i64>, RepositoryError> {
+    let conn = Connection::open(get_db_path())?;
+    let mut stmt = conn.prepare(
+        "select id from file_info where category = :category and is_invalid = 0"
+    )?;
+    let rows = stmt.query_map(named_params! {":category": category}, |row| {
+        row.get(0)
+    })?;
+    let mut result = Vec::new();
+    for item in rows {
+        result.push(item?);
+    }
+    Ok(result)
+}
+
+/// Get all file IDs by category and audio_type (for music similarity search)
+/// 根据类别和音频类型获取文件ID列表（用于音乐相似性搜索）
+pub fn list_ids_by_category_and_audio_type(
+    category: i64,
+    audio_type: i32,
+) -> Result<Vec<i64>, RepositoryError> {
+    let conn = Connection::open(get_db_path())?;
+    let mut stmt = conn.prepare(
+        "select id from file_info where category = :category and audio_type = :audio_type and is_invalid = 0"
+    )?;
+    let rows = stmt.query_map(
+        named_params! {
+            ":category": category,
+            ":audio_type": audio_type,
+        },
+        |row| row.get(0),
+    )?;
+    let mut result = Vec::new();
+    for item in rows {
+        result.push(item?);
+    }
+    Ok(result)
+}
+
+/// Update audio_type for a file
+/// 更新文件的音频类型
+pub fn update_audio_type(file_id: i64, audio_type: i32) -> Result<usize, RepositoryError> {
+    let conn = Connection::open(get_db_path())?;
+    let mut stmt =
+        conn.prepare("update file_info set audio_type = :audio_type where id = :id")?;
+    let affected = stmt.execute(named_params! {
+        ":id": &file_id,
+        ":audio_type": &audio_type,
+    })?;
+    Ok(affected)
+}
+
+/// Update image_hash for a file (for image similarity search)
+/// 更新文件的图像哈希（用于图像相似性搜索）
+pub fn update_image_hash(file_id: i64, image_hash: &[u8]) -> Result<usize, RepositoryError> {
+    let conn = Connection::open(get_db_path())?;
+    let mut stmt =
+        conn.prepare("update file_info set image_hash = :image_hash where id = :id")?;
+    let affected = stmt.execute(named_params! {
+        ":id": &file_id,
+        ":image_hash": image_hash,
+    })?;
+    Ok(affected)
+}
+
+/// Get all files by a single category (for similarity search)
+pub fn list_by_category(category: i64) -> Result<Vec<FileInfo>, RepositoryError> {
+    let conn = Connection::open(get_db_path())?;
+    let sql = format!(
+        "select {} from file_info where category = :category and is_invalid = 0",
+        ALL_COLUMNS_EXCEPT_CONTENT
+    );
+    let mut stmt = conn.prepare(sql.as_str())?;
+    let rows = stmt.query_map(named_params! {":category": category}, |row| {
+        Ok(build_file_info(row)?)
+    })?;
+    let mut result = Vec::new();
+    for item in rows {
+        result.push(item?);
+    }
+    Ok(result)
+}
+
+/// Get all files by multiple categories (for similarity search across document types)
+pub fn list_by_categories(categories: &[i64]) -> Result<Vec<FileInfo>, RepositoryError> {
+    if categories.is_empty() {
+        return Ok(Vec::new());
+    }
+    let categories_str = categories
+        .iter()
+        .map(|c| c.to_string())
+        .collect::<Vec<_>>()
+        .join(",");
+    let conn = Connection::open(get_db_path())?;
+    let sql = format!(
+        "select {} from file_info where category in ({}) and is_invalid = 0",
+        ALL_COLUMNS_EXCEPT_CONTENT, categories_str
+    );
+    let mut stmt = conn.prepare(sql.as_str())?;
+    let rows = stmt.query_map([], |row| Ok(build_file_info(row)?))?;
+    let mut result = Vec::new();
+    for item in rows {
+        result.push(item?);
+    }
+    Ok(result)
+}
+
 pub fn get_by_id(file_id: i64) -> Result<Option<FileInfo>, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
     let mut stmt = conn.prepare("select * from file_info where id = ?1")?;
     match stmt.query_row([file_id], |row: &Row<'_>| Ok(build_file_info(row)?)) {
         Ok(hit) => return Ok(Some(hit)),
         Err(e) => {
-            println!("file_info_repo.get_by_md5() Error: {}", e.to_string());
+            println!("file_info_repo.get_by_id() Error: {}", e.to_string());
             return Ok(None);
         }
     }
@@ -336,7 +444,7 @@ pub fn get_by_md5(md5: &str) -> Result<Option<FileInfo>, RepositoryError> {
     match stmt.query_row([md5], |row: &Row<'_>| Ok(build_file_info(row)?)) {
         Ok(hit) => return Ok(Some(hit)),
         Err(e) => {
-            println!("file_info_repo.get_by_md5() Error: {}", e.to_string());
+            println!("file_info_repo.get_by_md5(),md5:{},Error: {}", md5, e.to_string());
             return Ok(None);
         }
     }
@@ -444,6 +552,7 @@ fn build_file_info(row: &Row<'_>) -> Result<FileInfo, RepositoryError> {
     let update_time_str: String = row.get("update_time").unwrap_or_default();
     let meta: String = row.get("metadata")?;
     let content = row.get("content").unwrap_or_default();
+    let image_hash: Option<Vec<u8>> = row.get("image_hash").ok();
     return Ok(FileInfo {
         id: row.get("id")?,
         name: row.get("name").unwrap_or_default(),
@@ -460,6 +569,8 @@ fn build_file_info(row: &Row<'_>) -> Result<FileInfo, RepositoryError> {
         invalid_reason: row.get("invalid_reason").unwrap_or_default(),
         md5: row.get("md5").unwrap_or_default(),
         metadata: crate::structs::file_metadata::FileMetadata::from_json(&meta),
+        audio_type: row.get("audio_type").unwrap_or_default(),
+        image_hash,
         file_create_time: datetime_util::str_to_micro_datetime(file_create_time.as_str())?,
         file_update_time: datetime_util::str_to_micro_datetime(file_update_time.as_str())?,
         create_time: datetime_util::str_to_datetime(create_time_str.as_str())?,

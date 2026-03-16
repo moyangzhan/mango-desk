@@ -18,9 +18,12 @@ export function emptyProxyInfo() {
   }
 }
 
-export function emptyIndexerSetting() {
+export function emptyIndexerSetting(): IndexerSetting {
   return {
-    is_private: false,
+    is_private: true,
+    parser_mode: 'local',
+    image_parser_mode: 'local',
+    audio_parser_mode: 'local',
     file_content_language: 'en',
     ignore_dirs: [] as string[],
     ignore_exts: [] as string[],

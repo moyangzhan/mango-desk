@@ -68,6 +68,7 @@ pub async fn search(query: &str) -> Vec<SearchResult> {
                     hit_types: vec![HitType::PathKeyword],
                     matched_keywords: match_keywords,
                     matched_chunk_ids: HashSet::new(),
+                    similarity_type: None,
                 };
                 Some(result)
             }

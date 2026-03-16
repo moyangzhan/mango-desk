@@ -8,6 +8,7 @@ use crate::repositories::{
     file_content_embedding_repo, file_content_fts_repo, file_info_repo,
     file_metadata_embedding_repo,
 };
+use crate::similarity::image_similarity;
 use crate::structs::embed_result::EmbedResult;
 use crate::structs::file_metadata::FileMetadata;
 use crate::utils::{file_util, frontend_util, indexing_task_util, text_util};
@@ -103,7 +104,24 @@ pub trait IndexingTemplate {
         let file_id = file_info.id;
         let path_str = file_info.path.as_str();
         let path = Path::new(path_str);
-        let file_meta = file_util::get_meta_by_record(path, &file_info).await?;
+        let mut file_meta = file_util::get_meta_by_record(path, &file_info).await?;
+
+        // Detect audio type for audio files based on transcription content
+        // 根据转录内容检测音频类型
+        if self.category() == &FileCategory::Audio {
+            use crate::utils::audio_util::detect_audio_type;
+            let audio_type = detect_audio_type(&filtered_content, &file_info.path);
+            file_meta.audio_type = Some(audio_type.into());
+            let _ = file_info_repo::update_audio_type(file_id, audio_type.into());
+        }
+
+        // Calculate and store image hash for image files (for similarity search)
+        // 为图片文件计算并存储哈希（用于相似性搜索）
+        if self.category() == &FileCategory::Image {
+            if let Some(hash_bytes) = image_similarity::calculate_image_hash(&file_info.path) {
+                let _ = file_info_repo::update_image_hash(file_id, &hash_bytes);
+            }
+        }
 
         let save_parsed_content = INDEXER_SETTING
             .read()
@@ -209,7 +227,7 @@ pub async fn embedding_content(file_id: i64, content: &str) -> Result<(), Indexi
             chunk_index: chunk_index as i64,
             chunk_text,
             sparse_vec: chunk_embed_result.sparse,
-            
+
             distance: -0.1,
             sparse_score: 0.0,
             score: 0,

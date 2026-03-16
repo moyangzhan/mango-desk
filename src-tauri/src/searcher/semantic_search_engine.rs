@@ -212,6 +212,7 @@ fn merge_and_filter_results(
                 hit_types: tmp.hit_types.into_iter().collect(),
                 matched_keywords: tmp.match_keywords.into_iter().collect(),
                 matched_chunk_ids: tmp.chunk_ids.into_iter().collect(),
+                similarity_type: None,
             })
         })
         .collect()

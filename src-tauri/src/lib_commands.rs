@@ -1,21 +1,23 @@
 use crate::embedding_service_manager::get_manager;
-use crate::entities::{FileInfo, IndexingTask, ModelPlatform};
+use crate::entities::{FileInfo, IndexingTask, ModelPlatform, SelfHostedPlatform};
 use crate::enums::CommandResultCode;
 use crate::enums::{DownloadEvent, Locale, ModelPlatformName};
 use crate::errors::AppError;
 use crate::fs_watcher::watcher;
 use crate::global::{
-    ACTIVE_LOCALE, ACTIVE_MODEL_PLATFORM, APP_DATA_PATH, CLIENT_ID, CONFIG_NAME_INDEXER_SETTING,
-    CONFIG_NAME_PROXY, FS_WATCHER_SETTING, INDEXING, INDEXING_FROM_WATCHER, SCANNING,
-    STOP_INDEX_SIGNAL, UI_MOUNTED,
+    ACTIVE_LOCALE, ACTIVE_MODEL_PLATFORM, ACTIVE_SELF_HOSTED_PLATFORM, APP_DATA_PATH, CLIENT_ID,
+    CONFIG_NAME_ACTIVE_SELF_HOSTED_PLATFORM, CONFIG_NAME_INDEXER_SETTING, CONFIG_NAME_PROXY,
+    FS_WATCHER_SETTING, INDEXING, INDEXING_FROM_WATCHER, SCANNING, STOP_INDEX_SIGNAL, UI_MOUNTED,
 };
 use crate::indexer_service;
 use crate::model_platform_services::siliconflow::SiliconFlow;
 use crate::repositories::{
     ai_model_repo, config_repo, file_content_embedding_repo, file_content_fts_repo, file_info_repo,
     file_metadata_embedding_repo, indexing_task_repo, model_platform_repo,
+    self_hosted_platform_repo,
 };
 use crate::searcher;
+use crate::similarity::similarity_service;
 use crate::structs::command_result::CommandResult;
 use crate::structs::proxy_setting::ProxyInfo;
 use crate::structs::search_result::SearchResult;
@@ -74,6 +76,12 @@ pub async fn load_model_by_type(
     one_type: &str,
 ) -> Result<Option<crate::entities::AiModel>, String> {
     let result = ai_model_repo::get_one_by_type(platform, one_type)?;
+    Ok(result)
+}
+
+#[command]
+pub async fn update_ai_model(id: i64, name: String, title: String, remark: String) -> Result<usize, String> {
+    let result = ai_model_repo::update_basic(id, &name, &title, &remark)?;
     Ok(result)
 }
 
@@ -151,6 +159,58 @@ pub async fn set_active_locale(app: AppHandle, locale: &str) -> Result<usize, St
     *ACTIVE_LOCALE.write().await = locale.to_string();
     let _ = app_util::rebuild_tray_menu(&app);
     println!("update db result, {}", result);
+    Ok(result)
+}
+
+// ========== Self-hosted platform commands ==========
+
+#[command]
+pub async fn load_self_hosted_platforms() -> Vec<SelfHostedPlatform> {
+    self_hosted_platform_repo::list().unwrap_or_else(|e| {
+        println!("Failed to load self-hosted platforms: {}", e);
+        vec![]
+    })
+}
+
+#[command]
+pub async fn load_active_self_hosted_platform() -> String {
+    let platform = ACTIVE_SELF_HOSTED_PLATFORM.read().await;
+    platform.name.clone()
+}
+
+#[command]
+pub async fn set_active_self_hosted_platform(platform_name: &str) -> Result<usize, String> {
+    let Ok(platform) = self_hosted_platform_repo::get_one(platform_name) else {
+        eprintln!("Failed to get self-hosted platform: {}", platform_name);
+        return Ok(0);
+    };
+
+    let result =
+        config_repo::update_by_name(CONFIG_NAME_ACTIVE_SELF_HOSTED_PLATFORM, platform_name)
+            .unwrap_or_else(|e| {
+                println!("update config error:{}", e);
+                0
+            });
+    *ACTIVE_SELF_HOSTED_PLATFORM.write().await = platform;
+    return Ok(result);
+}
+
+#[command]
+pub async fn update_self_hosted_platform(
+    platform: SelfHostedPlatform,
+) -> Result<usize, AppError> {
+    let result = self_hosted_platform_repo::update_by_name(&platform.name, &platform)?;
+    if platform.name == ACTIVE_SELF_HOSTED_PLATFORM.read().await.name {
+        match ACTIVE_SELF_HOSTED_PLATFORM.try_write() {
+            Ok(mut guard) => {
+                let one = self_hosted_platform_repo::get_one(&platform.name)?;
+                *guard = one;
+            }
+            Err(_) => {
+                eprintln!("Failed to acquire write lock for ACTIVE_SELF_HOSTED_PLATFORM");
+            }
+        }
+    }
     Ok(result)
 }
 
@@ -307,6 +367,19 @@ pub async fn keyword_search(query: &str) -> Result<Vec<SearchResult>, String> {
 #[command]
 pub async fn semantic_search(query: &str) -> Result<Vec<SearchResult>, String> {
     let results = searcher::semantic_search(query).await;
+    Ok(results)
+}
+
+#[command]
+pub async fn find_similars_by_file_id(
+    file_id: i64,
+    limit: usize,
+) -> Result<Vec<SearchResult>, String> {
+    let file_info =
+        file_info_repo::get_by_id(file_id)?.ok_or_else(|| "File not found".to_string())?;
+    let results = similarity_service::find_similars_by_file_id(&file_info, limit)
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(results)
 }
 

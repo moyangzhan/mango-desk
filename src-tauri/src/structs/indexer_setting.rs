@@ -35,9 +35,11 @@ impl SaveParsedContent {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct IndexerSetting {
-    pub is_private: bool,
+    pub is_private: bool, // Deprecated: kept for backward compatibility
     #[serde(default)]
-    pub image_parser_mode: FileParserMode, // local or remote
+    pub parser_mode: String, // "local" | "selfhosted" | "remote" | "mixed" - quick preset
+    #[serde(default)]
+    pub image_parser_mode: FileParserMode,
     #[serde(default)]
     pub audio_parser_mode: FileParserMode,
     pub ignore_dirs: Vec<String>,
@@ -50,7 +52,8 @@ pub struct IndexerSetting {
 impl Default for IndexerSetting {
     fn default() -> Self {
         Self {
-            is_private: false,
+            is_private: true,
+            parser_mode: "local".to_string(),
             image_parser_mode: FileParserMode::Local,
             audio_parser_mode: FileParserMode::Local,
             ignore_exts: vec![],

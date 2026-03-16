@@ -48,23 +48,31 @@ Mango Finder is especially useful in scenarios where you have **a large amount o
 - 💭 **Search by meaning**
   - Find documents by describing what you remember, even if you don’t recall exact titles or locations
 
-- 🌐 **Multilingual & Cross-language Search**
-  - Search across **100+ languages** seamlessly. Find English documents using Chinese queries, or vice versa, with zero configuration required
-
 - 📍 **Exact Keyword Match**
   - Instantly locate files using precise terms from file paths or content, ideal for finding specific phrases or technical strings.
 
-- 📂 **Works with your existing local files**
-  - No need to reorganize folders or rename files — Mango Finder works with what you already have
+- 🔍 **Find Similar Files**
+  - Find visually similar images using perceptual hashing, semantically similar documents, or audio files with matching content
+  - One click to discover related files based on visual, semantic, or audio fingerprint similarity
 
-- 👀 **Real-time file & directory watching**
-  - Automatically detects file and folder changes (add / modify / delete) and keeps index and search results up to date
+- 🌐 **Multilingual & Cross-language Search**
+  - Search across **100+ languages** seamlessly. Find English documents using Chinese queries, or vice versa, with zero configuration required
+
+- 🔒 **Private by default**
+  - All data stays on your device, ensuring your privacy
+
+- 🖥️ **Self-Hosted Model Support**
+  - Integration with **Ollama** and **vLLM** for image analysis using local vision models (e.g., LLaVA)
+  - Keep your data completely private by running vision models on your own hardware
 
 - ⚡ **Fast and efficient**
   - Instant search results with optimized indexing system
 
-- 🔒 **Private by default**
-  - All data stays on your device, ensuring your privacy
+- 👀 **Real-time file & directory watching**
+  - Automatically detects file and folder changes (add / modify / delete) and keeps index and search results up to date
+
+- 📂 **Works with your existing local files**
+  - No need to reorganize folders or rename files — Mango Finder works with what you already have
 
 ### 🏗️ Architecture
 
@@ -72,7 +80,7 @@ Mango Finder is especially useful in scenarios where you have **a large amount o
 
 ![indexing](./screenshots/indexing.png)
 
-`The self-hosted model part is under development and will be integrated according to the ollama interface.`
+Supports three processing modes: **Local** (fully offline), **Self-Hosted** (Ollama/vLLM), and **Cloud** (remote AI services).
 
 **Search**
 
@@ -113,7 +121,7 @@ pnpm i
 ```
 
 ### 2. Backend(Rust)
-`rust` v1.90.0+ required
+`rust` v1.94.0+ required
 
 Install tools: [https://www.rust-lang.org/tools/install](https://www.rust-lang.org/tools/install)
 

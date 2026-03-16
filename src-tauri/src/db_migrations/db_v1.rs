@@ -53,16 +53,16 @@ pub fn exec_ddl() -> Result<()> {
             create_time                 text        default ''           not null,
             update_time                 text        default ''           not null
         );
-        create trigger if not exists model_platform_create_time 
+        create trigger if not exists model_platform_create_time
         after insert on model_platform
         for each row
         begin
-            update model_platform 
+            update model_platform
             set create_time = datetime('now', 'localtime'),
                 update_time = datetime('now', 'localtime')
             where id = new.id;
         end;
-        create trigger if not exists model_platform_update_time 
+        create trigger if not exists model_platform_update_time
         after update on model_platform
         for each row
         begin
@@ -274,10 +274,11 @@ pub fn init_data() -> Result<()> {
         (default_locale,),
     )?;
     let default_indexer_setting = format!(
-        r#"{{"is_private":true,"file_content_language":"{}","image_parser_mode":"local","audio_parser_mode":"local","ignore_dirs":["node_modules"],"ignore_exts":["tmp"],"ignore_files":[],"save_parsed_content": {{"document":false,"image":true,"audio":true,"video":true}}}}"#,
+        r#"{{"is_private":true,"parser_mode":"local","file_content_language":"{}","image_parser_mode":"local","audio_parser_mode":"local","ignore_dirs":["node_modules"],"ignore_exts":["tmp"],"ignore_files":[],"save_parsed_content": {{"document":false,"image":true,"audio":true,"video":true}}}}"#,
         default_file_content_language
     );
-    // is_private: Indicates whether the LLM(file parser) is running locally or remotely
+    // is_private: Deprecated, kept for backward compatibility
+    // parser_mode: "local" | "selfhosted" | "remote" | "mixed"
     conn.execute(
         "insert or ignore into config (name, value) VALUES ('indexer_setting', ?1)",
         (default_indexer_setting,),
@@ -300,7 +301,6 @@ pub fn init_data() -> Result<()> {
         insert or ignore into model_platform (name, title, office_site_url, base_url, is_proxy_enable) values ('deepseek', 'DeepSeek', 'https://www.deepseek.com/', 'https://api.deepseek.com/v1', false);
         insert or ignore into model_platform (name, title, office_site_url, base_url, is_proxy_enable) values ('dashscope', 'DashScope', 'https://www.aliyun.com/product/bailian', 'https://dashscope.aliyuncs.com/api/v1', false);
         insert or ignore into model_platform (name, title, office_site_url, base_url, is_proxy_enable) values ('siliconflow', 'SiliconFlow-硅基流动', 'https://www.siliconflow.cn/', 'https://api.siliconflow.cn/v1', false);
-        insert or ignore into model_platform (name, title, office_site_url, base_url, is_proxy_enable) values ('ollama', 'Ollama(local)', '', 'http://127.0.0.1:11434/api', false);
         "#,
     )?;
 

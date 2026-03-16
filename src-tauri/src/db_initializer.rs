@@ -1,4 +1,4 @@
-use crate::db_migrations::{db_v1};
+use crate::db_migrations::{db_v1, db_v2};
 use crate::global::{CONFIG_NAME_DB_VERSION, DB_VERSION};
 use crate::utils::app_util::get_db_path;
 use anyhow::Result;
@@ -48,6 +48,13 @@ pub fn init() -> Result<()> {
                     ()
                 });
                 db_v1::init_data()?;
+            }
+            2 => {
+                db_v2::exec_ddl().unwrap_or_else(|e| {
+                    error!("db_v2 exec_ddl error:{}", e);
+                    ()
+                });
+                db_v2::init_data()?;
             }
             _ => {}
         }

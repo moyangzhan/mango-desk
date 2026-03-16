@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { openPath } from '@tauri-apps/plugin-opener'
 import { useDebounceFn } from '@vueuse/core'
 import HowToUse from './HowToUse.vue'
+import SimilarResultsModal from '@/components/SimilarResultsModal.vue'
 import { t } from '@/locales'
 import SvgIcon from '@/components/SvgIcon.vue'
 import { useIndexerStore } from '@/stores/indexer'
@@ -23,12 +24,24 @@ const showChunksModal = ref(false)
 const matchChunks = ref<string[]>([])
 const searchType = ref(SEMANTIC_SEARCH) // 1: semantic search, 2: path search
 
+// Similar results modal ref
+const similarModalRef = ref<InstanceType<typeof SimilarResultsModal> | null>(null)
+
 const hitTypeLabels = computed<Record<string, string>>(() => ({
   pathKeyword: t('common.hitType.pathKeyword'),
   contentKeyword: t('common.hitType.contentKeyword'),
   contentSemantic: t('common.hitType.contentSemantic'),
   metaSemantic: t('common.hitType.metaSemantic'),
 }))
+
+// Check if the match is purely keyword-based (no semantic or similarity matching)
+// 检查是否为纯关键词匹配（无语义或相似性匹配）
+const isKeywordOnlyMatch = (item: SearchResult): boolean => {
+  if (!item.hit_types || item.hit_types.length === 0)
+    return false
+  const keywordTypes = ['pathKeyword', 'contentKeyword']
+  return item.hit_types.every(type => keywordTypes.includes(type)) && !item.similarity_type
+}
 
 const focusInput = () => {
   inputRef.value?.focus()
@@ -351,21 +364,24 @@ onUnmounted(() => {
                     @click="loadChunks(item.matched_chunk_ids, item.matched_keywords)">
                     {{ t('common.matchedSegments', { count: item.matched_chunk_ids.length }) }}
                   </NButton>
+                  <NButton size="tiny" @click="similarModalRef?.findSimilars(item.file_info)">
+                    {{ t('common.findSimilar') }}
+                  </NButton>
                 </div>
                 <div class="flex items-center gap-2">
                   <NTooltip v-if="item.hit_types && item.hit_types.length > 0">
                     <template #trigger>
                       <span class="flex gap-1">
-                        <NTag v-for="hitType in item.hit_types" :key="hitType" size="tiny" :bordered="false">
+                        <NTag v-for="hitType in item.hit_types" :key="hitType" size="tiny" :bordered="false" type="info">
                           {{ hitTypeLabels[hitType] || hitType }}
                         </NTag>
                       </span>
                     </template>
                     {{ t('common.hitTypeTip') }}
                   </NTooltip>
-                  <NTooltip v-if="item.score">
+                  <NTooltip v-if="item.score && !isKeywordOnlyMatch(item)">
                     <template #trigger>
-                      <NTag size="tiny" :bordered="false">
+                      <NTag size="tiny" :bordered="false" type="info">
                         {{ item.score }}%
                       </NTag>
                     </template>
@@ -406,6 +422,7 @@ onUnmounted(() => {
         </div>
       </div>
     </NModal>
+    <SimilarResultsModal ref="similarModalRef" :file-id="null" @open-file="openFile" />
   </div>
 </template>
 

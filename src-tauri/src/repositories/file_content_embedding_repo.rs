@@ -1,6 +1,7 @@
 use crate::entities::FileContentEmbedding;
 use crate::global::SHORT_QUERY_LEN;
 use crate::repositories::RepositoryError;
+use crate::structs::image_similarity_candidate::ImageSimilarityCandidate;
 use crate::structs::sparse_vector::SparseVector;
 use crate::utils::app_util::get_db_path;
 use crate::utils::vector_util::calculate_content_score;
@@ -250,4 +251,120 @@ pub fn count() -> Result<i64, RepositoryError> {
     let mut stmt = conn.prepare("SELECT COUNT(*) FROM file_content_vec")?;
     let count: i64 = stmt.query_row([], |row| row.get(0))?;
     return Ok(count);
+}
+
+/// Get all embeddings for a specific file (for document similarity)
+pub fn list_by_file_id(file_id: i64) -> Result<Vec<FileContentEmbedding>, RepositoryError> {
+    let conn = Connection::open(get_db_path())?;
+    let mut stmt = conn.prepare(
+        "SELECT v.id, d.file_id, d.chunk_index, d.chunk_text, v.embedding, d.sparse_weights
+         FROM file_content_vec v
+         JOIN file_content_data d ON v.id = d.id
+         WHERE d.file_id = ?1
+         ORDER BY d.chunk_index ASC"
+    )?;
+
+    let rows = stmt.query_map([file_id], |row| {
+        let embedding_bytes: Vec<u8> = row.get::<_, Vec<u8>>(4)?;
+        let embedding: [f32; 1024] = unsafe {
+            let ptr = embedding_bytes.as_ptr() as *const f32;
+            std::ptr::read(ptr as *const [f32; 1024])
+        };
+        let sparse_blob: Vec<u8> = row.get::<_, Vec<u8>>(5)?;
+        Ok(FileContentEmbedding {
+            id: row.get(0)?,
+            file_id: row.get(1)?,
+            chunk_index: row.get(2)?,
+            chunk_text: row.get(3)?,
+            embedding,
+            sparse_vec: SparseVector::from_blob(&sparse_blob),
+            distance: 0.0,
+            sparse_score: 0.0,
+            score: 0,
+        })
+    })?;
+
+    let mut results = Vec::new();
+    for row in rows {
+        results.push(row?);
+    }
+
+    Ok(results)
+}
+
+/// Use sqlite-vec ANN search to find semantically similar image candidates
+/// 使用 sqlite-vec ANN 搜索查找语义相似的图片候选
+pub fn find_image_similarity_candidates(
+    source_file_id: i64,
+    limit: usize,
+) -> Result<Vec<ImageSimilarityCandidate>, RepositoryError> {
+    let conn = Connection::open(get_db_path())?;
+
+    // Get source embedding
+    let source_embedding: Option<Vec<u8>> = conn
+        .query_row(
+            "SELECT embedding FROM file_content_vec WHERE id IN (
+            SELECT id FROM file_content_data WHERE file_id = ?1
+        ) ORDER BY id LIMIT 1",
+            [source_file_id],
+            |row| row.get(0),
+        )
+        .ok();
+
+    let source_embedding = match source_embedding {
+        Some(emb) => emb,
+        None => return Ok(Vec::new()),
+    };
+
+    // Use ANN search to find similar embeddings, then join with file_info for image_hash
+    let sql = format!(
+        r#"
+        SELECT
+            d.file_id,
+            v.distance,
+            f.image_hash
+        FROM (
+            SELECT id, distance
+            FROM file_content_vec
+            WHERE embedding MATCH :embedding
+            ORDER BY distance
+            LIMIT {}
+        ) v
+        JOIN file_content_data d ON v.id = d.id
+        JOIN file_info f ON d.file_id = f.id
+        WHERE f.category = 2
+        GROUP BY d.file_id
+    "#,
+        limit * 2
+    );
+
+    let mut stmt = conn.prepare(&sql)?;
+    let rows = stmt.query_map(
+        rusqlite::named_params! {
+            ":embedding": &source_embedding
+        },
+        |row| {
+            let file_id: i64 = row.get(0)?;
+            let distance: f32 = row.get(1)?;
+            let image_hash: Option<Vec<u8>> = row.get(2)?;
+
+            // Convert distance to score (distance 0 = 100, distance 1 = 0)
+            let semantic_score = ((1.0 - distance) * 100.0).max(0.0).min(100.0) as usize;
+
+            Ok(ImageSimilarityCandidate {
+                file_id,
+                semantic_score,
+                image_hash,
+            })
+        },
+    )?;
+
+    let mut candidates = Vec::new();
+    for row in rows {
+        if let Ok(candidate) = row {
+            candidates.push(candidate);
+        }
+    }
+
+    Ok(candidates)
 }

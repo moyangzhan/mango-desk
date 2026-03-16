@@ -1,11 +1,11 @@
 use crate::db_initializer;
 use crate::global::{
-    ACTIVE_LOCALE, ACTIVE_MODEL_PLATFORM, CLIENT_ID, CONFIG_NAME_ACTIVE_LOCALE,
-    CONFIG_NAME_CLIENT_ID, CONFIG_NAME_INDEXER_SETTING, CONFIG_NAME_PROXY,
-    CONFIG_NAME_WATCHER_SETTING, FS_WATCHER_SETTING, INDEXER_SETTING,
-    ONNX_EXEC_PROVIDERS_INITIALIZED, PROXY,
+    ACTIVE_LOCALE, ACTIVE_MODEL_PLATFORM, ACTIVE_SELF_HOSTED_PLATFORM, CLIENT_ID,
+    CONFIG_NAME_ACTIVE_LOCALE, CONFIG_NAME_ACTIVE_SELF_HOSTED_PLATFORM, CONFIG_NAME_CLIENT_ID,
+    CONFIG_NAME_INDEXER_SETTING, CONFIG_NAME_PROXY, CONFIG_NAME_WATCHER_SETTING,
+    FS_WATCHER_SETTING, INDEXER_SETTING, ONNX_EXEC_PROVIDERS_INITIALIZED, PROXY,
 };
-use crate::repositories::{config_repo, model_platform_repo};
+use crate::repositories::{config_repo, model_platform_repo, self_hosted_platform_repo};
 use crate::structs::fs_watcher_setting::FsWatcherSetting;
 use crate::structs::indexer_setting::IndexerSetting;
 use crate::structs::proxy_setting::ProxyInfo;
@@ -79,6 +79,25 @@ pub async fn process() {
         }
     } else {
         error!("Failed to get config: active_model_platform");
+    }
+
+    // Initialize the active self-hosted platform
+    let config = config_repo::get_one(CONFIG_NAME_ACTIVE_SELF_HOSTED_PLATFORM);
+    if let Ok(Some(config)) = config {
+        let self_hosted_platform = self_hosted_platform_repo::get_one(&config.value);
+        if let Ok(platform) = self_hosted_platform {
+            *ACTIVE_SELF_HOSTED_PLATFORM.write().await = platform;
+        } else {
+            error!(
+                "Cannot find self-hosted platform: {}",
+                config.value
+            );
+        }
+    } else {
+        error!(
+            "Failed to get config: {}",
+            CONFIG_NAME_ACTIVE_SELF_HOSTED_PLATFORM
+        );
     }
 }
 
