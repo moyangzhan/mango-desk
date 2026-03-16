@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { invoke } from '@tauri-apps/api/core'
+import { open } from '@tauri-apps/plugin-dialog'
+import { relaunch } from '@tauri-apps/plugin-process'
 import { useAppStore } from '@/stores/app'
 import { setLocale, t } from '@/locales'
 import { emptyProxyInfo } from '@/utils/functions'
-import { open } from '@tauri-apps/plugin-dialog'
-import { relaunch } from '@tauri-apps/plugin-process';
 
 const dataPath = ref('')
 const appStore = useAppStore()
@@ -45,14 +45,14 @@ async function openDirDialog() {
   const paths = await open({ directory: true, multiple: false })
   if (Array.isArray(paths)) {
     console.log('openDirDialog', paths)
-    return;
+    return
   }
   let res = await invoke<string>('set_data_path', { path: paths, force: false })
   if (res.indexOf('exist') === 0) {
-    let existPath = res.split(':')[1]
+    const existPath = res.split(':')[1]
     window.$dialog.warning({
       title: t('common.warning'),
-      content: t('common.existFile') + ': ' + existPath + t('common.forceChange'),
+      content: `${t('common.existFile')}: ${existPath}${t('common.forceChange')}`,
       positiveText: t('common.confirm'),
       onPositiveClick: async () => {
         dataCopying.value = true
@@ -73,10 +73,10 @@ async function openDirDialog() {
         }
       },
     })
-    return;
+    return
   } else if (res.indexOf('same') === 0) {
     window.$message.error(t('common.changeSamePathError'))
-    return;
+    return
   }
 
   const userDataPath = await invoke<string>('get_data_path')
@@ -88,10 +88,10 @@ async function openDirDialog() {
 async function resetDataPath() {
   let res = await invoke<string>('reset_data_path', { force: false })
   if (res.indexOf('exist') === 0) {
-    let existPath = res.split(':')[1]
+    const existPath = res.split(':')[1]
     window.$dialog.warning({
       title: t('common.warning'),
-      content: t('common.existFile') + ': ' + existPath + t('common.forceChange'),
+      content: `${t('common.existFile')}: ${existPath}${t('common.forceChange')}`,
       positiveText: t('common.confirm'),
       onPositiveClick: async () => {
         dataCopying.value = true
@@ -110,12 +110,12 @@ async function resetDataPath() {
         } finally {
           dataCopying.value = false
         }
-      }
+      },
     })
-    return;
+    return
   } else if (res.indexOf('same') === 0) {
     window.$message.error(t('common.changeSamePathError'))
-    return;
+    return
   }
   const userDataPath = await invoke<string>('get_data_path')
   dataPath.value = userDataPath
@@ -133,9 +133,9 @@ async function openDataPath() {
 
 async function restart() {
   try {
-    await relaunch();
+    await relaunch()
   } catch (e) {
-    console.error('relaunch failed', e);
+    console.error('relaunch failed', e)
   }
 }
 
@@ -182,22 +182,25 @@ onMounted(async () => {
     <NCard :title="t('common.storage')" class="mb-4" size="small" :bordered="true">
       <div class="flex flex-col space-y-2">
         <div>{{ t('indexer.dataPath') }}: {{ dataPath }}</div>
-        <NAlert v-if="needRestart" type="warning">{{ t('common.restartAppForChange') }}
-          <NButton type="primary" text @click="restart">{{
-            t('common.clickToRestart') }}</NButton>
+        <NAlert v-if="needRestart" type="warning">
+          {{ t('common.restartAppForChange') }}
+          <NButton type="primary" text @click="restart">
+            {{
+              t('common.clickToRestart') }}
+          </NButton>
         </NAlert>
         <div class="flex space-x-2">
           <div class="mr-2">
-            <NButton @click="openDirDialog" :disabled="dataCopying" :loading="dataCopying">
+            <NButton :disabled="dataCopying" :loading="dataCopying" @click="openDirDialog">
               <span>{{ t('common.change') }}</span>
             </NButton>
           </div>
           <div class="mr-2">
-            <NButton @click="resetDataPath" :disabled="dataCopying" :loading="dataCopying">
+            <NButton :disabled="dataCopying" :loading="dataCopying" @click="resetDataPath">
               {{ t('common.reset') }}
             </NButton>
           </div>
-          <NButton @click="openDataPath" :disabled="dataCopying" :loading="dataCopying">
+          <NButton :disabled="dataCopying" :loading="dataCopying" @click="openDataPath">
             {{ t('common.open') }}
           </NButton>
         </div>

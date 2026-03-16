@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { openPath } from '@tauri-apps/plugin-opener'
 import { LogoGithub } from '@vicons/ionicons5'
-import HowToUse from '../HowToUse.vue'
 import { invoke } from '@tauri-apps/api/core'
-import { getVersion } from '@tauri-apps/api/app';
+import { getVersion } from '@tauri-apps/api/app'
+import HowToUse from '../HowToUse.vue'
 import { t } from '@/locales'
 
 const appVersion = ref('')
@@ -40,7 +40,7 @@ onMounted(async () => {
         </div>
       </template>
     </HowToUse>
-    <div class="flex-1"></div>
+    <div class="flex-1" />
     <div class="flex flex-col w-full space-y-2 text-left">
       <div class="font-semibold">
         {{ t('about.moreDetail') }}

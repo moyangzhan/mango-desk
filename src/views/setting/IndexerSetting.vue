@@ -50,15 +50,14 @@ async function initStatusData() {
   const audioMode = setting.audio_parser_mode
 
   // Determine mode: local | selfhosted | remote | mixed
-  if (imageMode === 'local' && audioMode === 'local') {
+  if (imageMode === 'local' && audioMode === 'local')
     parserMode.value = 'local'
-  } else if (imageMode === 'selfhosted' && audioMode === 'local') {
+  else if (imageMode === 'selfhosted' && audioMode === 'local')
     parserMode.value = 'selfhosted'
-  } else if (imageMode === 'remote' && audioMode === 'remote') {
+  else if (imageMode === 'remote' && audioMode === 'remote')
     parserMode.value = 'remote'
-  } else {
+  else
     parserMode.value = 'mixed'
-  }
 
   imageParserDesc.value = t('common.local')
   audioParserDesc.value = t('common.local')
@@ -331,20 +330,18 @@ async function updateIndexerSetting() {
 
 function onModelPlatformSaved(updatedPlatform: ModelPlatform) {
   const index = modelPlatformList.value.findIndex(
-    (p) => p.name === updatedPlatform.name,
+    p => p.name === updatedPlatform.name,
   )
-  if (index !== -1) {
+  if (index !== -1)
     modelPlatformList.value[index] = { ...updatedPlatform }
-  }
 }
 
 function onSelfHostedPlatformSaved(updatedPlatform: SelfHostedPlatform) {
   const index = selfHostedPlatformList.value.findIndex(
-    (p) => p.name === updatedPlatform.name,
+    p => p.name === updatedPlatform.name,
   )
-  if (index !== -1) {
+  if (index !== -1)
     selfHostedPlatformList.value[index] = { ...updatedPlatform }
-  }
 }
 
 function openModelEditModal() {
@@ -355,7 +352,8 @@ function openModelEditModal() {
 }
 
 async function saveModel() {
-  if (!editingModel.value) return
+  if (!editingModel.value)
+    return
   try {
     await invoke('update_ai_model', {
       id: editingModel.value.id,
@@ -372,16 +370,15 @@ async function saveModel() {
 }
 
 watch(() => appStore.locale, (newVal) => {
-  if (newVal) {
+  if (newVal)
     initStatusData()
-  }
 })
 
 onMounted(async () => {
   console.log('IndexerSetting onMounted')
   try {
     indexerStore.indexerSetting = await invoke<IndexerSetting>('load_indexer_setting')
-    let indexerSetting = await invoke<IndexerSetting>('load_indexer_setting')
+    const indexerSetting = await invoke<IndexerSetting>('load_indexer_setting')
     indexerStore.setIndexerSetting(indexerSetting)
 
     activePlatform.value = await invoke<string>('load_active_platform')
@@ -472,7 +469,9 @@ onMounted(async () => {
         <NTable size="small" class="mb-2">
           <tbody class="text-xs">
             <tr>
-              <td class="w-32">{{ t('indexer.documentParser') }}</td>
+              <td class="w-32">
+                {{ t('indexer.documentParser') }}
+              </td>
               <td>{{ t('common.local') }}</td>
             </tr>
             <tr>
@@ -480,12 +479,18 @@ onMounted(async () => {
               <td>
                 <NRadioGroup
                   :value="indexerStore.indexerSetting.image_parser_mode"
-                  @update:value="onImageParserModeChanged"
                   size="small"
+                  @update:value="onImageParserModeChanged"
                 >
-                  <NRadio value="local">{{ t('common.local') }}</NRadio>
-                  <NRadio value="selfhosted">{{ t('common.selfHosted') }}</NRadio>
-                  <NRadio value="remote">{{ t('common.cloud') }}</NRadio>
+                  <NRadio value="local">
+                    {{ t('common.local') }}
+                  </NRadio>
+                  <NRadio value="selfhosted">
+                    {{ t('common.selfHosted') }}
+                  </NRadio>
+                  <NRadio value="remote">
+                    {{ t('common.cloud') }}
+                  </NRadio>
                 </NRadioGroup>
               </td>
             </tr>
@@ -494,17 +499,23 @@ onMounted(async () => {
               <td>
                 <NRadioGroup
                   :value="indexerStore.indexerSetting.audio_parser_mode"
-                  @update:value="onAudioParserModeChanged"
                   size="small"
+                  @update:value="onAudioParserModeChanged"
                 >
-                  <NRadio value="local">{{ t('common.local') }}</NRadio>
+                  <NRadio value="local">
+                    {{ t('common.local') }}
+                  </NRadio>
                   <NTooltip>
                     <template #trigger>
-                      <NRadio value="selfhosted" disabled>{{ t('common.selfHosted') }}</NRadio>
+                      <NRadio value="selfhosted" disabled>
+                        {{ t('common.selfHosted') }}
+                      </NRadio>
                     </template>
                     {{ t('common.selfHostedNotSupportASR') }}
                   </NTooltip>
-                  <NRadio value="remote">{{ t('common.cloud') }}</NRadio>
+                  <NRadio value="remote">
+                    {{ t('common.cloud') }}
+                  </NRadio>
                 </NRadioGroup>
               </td>
             </tr>
@@ -512,18 +523,24 @@ onMounted(async () => {
         </NTable>
 
         <!-- Self-hosted platform settings (show when image or audio uses selfhosted) -->
-        <NCard v-if="showSelfHostedSetting" :title="t('indexer.selfHostedSetting')" size="small"
-          :bordered="true">
+        <NCard
+          v-if="showSelfHostedSetting" :title="t('indexer.selfHostedSetting')" size="small"
+          :bordered="true"
+        >
           <NFormItem :label="t('indexer.selectActivePlatform')">
             <NRadioGroup :value="activeSelfHostedPlatform" @update:value="doActiveSelfHostedPlatformChanged">
-              <NRadio v-for="platform in selfHostedPlatformList" :key="platform.id" :label="platform.title"
-                :value="platform.name" />
+              <NRadio
+                v-for="platform in selfHostedPlatformList" :key="platform.id" :label="platform.title"
+                :value="platform.name"
+              />
             </NRadioGroup>
           </NFormItem>
           <NFormItem :label="t('indexer.detailConfig')">
             <NTabs v-model:value="activeSelfHostedTab" type="line" animated placement="left">
-              <NTabPane v-for="platform in selfHostedPlatformList" :key="platform.name" :name="platform.name"
-                :tab="platform.title">
+              <NTabPane
+                v-for="platform in selfHostedPlatformList" :key="platform.name" :name="platform.name"
+                :tab="platform.title"
+              >
                 <SelfHostedPlatformEdit :platform="platform" @saved="onSelfHostedPlatformSaved" />
               </NTabPane>
             </NTabs>
@@ -531,18 +548,24 @@ onMounted(async () => {
         </NCard>
 
         <!-- Cloud platform settings (show when image or audio uses remote) -->
-        <NCard v-if="showCloudSetting" :title="t('indexer.cloudModeSetting')" size="small"
-          :bordered="true">
+        <NCard
+          v-if="showCloudSetting" :title="t('indexer.cloudModeSetting')" size="small"
+          :bordered="true"
+        >
           <NFormItem :label="t('model.selectForActivePlatform')">
             <NRadioGroup :value="activePlatform" @update:value="doActivePlatformChanged">
-              <NRadio v-for="platform in modelPlatformList" :key="platform.id" :label="platform.title"
-                :value="platform.name" />
+              <NRadio
+                v-for="platform in modelPlatformList" :key="platform.id" :label="platform.title"
+                :value="platform.name"
+              />
             </NRadioGroup>
           </NFormItem>
           <NFormItem :label="t('indexer.detailConfig')">
             <NTabs v-model:value="activeTab" type="line" animated placement="left">
-              <NTabPane v-for="platform in modelPlatformList" :key="platform.name" :name="platform.name"
-                :tab="platform.title">
+              <NTabPane
+                v-for="platform in modelPlatformList" :key="platform.name" :name="platform.name"
+                :tab="platform.title"
+              >
                 <ModelPlatformEdit :model-platform="platform" @saved="onModelPlatformSaved" />
               </NTabPane>
             </NTabs>
@@ -563,18 +586,24 @@ onMounted(async () => {
         <div class="flex flex-col space-y-2 my-4">
           <div>
             <div>{{ t('indexer.saveDocumentParsedContent') }}</div>
-            <n-switch size="small" :value="indexerStore.indexerSetting.save_parsed_content.document"
-              @update:value="doParsedContentChange1"></n-switch>
+            <NSwitch
+              size="small" :value="indexerStore.indexerSetting.save_parsed_content.document"
+              @update:value="doParsedContentChange1"
+            />
           </div>
           <div>
             <div>{{ t('indexer.saveImageParsedContent') }}</div>
-            <n-switch size="small" :value="indexerStore.indexerSetting.save_parsed_content.image"
-              @update:value="doParsedContentChange2"></n-switch>
+            <NSwitch
+              size="small" :value="indexerStore.indexerSetting.save_parsed_content.image"
+              @update:value="doParsedContentChange2"
+            />
           </div>
           <div>
             <div>{{ t('indexer.saveAudioParsedContent') }}</div>
-            <n-switch size="small" :value="indexerStore.indexerSetting.save_parsed_content.audio"
-              @update:value="doParsedContentChange3"></n-switch>
+            <NSwitch
+              size="small" :value="indexerStore.indexerSetting.save_parsed_content.audio"
+              @update:value="doParsedContentChange3"
+            />
           </div>
         </div>
       </div>
@@ -598,8 +627,12 @@ onMounted(async () => {
       </NForm>
       <template #footer>
         <NSpace justify="end">
-          <NButton @click="showModelEditModal = false">{{ t('common.cancel') }}</NButton>
-          <NButton type="primary" @click="saveModel" :disabled="!editingModel?.name || !editingModel?.title">{{ t('common.save') }}</NButton>
+          <NButton @click="showModelEditModal = false">
+            {{ t('common.cancel') }}
+          </NButton>
+          <NButton type="primary" :disabled="!editingModel?.name || !editingModel?.title" @click="saveModel">
+            {{ t('common.save') }}
+          </NButton>
         </NSpace>
       </template>
     </NModal>

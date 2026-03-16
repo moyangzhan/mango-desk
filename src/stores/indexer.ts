@@ -26,6 +26,6 @@ export const useIndexerStore = defineStore('indexer-store', {
     },
     setIndexProcessing(value: boolean) {
       this.indexProcessing = value
-    }
+    },
   },
 })

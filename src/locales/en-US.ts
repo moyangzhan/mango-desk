@@ -33,12 +33,12 @@ export default {
     keywordSearchTip: {
       title: 'Keyword Search',
       description: 'Use spaces to separate multiple keywords',
-      example: 'For example: "plan 2026 Q1 Q2 Q3"'
+      example: 'For example: "plan 2026 Q1 Q2 Q3"',
     },
     semanticSearchTip: {
       title: 'Semantic Search',
       description: 'Find files by their content using natural language',
-      example: 'e.g., "Project Launch Process" or "Precautions"'
+      example: 'e.g., "Project Launch Process" or "Precautions"',
     },
     switchSearchMode: 'Toggle: Semantic Search ↔ Keyword Search',
     reset: 'Reset',

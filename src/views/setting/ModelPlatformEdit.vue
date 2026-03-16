@@ -1,8 +1,8 @@
 <script setup lang='ts'>
 import { invoke } from '@tauri-apps/api/core'
+import { useDebounceFn } from '@vueuse/core'
 import { emptyModelPlatform } from '@/utils/functions'
 import { useSettingStore } from '@/stores/setting'
-import { useDebounceFn } from '@vueuse/core'
 import { t } from '@/locales'
 
 interface Props {
@@ -21,11 +21,10 @@ function gotoProxySetting() {
   settingStore.changeTab('common')
 }
 
-let debounceSave = useDebounceFn(async () => {
+const debounceSave = useDebounceFn(async () => {
   await invoke('update_model_platform', { platform: tmpPlatform.value })
   emit('saved', tmpPlatform.value)
 }, 1000)
-
 </script>
 
 <template>
@@ -40,8 +39,10 @@ let debounceSave = useDebounceFn(async () => {
       <NInput v-model:value="tmpPlatform.base_url" @update:value="debounceSave" />
     </NFormItem>
     <NFormItem label="Api Key">
-      <NInput v-model:value="tmpPlatform.api_key" type="password" show-password-on="click"
-        @update:value="debounceSave" />
+      <NInput
+        v-model:value="tmpPlatform.api_key" type="password" show-password-on="click"
+        @update:value="debounceSave"
+      />
     </NFormItem>
     <NFormItem :label="t('proxy.enable')">
       <NSwitch v-model:value="tmpPlatform.is_proxy_enable" class="mr-6" @update:value="debounceSave" />

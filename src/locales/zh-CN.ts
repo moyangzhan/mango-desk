@@ -33,12 +33,12 @@ export default {
     keywordSearchTip: {
       title: '关键词搜索',
       description: '用空格分隔多个关键词',
-      example: '例如: "计划 2026 Q1 Q2 Q3"'
+      example: '例如: "计划 2026 Q1 Q2 Q3"',
     },
     semanticSearchTip: {
       title: '语义搜索',
       description: '输入相近意思的内容进行搜索',
-      example: '如："重大项目启动流程及注意事项"'
+      example: '如："重大项目启动流程及注意事项"',
     },
     switchSearchMode: '切换：语义搜索 ↔ 关键词搜索',
     reset: '重置',

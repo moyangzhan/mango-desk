@@ -29,8 +29,10 @@ onMounted(async () => {
 
 <template>
   <div class="h-full mx-auto">
-    <NTabs :value="activeTab" type="line" size="large" :tabs-padding="20"
-      pane-style=" height: 100%; overflow-y: auto;padding: 20px;" style="height: 100%;" @update:value="onUpdateTab">
+    <NTabs
+      :value="activeTab" type="line" size="large" :tabs-padding="20"
+      pane-style=" height: 100%; overflow-y: auto;padding: 20px;" style="height: 100%;" @update:value="onUpdateTab"
+    >
       <NTabPane name="common" display-directive="show" :tab="t('common.commonSetting')">
         <CommonSetting />
       </NTabPane>

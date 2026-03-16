@@ -22,11 +22,10 @@ const tmpPlatform = ref<SelfHostedPlatform>({
 })
 tmpPlatform.value = { ...props.platform }
 
-let debounceSave = useDebounceFn(async () => {
+const debounceSave = useDebounceFn(async () => {
   await invoke('update_self_hosted_platform', { platform: tmpPlatform.value })
   emit('saved', tmpPlatform.value)
 }, 1000)
-
 </script>
 
 <template>

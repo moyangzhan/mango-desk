@@ -76,7 +76,7 @@ async function removePath(path: string) {
 }
 
 listen<string>('watcher-indexing', (eventObj) => {
-  let payload = JSON.parse(eventObj.payload) as IndexingEvent
+  const payload = JSON.parse(eventObj.payload) as IndexingEvent
   console.log('watcher-indexing', payload)
   indexingTitle.value = payload.event.toUpperCase()
   indexingMsg.value = payload.data.msg
@@ -104,23 +104,22 @@ async function reindexing() {
     message.warning(t('indexer.noFileSelected'))
     return
   }
-  let paths = watchSetting.value.directories.concat(watchSetting.value.files)
-  if (paths.length === 0) {
+  const paths = watchSetting.value.directories.concat(watchSetting.value.files)
+  if (paths.length === 0)
     return
-  }
+
   try {
     indexingTitle.value = 'START'
     indexingMsg.value = ''
     const res = await invoke<CommandResult>('start_indexing', {
-      paths: paths,
-      from: 'watcher'
+      paths,
+      from: 'watcher',
     })
     if (!res.success && res.message) {
       indexingTitle.value = 'ERROR'
       indexingMsg.value = res.message
-      if (res.code === 2) {
+      if (res.code === 2)
         indexerStore.setWatcherProcessing(false)
-      }
     }
   } catch (e: any) {
     console.log(e)
@@ -146,10 +145,11 @@ onMounted(async () => {
           {{ t('indexer.autoIndexWhenChanged') }}
         </NText>
       </template>
-      <div>
-      </div>
-      <div v-if="watchSetting.directories.length !== 0 || watchSetting.files.length !== 0"
-        class="mb-2 flex justify-between">
+      <div />
+      <div
+        v-if="watchSetting.directories.length !== 0 || watchSetting.files.length !== 0"
+        class="mb-2 flex justify-between"
+      >
         <div class="flex-1">
           <NButton ghost @click="openDirDialog">
             {{ t('common.selectFolder')
@@ -161,9 +161,11 @@ onMounted(async () => {
           </NButton>
         </div>
         <div>
-          <NButton ghost style="margin-right: 6px"
+          <NButton
+            ghost style="margin-right: 6px"
             :disabled="(watchSetting.directories.length === 0 && watchSetting.files.length === 0) || indexerStore.watcherProcessing"
-            @click="reindexing">
+            @click="reindexing"
+          >
             {{ t('indexer.reindexing') }}
           </NButton>
         </div>

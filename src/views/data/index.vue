@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import type { DataTableColumns } from 'naive-ui'
+import type { DataTableColumns, PaginationInfo } from 'naive-ui'
 import { invoke } from '@tauri-apps/api/core'
 import { openPath } from '@tauri-apps/plugin-opener'
 import { useWindowSize } from '@vueuse/core'
 import { getFileColumns } from './columns'
-import type { PaginationInfo } from 'naive-ui'
+
 import { useIndexerStore } from '@/stores/indexer'
 import { t } from '@/locales'
 
@@ -20,7 +20,7 @@ const paginationReactive = reactive({
   itemCount: 0,
   prefix({ itemCount }: PaginationInfo) {
     return `${t('common.total')}: ${itemCount} `
-  }
+  },
 })
 
 const handleOpenPath = (path: string) => {
@@ -59,15 +59,13 @@ async function loadFiles() {
 }
 
 watch(() => indexerStore.indexProcessing, (newVal) => {
-  if (!newVal) {
+  if (!newVal)
     handlePageChange(1)
-  }
 })
 
 watch(() => indexerStore.watcherProcessing, (newVal) => {
-  if (!newVal) {
+  if (!newVal)
     handlePageChange(1)
-  }
 })
 
 onMounted(() => {
@@ -80,12 +78,14 @@ onMounted(() => {
   <div class="h-full m-auto p-4">
     <NCard :title="t('indexer.indexedFiles')" class="shadow-sm">
       <div class="flex mb-2 justify-between">
-        <NButton ghost size="small" @click="handlePageChange(1)" class="mr-2">
+        <NButton ghost size="small" class="mr-2" @click="handlePageChange(1)">
           {{ t('common.refresh')
           }}
         </NButton>
-        <NPopconfirm :positive-text="t('common.confirm')" placement="left" :negative-text="t('common.cancel')"
-          @positive-click="clearIndex">
+        <NPopconfirm
+          :positive-text="t('common.confirm')" placement="left" :negative-text="t('common.cancel')"
+          @positive-click="clearIndex"
+        >
           <template #trigger>
             <NButton text size="small" class="remove-all-button">
               {{ t('common.removeAll') }}
@@ -94,8 +94,10 @@ onMounted(() => {
           {{ t('indexer.clearIndexConfirmation') }}
         </NPopconfirm>
       </div>
-      <NDataTable remote :columns="fileColumns" :data="files" :pagination="paginationReactive" :bordered="false" striped
-        scroll-x="1700" :max-height="height - 260" @update:page="handlePageChange" />
+      <NDataTable
+        remote :columns="fileColumns" :data="files" :pagination="paginationReactive" :bordered="false" striped
+        scroll-x="1700" :max-height="height - 260" @update:page="handlePageChange"
+      />
     </NCard>
   </div>
 </template>

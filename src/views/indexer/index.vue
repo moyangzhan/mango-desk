@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { invoke } from '@tauri-apps/api/core'
 import { useWindowSize } from '@vueuse/core'
+import type { DataTableSortState, PaginationInfo } from 'naive-ui'
 import FileSelector from './FileSelector.vue'
 import FileWatcher from './FileWatcher.vue'
 import { getTaskColumns } from './columns'
-import type { PaginationInfo, DataTableSortState } from 'naive-ui'
 import { t } from '@/locales'
 
 const { height } = useWindowSize()
@@ -14,7 +14,7 @@ const taskPageReactive = reactive({
   itemCount: 0,
   prefix({ itemCount }: PaginationInfo) {
     return `${t('common.total')}: ${itemCount} `
-  }
+  },
 })
 const tasks = ref<IndexingTask[]>([])
 const showTasks = ref(false)
@@ -31,7 +31,7 @@ async function handleTaskPageChange(currentPage: number) {
   loadIndexingTask()
 }
 
-async function loadIndexingTask(columnKey: string = 'id', sortOrder: string = 'descend') {
+async function loadIndexingTask(columnKey = 'id', sortOrder = 'descend') {
   const { page, pageSize } = taskPageReactive
   const rows = await invoke<IndexingTask[]>('load_indexing_tasks', { page, pageSize, columnKey, sortOrder: sortOrder === 'ascend' ? 'asc' : 'desc' })
   tasks.value = rows
@@ -52,9 +52,8 @@ function indexingFinish() {
 
 function handleSorterChange(sorter: DataTableSortState) {
   console.log('sorter', sorter)
-  if (sorter.columnKey) {
+  if (sorter.columnKey)
     loadIndexingTask(sorter.columnKey as string, sorter.order as string)
-  }
 }
 
 onMounted(() => {
@@ -73,11 +72,15 @@ onMounted(() => {
       </div>
     </NCard>
     <FileWatcher @indexing-finish="indexingFinish" @indexing-stop="indexingFinish" />
-    <NModal v-model:show="showTasks" preset="card" :title="t('indexer.indexingTaskHistory')"
-      style="width: 80%; height:80%; max-width: 1200px;">
-      <NDataTable remote @update:sorter="handleSorterChange" :columns="taskColumns" :data="tasks"
-        :pagination="taskPageReactive" :bordered="true" striped scroll-x="1300" :max-height="height - 250"
-        @update:page="handleTaskPageChange" />
+    <NModal
+      v-model:show="showTasks" preset="card" :title="t('indexer.indexingTaskHistory')"
+      style="width: 80%; height:80%; max-width: 1200px;"
+    >
+      <NDataTable
+        remote :columns="taskColumns" :data="tasks" :pagination="taskPageReactive"
+        :bordered="true" striped scroll-x="1300" :max-height="height - 250" @update:sorter="handleSorterChange"
+        @update:page="handleTaskPageChange"
+      />
     </NModal>
   </div>
 </template>

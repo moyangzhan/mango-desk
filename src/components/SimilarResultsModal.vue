@@ -5,12 +5,8 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SvgIcon from './SvgIcon.vue'
 
-const props = defineProps<{
-  fileId: number | null
-}>()
-
 const emit = defineEmits<{
-  'open-file': [path: string]
+  'openFile': [path: string]
 }>()
 
 const { t } = useI18n()
@@ -62,11 +58,9 @@ async function findSimilars(fileInfo: FileInfo) {
 
     await Promise.all(imagePromises)
     results.value = searchResults
-  }
-  catch (e) {
+  } catch (e) {
     console.error('Failed to find similar files:', e)
-  }
-  finally {
+  } finally {
     loading.value = false
   }
 }
@@ -76,15 +70,7 @@ async function findSimilars(fileInfo: FileInfo) {
  * 在系统中打开文件
  */
 function openFile(path: string) {
-  emit('open-file', path)
-}
-
-/**
- * Close modal
- * 关闭弹窗
- */
-function close() {
-  showModal.value = false
+  emit('openFile', path)
 }
 
 // Expose findSimilars for parent component
@@ -94,13 +80,18 @@ defineExpose({
 </script>
 
 <template>
-  <NModal v-model:show="showModal" preset="card" :title="t('common.similarFiles')"
-    style="width: 80%; height: 80%;">
+  <NModal v-model:show="showModal" preset="card" :title="t('common.similarFiles')" style="width: 80%; height: 80%;">
     <!-- Source file info -->
     <div v-if="sourceFile" class="mb-4 p-2 bg-gray-50 dark:bg-gray-800 rounded">
-      <div class="text-sm text-gray-500">{{ t('common.sourceFile') }}:</div>
-      <div class="font-medium">{{ sourceFile.name }}</div>
-      <div class="text-xs text-gray-400 truncate">{{ sourceFile.path }}</div>
+      <div class="text-sm text-gray-500">
+        {{ t('common.sourceFile') }}:
+      </div>
+      <div class="font-medium">
+        {{ sourceFile.name }}
+      </div>
+      <div class="text-xs text-gray-400 truncate">
+        {{ sourceFile.path }}
+      </div>
     </div>
 
     <!-- Loading state -->
@@ -110,25 +101,33 @@ defineExpose({
 
     <!-- Results list -->
     <div v-else-if="results.length > 0" style="max-height: 500px; overflow-y: auto;">
-      <div v-for="item in results" :key="item.file_info.path"
-        class="group w-full p-2 border-b border-(--border-color) hover:bg-gray-50 dark:hover:bg-gray-800">
+      <div
+        v-for="item in results" :key="item.file_info.path"
+        class="group w-full p-2 border-b border-(--border-color) hover:bg-gray-50 dark:hover:bg-gray-800"
+      >
         <div class="flex space-x-2">
           <!-- Image preview -->
-          <div v-if="item.file_info.file_data && item.file_info.category === 2"
-            class="flex justify-center items-start shrink-0 pt-0.5">
+          <div
+            v-if="item.file_info.file_data && item.file_info.category === 2"
+            class="flex justify-center items-start shrink-0 pt-0.5"
+          >
             <NImage width="100" :src="item.file_info.file_data" />
           </div>
           <!-- File icon -->
           <div v-else class="flex justify-center items-center shrink-0">
-            <SvgIcon :name="item.file_info.file_ext.toLowerCase()" width="40" height="40"
-              style="opacity: 0.7; filter: saturate(0.5)" />
+            <SvgIcon
+              :name="item.file_info.file_ext.toLowerCase()" width="40" height="40"
+              style="opacity: 0.7; filter: saturate(0.5)"
+            />
           </div>
 
           <!-- File info -->
           <div class="flex-1 flex flex-col justify-between text-left min-w-0">
             <div>
-              <div class="cursor-pointer hover:underline hover:text-(--primary-color) truncate"
-                style="font-weight: 550" @click="openFile(item.file_info.path)">
+              <div
+                class="cursor-pointer hover:underline hover:text-(--primary-color) truncate" style="font-weight: 550"
+                @click="openFile(item.file_info.path)"
+              >
                 {{ item.file_info.name }}
               </div>
               <div class="text-xs text-gray-400 truncate">

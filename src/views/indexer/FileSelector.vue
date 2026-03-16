@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { AttachFileOutlined, DeleteOutlined, FileOpenOutlined, FolderOpenOutlined, FolderOutlined, StopCircleOutlined, DoneOutlineRound } from '@vicons/material'
+import { AttachFileOutlined, DeleteOutlined, DoneOutlineRound, FileOpenOutlined, FolderOpenOutlined, FolderOutlined, StopCircleOutlined } from '@vicons/material'
 import { open } from '@tauri-apps/plugin-dialog'
 import { TauriEvent, listen } from '@tauri-apps/api/event'
 import { invoke } from '@tauri-apps/api/core'
@@ -105,7 +105,7 @@ listen(TauriEvent.DRAG_ENTER, (e) => {
   console.log('Drag enter', e)
 })
 listen<string>('selector-indexing', (eventObj) => {
-  let payload = JSON.parse(eventObj.payload) as IndexingEvent
+  const payload = JSON.parse(eventObj.payload) as IndexingEvent
   indexingTitle.value = payload.event.toUpperCase()
   indexingMsg.value = payload.data.msg
   switch (payload.event) {
@@ -119,7 +119,7 @@ listen<string>('selector-indexing', (eventObj) => {
     case 'finish':
       emit('indexingFinish')
       indexerStore.setIndexProcessing(false)
-      selectedList.value.forEach(item => {
+      selectedList.value.forEach((item) => {
         item.done = true
       })
       break
@@ -128,14 +128,14 @@ listen<string>('selector-indexing', (eventObj) => {
       indexerStore.setIndexProcessing(false)
       break
   }
-});
+})
 
 async function startIndexing() {
   if (selectedList.value.length === 0) {
     message.warning(t('indexer.noFileSelected'))
     return
   }
-  let undonePaths = selectedList.value.filter(item => !item.done).map(item => item.path)
+  const undonePaths = selectedList.value.filter(item => !item.done).map(item => item.path)
   if (undonePaths.length === 0) {
     window.$message.info(t('indexer.allFilesIndexed'))
     return
@@ -154,9 +154,8 @@ async function startIndexing() {
     if (!res.success && res.message) {
       indexingTitle.value = 'ERROR'
       indexingMsg.value = res.message
-      if (res.code === 2) {
+      if (res.code === 2)
         indexerStore.setIndexProcessing(true)
-      }
     }
   } catch (e: any) {
     console.log(e)
@@ -169,7 +168,7 @@ watch(indexingMsg, (newVal) => {
     setTimeout(() => {
       indexingTitle.value = ''
       indexingMsg.value = ''
-    }, 3000);
+    }, 3000)
   }
 })
 
@@ -186,8 +185,10 @@ async function stopIndexing() {
 
 <template>
   <div>
-    <NCard size="small" :bordered="true" content-style="padding: 10px; " class="mb-2"
-      :content-class="isDragOver ? 'bg-gray-200 dark:text-white dark:bg-white' : ''">
+    <NCard
+      size="small" :bordered="true" content-style="padding: 10px; " class="mb-2"
+      :content-class="isDragOver ? 'bg-gray-200 dark:text-white dark:bg-white' : ''"
+    >
       <div class="flex flex-col items-center justify-center space-y-2 mb-2">
         <NIcon size="32">
           <FolderOpenOutlined v-if="isDragOver" />
@@ -225,7 +226,9 @@ async function stopIndexing() {
             {{ t('common.selectedFileAndFolder') }}
           </div>
           <div>
-            <NButton ghost size="tiny" @click="clearAllPaths">{{ t('indexer.clearSelected') }}</NButton>
+            <NButton ghost size="tiny" @click="clearAllPaths">
+              {{ t('indexer.clearSelected') }}
+            </NButton>
           </div>
         </div>
       </template>
@@ -233,14 +236,18 @@ async function stopIndexing() {
         <NListItem>
           <div class="flex items-center px-2 py-1">
             <div class="flex-1 flex">
-              <div class="mr-2 w-5 items-center flex"
-                :class="item.done ? 'text-green-500' : 'text-gray-300 dark:text-gray-800'">
+              <div
+                class="mr-2 w-5 items-center flex"
+                :class="item.done ? 'text-green-500' : 'text-gray-300 dark:text-gray-800'"
+              >
                 <NIcon :size="20">
                   <DoneOutlineRound />
                 </NIcon>
               </div>
-              <div class="flex items-center gap-2"
-                :class="item.done ? 'text-green-500' : 'text-gray-800 dark:text-gray-300'">
+              <div
+                class="flex items-center gap-2"
+                :class="item.done ? 'text-green-500' : 'text-gray-800 dark:text-gray-300'"
+              >
                 <NIcon :size="20">
                   <FolderOutlined v-if="item.type === 'directory'" />
                   <AttachFileOutlined v-else />
@@ -248,8 +255,10 @@ async function stopIndexing() {
                 <span class="truncate" :title="item.name">{{ item.name }}</span>
               </div>
             </div>
-            <NButton v-if="!indexerStore.indexProcessing" quaternary type="error" size="small"
-              @click="removePath(item.id)">
+            <NButton
+              v-if="!indexerStore.indexProcessing" quaternary type="error" size="small"
+              @click="removePath(item.id)"
+            >
               <template #icon>
                 <DeleteOutlined />
               </template>
@@ -265,13 +274,17 @@ async function stopIndexing() {
     </NList>
 
     <div class="flex mt-2">
-      <NButton v-if="!indexerStore.indexProcessing" type="primary" style="margin-right: 6px"
+      <NButton
+        v-if="!indexerStore.indexProcessing" type="primary" style="margin-right: 6px"
         :disabled="selectedList.length === 0 || indexerStore.indexProcessing" :loading="indexerStore.indexProcessing"
-        @click="startIndexing">
+        @click="startIndexing"
+      >
         {{ t('indexer.startIndexing') }}
       </NButton>
-      <NPopconfirm v-if="indexerStore.indexProcessing" :positive-text="t('common.confirm')"
-        :negative-text="t('common.cancel')" @positive-click="stopIndexing">
+      <NPopconfirm
+        v-if="indexerStore.indexProcessing" :positive-text="t('common.confirm')"
+        :negative-text="t('common.cancel')" @positive-click="stopIndexing"
+      >
         <template #trigger>
           <NButton ghost type="error">
             <template #icon>

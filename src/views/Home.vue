@@ -63,14 +63,13 @@ watch(searchType, (newVal) => {
     }, 300)
   } else if (newVal === KEYWORD_SEARCH) {
     console.log('switch to keyword search')
-    //Sematic search is slower, so we use a longer debounce time
+    // Sematic search is slower, so we use a longer debounce time
     debounceSearch = useDebounceFn(async () => {
       search()
     }, 600)
   }
   debounceSearch()
 })
-
 
 function openFile(path = '') {
   openPath(path).then((res) => {
@@ -82,10 +81,9 @@ async function loadFileDetail(id = 0) {
   showContentModal.value = true
   parsedContent.value = ''
   try {
-    let fileInfo = await invoke<FileInfo>('load_file_detail', { fileId: id });
-    if (fileInfo) {
+    const fileInfo = await invoke<FileInfo>('load_file_detail', { fileId: id })
+    if (fileInfo)
       parsedContent.value = fileInfo.content
-    }
   } catch (e) {
     console.log(e)
   }
@@ -95,7 +93,7 @@ async function loadChunks(ids: number[], keywords: string[]) {
   showChunksModal.value = true
   matchChunks.value = []
   try {
-    let chunks = await invoke<string[]>('load_chunks', { ids });
+    const chunks = await invoke<string[]>('load_chunks', { ids })
     if (chunks) {
       if (keywords && keywords.length > 0) {
         matchChunks.value = chunks.map((chunk) => {
@@ -118,19 +116,20 @@ function onClear() {
 }
 
 function escapeRegExp(str: string) {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 function highlightText(text: string, keywords: string[]) {
-  if (!text || !keywords || keywords.length === 0) return text;
+  if (!text || !keywords || keywords.length === 0)
+    return text
   return keywords.reduce((html, keyword) => {
-    const safeKeyword = escapeRegExp(keyword);
-    const regex = new RegExp(`(${safeKeyword})`, 'gi');
+    const safeKeyword = escapeRegExp(keyword)
+    const regex = new RegExp(`(${safeKeyword})`, 'gi')
     return html.replace(
       regex,
-      '<span class="font-bold text-(--match-word-color)">$1</span>'
-    );
-  }, text);
+      '<span class="font-bold text-(--match-word-color)">$1</span>',
+    )
+  }, text)
 }
 
 async function search() {
@@ -159,11 +158,11 @@ async function search() {
     }
     searchResults.value = res
     searchResults.value.forEach((item) => {
-      if (item.hit_types.includes('pathKeyword') && item.matched_keywords.length > 0) {
+      if (item.hit_types.includes('pathKeyword') && item.matched_keywords.length > 0)
         item.file_info.html_path = highlightText(item.file_info.path, item.matched_keywords)
-      } else {
+      else
         item.file_info.html_path = item.file_info.path
-      }
+
       if (item.file_info.category !== 2)
         return
 
@@ -191,7 +190,6 @@ const keyDown = (e: any) => {
     query.value = query.value.trim()
     focusInput()
     debounceSearch()
-    return
   } else if (e.key === 'Enter') {
     if (!isFocused.value && selectedIndex.value > -1)
       openFile(searchResults.value[selectedIndex.value].file_info.path)
@@ -231,7 +229,7 @@ const keyDown = (e: any) => {
 }
 
 onMounted(async () => {
-  let indexerSetting = await invoke<IndexerSetting>('load_indexer_setting')
+  const indexerSetting = await invoke<IndexerSetting>('load_indexer_setting')
   indexerStore.setIndexerSetting(indexerSetting)
   window.addEventListener('keydown', keyDown)
 })
@@ -243,21 +241,27 @@ onUnmounted(() => {
 <template>
   <div class="h-full flex flex-col items-center p-4 text-center">
     <div v-if="searchResults.length === 0" class="mb-4 flex items-center">
-      <NImage src="/mango-desk.png" alt="MangoFinder" width="100" height="100"
+      <NImage
+        src="/mango-desk.png" alt="MangoFinder" width="100" height="100"
         class="transition-all duration-300 hover:scale-105" style="opacity: 0.8; filter: saturate(0.9)"
-        preview-disabled />
+        preview-disabled
+      />
       <div class="text-sm text-gray-400 mt-2">
         Awake your data
       </div>
     </div>
     <div class="flex flex-col w-full justify-center space-x-2 max-w-[80%]">
       <div class="flex flex-row items-center justify-center space-x-2">
-        <NInput ref="inputRef" v-model:value="query" class="flex-1 min-w-[100px] text-left" clearable
-          :placeholder="searchType == KEYWORD_SEARCH ? t('common.keywordSearchTip.description') : t('common.semanticSearchTip.description')"
-          @input="debounceSearch" @focus="isFocused = true" @blur="isFocused = false" @clear="onClear">
+        <NInput
+          ref="inputRef" v-model:value="query" class="flex-1 min-w-[100px] text-left" clearable
+          :placeholder="searchType === KEYWORD_SEARCH ? t('common.keywordSearchTip.description') : t('common.semanticSearchTip.description')"
+          @input="debounceSearch" @focus="isFocused = true" @blur="isFocused = false" @clear="onClear"
+        >
           <template #prefix>
-            <NButton type="primary" text
-              @click="searchType = searchType === SEMANTIC_SEARCH ? KEYWORD_SEARCH : SEMANTIC_SEARCH">
+            <NButton
+              type="primary" text
+              @click="searchType === SEMANTIC_SEARCH ? KEYWORD_SEARCH : SEMANTIC_SEARCH"
+            >
               <span v-if="searchType === SEMANTIC_SEARCH" class="pr-2">
                 {{ t('common.semantic') }}
               </span>
@@ -270,12 +274,16 @@ onUnmounted(() => {
       </div>
       <div v-if="searchResults.length === 0" class="mt-2 text-xs text-gray-400 w-full text-left">
         <div>{{ t('common.semanticSearchTip.title') }}：{{ t('common.semanticSearchTip.description') }}</div>
-        <div>{{ t('common.keywordSearchTip.title') }}：{{ t('common.keywordSearchTip.description') }}, {{
-          t('common.keywordSearchTip.example') }}</div>
+        <div>
+          {{ t('common.keywordSearchTip.title') }}：{{ t('common.keywordSearchTip.description') }}, {{
+            t('common.keywordSearchTip.example') }}
+        </div>
       </div>
     </div>
-    <div class="flex-1 flex flex-col w-full items-center justify-start mt-4"
-      :class="searchResults.length > 0 ? 'border-t border-(--border-color)' : ''">
+    <div
+      class="flex-1 flex flex-col w-full items-center justify-start mt-4"
+      :class="searchResults.length > 0 ? 'border-t border-(--border-color)' : ''"
+    >
       <div v-if="searchResults.length === 0" class="flex flex-col mt-8 h-full space-y-4">
         <!-- Keyborad Shortcuts -->
         <div class="text text-sm text-gray-400 text-left">
@@ -317,9 +325,11 @@ onUnmounted(() => {
       </div>
 
       <NImageGroup v-else>
-        <div v-for="(item, idx) in searchResults" :key="item.file_info.path"
+        <div
+          v-for="(item, idx) in searchResults" :key="item.file_info.path"
           class="group w-full p-2 border-b border-(--border-color)"
-          :style="selectedIndex === idx ? 'background-color: var(--secondary-bg-color);border: 1px solid var(--primary-color); box-sizing: border-box;border-radius: 0.25rem;' : ''">
+          :style="selectedIndex === idx ? 'background-color: var(--secondary-bg-color);border: 1px solid var(--primary-color); box-sizing: border-box;border-radius: 0.25rem;' : ''"
+        >
           <!-- Icon + File info -->
           <div class="flex space-x-2">
             <!-- Large image: top aligned -->
@@ -329,39 +339,50 @@ onUnmounted(() => {
             <!-- Small icon: vertically centered -->
             <div v-else class="flex justify-center items-center shrink-0">
               <NImage v-if="item.file_info.file_data" width="40" height="40" :src="item.file_info.file_data" />
-              <div v-else-if="!item.file_info.file_data && !extIcons.includes(item.file_info.file_ext.toLowerCase())"
+              <div
+                v-else-if="!item.file_info.file_data && !extIcons.includes(item.file_info.file_ext.toLowerCase())"
                 class="w-10 h-10 flex justify-center items-center text-sm font-bold"
-                style="opacity: 0.7;filter: saturate(0.5)">
+                style="opacity: 0.7;filter: saturate(0.5)"
+              >
                 {{ item.file_info.file_ext.toUpperCase() }}
               </div>
-              <SvgIcon v-else :name="item.file_info.file_ext.toLowerCase()" width="40" height="40"
-                style="opacity: 0.7;filter: saturate(0.5)" />
+              <SvgIcon
+                v-else :name="item.file_info.file_ext.toLowerCase()" width="40" height="40"
+                style="opacity: 0.7;filter: saturate(0.5)"
+              />
             </div>
             <div class="flex-1 flex flex-col justify-between text-left min-w-0 min-h-14">
               <div class="min-h-11">
-                <div class="cursor-pointer hover:underline hover:text-(--primary-color) truncate"
+                <div
+                  class="cursor-pointer hover:underline hover:text-(--primary-color) truncate"
                   style="font-weight: 550"
-                  @click="openFile(item.file_info.path)">
+                  @click="openFile(item.file_info.path)"
+                >
                   {{ item.file_info.name }}
                 </div>
                 <div class="text-xs truncate">
-                  <div v-html="item.file_info.html_path"></div>
+                  <div v-html="item.file_info.html_path" />
                 </div>
               </div>
               <!-- Third row: Actions + Metadata -->
               <div class="flex justify-between items-center text-xs text-gray-400">
                 <div class="flex items-center gap-2">
-                  <NButton v-if="indexerStore.indexerSetting.save_parsed_content.document && item.file_info.category === 1"
-                    size="tiny" @click="loadFileDetail(item.file_info.id)">
+                  <NButton
+                    v-if="indexerStore.indexerSetting.save_parsed_content.document && item.file_info.category === 1"
+                    size="tiny" @click="loadFileDetail(item.file_info.id)"
+                  >
                     {{ t('indexer.parsedContent') }}
                   </NButton>
                   <NButton
                     v-if="indexerStore.indexerSetting.save_parsed_content.image && item.file_info.category === 2 || (indexerStore.indexerSetting.save_parsed_content.audio && item.file_info.category === 3)"
-                    size="tiny" @click="loadFileDetail(item.file_info.id)">
+                    size="tiny" @click="loadFileDetail(item.file_info.id)"
+                  >
                     {{ t('indexer.recognitionText') }}
                   </NButton>
-                  <NButton v-if="item.matched_chunk_ids && item.matched_chunk_ids.length > 0" size="tiny"
-                    @click="loadChunks(item.matched_chunk_ids, item.matched_keywords)">
+                  <NButton
+                    v-if="item.matched_chunk_ids && item.matched_chunk_ids.length > 0" size="tiny"
+                    @click="loadChunks(item.matched_chunk_ids, item.matched_keywords)"
+                  >
                     {{ t('common.matchedSegments', { count: item.matched_chunk_ids.length }) }}
                   </NButton>
                   <NButton size="tiny" @click="similarModalRef?.findSimilars(item.file_info)">
@@ -395,8 +416,10 @@ onUnmounted(() => {
       </NImageGroup>
     </div>
     <HowToUse v-if="searchResults.length === 0" />
-    <NModal v-model:show="showContentModal" preset="card" :title="t('indexer.parsedContent')"
-      style="width: 80%; height:80%;">
+    <NModal
+      v-model:show="showContentModal" preset="card" :title="t('indexer.parsedContent')"
+      style="width: 80%; height:80%;"
+    >
       <div style="max-height: 600px;overflow-y: auto;" class="select-text">
         <div v-if="parsedContent">
           {{ parsedContent }}
@@ -406,15 +429,17 @@ onUnmounted(() => {
         </div>
       </div>
     </NModal>
-    <NModal v-model:show="showChunksModal" preset="card" :title="t('common.matchedSegments')"
-      style="width: 80%; height:80%;">
+    <NModal
+      v-model:show="showChunksModal" preset="card" :title="t('common.matchedSegments')"
+      style="width: 80%; height:80%;"
+    >
       <div style="max-height: 600px;overflow-y: auto;" class="select-text">
         <div v-if="matchChunks.length > 0">
           <div v-for="(chunk, index) in matchChunks" :key="index" class="mb-4">
             <div class="mb-2">
               <strong>{{ t('common.segment') }} {{ index + 1 }}:</strong>
             </div>
-            <div v-html="chunk"></div>
+            <div v-html="chunk" />
           </div>
         </div>
         <div v-else>
