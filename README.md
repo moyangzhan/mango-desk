@@ -355,8 +355,8 @@ The multi-device feature relies on the mDNS protocol for device discovery. The f
    - Solution: Ensure all devices are connected to the same subnet
 
 4. **Port Already in Use**
-   - The default port 7890 is occupied by another program
-   - Mango Finder will try fallback ports (17890, 17891, 17892), but ensure at least one port is available
+   - The default port 15678 is occupied by another program
+   - Solution: Change to a different port in Multi-Device Settings
 
 #### Diagnostic Steps
 
