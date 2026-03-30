@@ -5,6 +5,7 @@ function getInitialState(): AppState {
   return {
     theme: theme || 'light',
     locale: 'en-US',
+    clusterPortError: null,
   }
 }
 
@@ -12,6 +13,7 @@ export const useAppStore = defineStore('app-store', {
   state: (): AppState => getInitialState(),
   getters: {
     getTheme: state => state.theme,
+    getClusterPortError: state => state.clusterPortError,
   },
   actions: {
     changeTheme() {
@@ -20,6 +22,12 @@ export const useAppStore = defineStore('app-store', {
     },
     setLocale(locale: string) {
       this.locale = locale
+    },
+    setClusterPortError(error: { port: number } | null) {
+      this.clusterPortError = error
+    },
+    clearClusterPortError() {
+      this.clusterPortError = null
     },
   },
 })

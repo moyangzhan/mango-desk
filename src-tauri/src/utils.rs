@@ -13,4 +13,5 @@ pub mod llm_client_util;
 pub mod path_util;
 pub mod search_util;
 pub mod text_util;
+pub mod url_util;
 pub mod vector_util;

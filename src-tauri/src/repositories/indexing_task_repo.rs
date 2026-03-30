@@ -88,7 +88,7 @@ pub fn update(entity: &IndexingTask) -> Result<usize, RepositoryError> {
        ":remark": &entity.remark,
        ":config_json": &entity.config_json,
     })?;
-    println!("update indexing_task affected: {:?}", affected);
+    log::debug!("update indexing_task affected: {:?}", affected);
     Ok(affected)
 }
 
@@ -101,7 +101,7 @@ pub fn update_status(id: i64, status: &str, remark: &str) -> Result<usize, Repos
         ":status": status,
         ":remark": remark,
     })?;
-    println!("update indexing_task affected: {:?}", affected);
+    log::debug!("update indexing_task affected: {:?}", affected);
     Ok(affected)
 }
 
@@ -127,7 +127,7 @@ pub fn update_cnt(
         ":content_indexed_skipped_cnt": &skipped_cnt,
         ":duration": &duration,
     })?;
-    println!("update indexing_task affected: {:?}", affected);
+    log::debug!("update indexing_task affected: {:?}", affected);
     Ok(affected)
 }
 
@@ -179,7 +179,7 @@ pub fn delete_by_id(id: i64) -> Result<usize, RepositoryError> {
     let affected = stmt.execute(named_params! {
         ":id": &id,
     })?;
-    println!("delete indexing_task affected: {:?}", affected);
+    log::debug!("delete indexing_task affected: {:?}", affected);
     Ok(affected)
 }
 

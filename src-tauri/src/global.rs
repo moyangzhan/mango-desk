@@ -18,7 +18,7 @@ use std::sync::{Arc, LazyLock, OnceLock};
 use tauri::AppHandle;
 use tokio::sync::RwLock as AsyncRwLock;
 
-pub const DB_VERSION: i32 = 2;
+pub const DB_VERSION: i32 = 3;
 pub const DEFAULT_PAGE_SIZE: usize = 20;
 pub const HUGGINFACE_WEBSITE: &str = "https://huggingface.co";
 pub const HUGGINFACE_MIRROR: &str = "https://hf-mirror.com";
@@ -179,6 +179,20 @@ pub const IGNORE_HIDDEN_FILES: bool = true;
 
 pub const TRAY_ID: &'static str = "main";
 pub static UI_MOUNTED: AtomicBool = AtomicBool::new(false);
+
+/// Test mode for simulating remote devices
+/// When enabled, remote device search returns mock data instead of making real network requests
+///
+/// Usage:
+/// - `true`: Mock devices are added to device list, returns simulated search/similar results
+/// - `false` (default): Real network requests to paired devices only
+///
+/// To toggle from frontend console:
+/// - Enable:  `await window.__TAURI__.invoke('toggle_test_mode', { enabled: true })`
+/// - Disable: `await window.__TAURI__.invoke('toggle_test_mode', { enabled: false })`
+/// - Check:   `await window.__TAURI__.invoke('get_test_mode')`
+///
+pub static TEST_MODE_REMOTE_DEVICE: AtomicBool = AtomicBool::new(false);
 
 pub static PATHS_CACHE: LazyLock<AsyncRwLock<Vec<String>>> =
     LazyLock::new(|| AsyncRwLock::new(vec![]));

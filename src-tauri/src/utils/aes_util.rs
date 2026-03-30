@@ -30,11 +30,16 @@ pub fn aes_decrypt(ciphertext: &[u8], key: &[u8], iv: &[u8]) -> Vec<u8> {
     let decrypted_text = match Aes128CbcDec::new_from_slices(key, iv) {
         Ok(decryptor) => {
             buffer.copy_from_slice(&ciphertext);
-            let decrypted = decryptor.decrypt_padded_mut::<Pkcs7>(&mut buffer).unwrap();
-            decrypted
+            match decryptor.decrypt_padded_mut::<Pkcs7>(&mut buffer) {
+                Ok(decrypted) => decrypted,
+                Err(e) => {
+                    log::error!("Decryption failed: {}", e);
+                    return vec![];
+                }
+            }
         }
         Err(e) => {
-            eprintln!("Failed to create decryptor: {}", e);
+            log::error!("Failed to create decryptor: {}", e);
             return vec![];
         }
     };

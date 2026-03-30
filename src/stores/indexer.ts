@@ -22,7 +22,7 @@ export const useIndexerStore = defineStore('indexer-store', {
       this.indexerSetting.save_parsed_content.image = value
     },
     setAudioParsedContent(value: boolean) {
-      this.indexerSetting.save_parsed_content.video = value
+      this.indexerSetting.save_parsed_content.audio = value
     },
     setIndexProcessing(value: boolean) {
       this.indexProcessing = value

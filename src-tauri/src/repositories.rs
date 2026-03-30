@@ -1,11 +1,13 @@
 pub mod ai_model_repo;
 pub mod config_repo;
+pub mod device_repo;
 pub mod file_content_embedding_repo;
 pub mod file_content_fts_repo;
 pub mod file_info_repo;
 pub mod file_metadata_embedding_repo;
 pub mod indexing_task_repo;
 pub mod model_platform_repo;
+pub mod pairing_request_repo;
 pub mod self_hosted_platform_repo;
 
 use crate::errors::AppError;
@@ -21,6 +23,12 @@ pub enum RepositoryError {
     Database(rusqlite::Error),
     #[error("Invalid parameter: {0}")]
     InvalidParam(String),
+    #[error("Database connection error: {0}")]
+    DbConnection(String),
+    #[error("Not found: {0}")]
+    NotFound(String),
+    #[error("Invalid operation: {0}")]
+    InvalidOperation(String),
 }
 
 impl From<chrono::ParseError> for RepositoryError {
@@ -55,6 +63,9 @@ impl From<RepositoryError> for rusqlite::Error {
                 rusqlite::types::Type::Text,
             ),
             RepositoryError::InvalidParam(msg) => rusqlite::Error::InvalidParameterName(msg),
+            RepositoryError::DbConnection(msg) => rusqlite::Error::InvalidParameterName(msg),
+            RepositoryError::NotFound(msg) => rusqlite::Error::InvalidParameterName(msg),
+            RepositoryError::InvalidOperation(msg) => rusqlite::Error::InvalidParameterName(msg),
         }
     }
 }

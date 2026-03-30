@@ -161,9 +161,9 @@ onMounted(async () => {
       <div class="flex flex-col">
         <NFormItem :label="t('common.language')">
           <div class="flex flex-col space-y-1">
-            <NTag type="warning">
+            <AppTag type="warning">
               {{ t('common.languageSettingWarning') }}
-            </NTag>
+            </AppTag>
             <NRadioGroup :value="activeLanguage" @update:value="handleLanguageChanged">
               <NRadio :label="t('common.english')" value="en-US" class="mr-2" />
               <NRadio :label="t('common.chinese')" value="zh-CN" />
@@ -184,23 +184,23 @@ onMounted(async () => {
         <div>{{ t('indexer.dataPath') }}: {{ dataPath }}</div>
         <NAlert v-if="needRestart" type="warning">
           {{ t('common.restartAppForChange') }}
-          <NButton type="primary" text @click="restart">
+          <NButton text type="primary" class="text-link" @click="restart">
             {{
               t('common.clickToRestart') }}
           </NButton>
         </NAlert>
         <div class="flex space-x-2">
           <div class="mr-2">
-            <NButton :disabled="dataCopying" :loading="dataCopying" @click="openDirDialog">
+            <NButton ghost :disabled="dataCopying" :loading="dataCopying" @click="openDirDialog">
               <span>{{ t('common.change') }}</span>
             </NButton>
           </div>
           <div class="mr-2">
-            <NButton :disabled="dataCopying" :loading="dataCopying" @click="resetDataPath">
+            <NButton ghost :disabled="dataCopying" :loading="dataCopying" @click="resetDataPath">
               {{ t('common.reset') }}
             </NButton>
           </div>
-          <NButton :disabled="dataCopying" :loading="dataCopying" @click="openDataPath">
+          <NButton ghost :disabled="dataCopying" :loading="dataCopying" @click="openDataPath">
             {{ t('common.open') }}
           </NButton>
         </div>
@@ -220,7 +220,7 @@ onMounted(async () => {
           <NInputNumber v-model:value="proxy.port" />
         </NFormItem>
         <div>
-          <NButton @click="handleSaveProxy">
+          <NButton ghost @click="handleSaveProxy">
             {{ t('common.save') }}
           </NButton>
         </div>

@@ -67,3 +67,19 @@ body.dark {
     background-color: #213547;
   }
 }
+
+/* 链接样式 - 用于可点击标题和文字链接 */
+.text-link {
+  @apply cursor-pointer hover:underline;
+  color: var(--primary-color);
+}
+
+.text-link:hover {
+  filter: brightness(0.85);
+}
+
+/* 标签基础样式 - 配合 NTag 使用 */
+/* 用法: <NTag size="tiny/small" :bordered="false" round class="tag"> */
+.tag {
+  font-weight: 500;
+}

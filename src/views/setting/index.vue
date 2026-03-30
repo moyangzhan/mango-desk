@@ -2,29 +2,27 @@
 import { useRoute } from 'vue-router'
 import CommonSetting from './CommonSetting.vue'
 import IndexerSetting from './IndexerSetting.vue'
+import ClusterSetting from './ClusterSetting.vue'
 import About from './About.vue'
 import { useSettingStore } from '@/stores/setting'
 import { t } from '@/locales'
 
 const route = useRoute()
 const settingStore = useSettingStore()
+
 const activeTab = computed(() => {
   return settingStore.activeTab
 })
 
-if (route.query.tab) {
-  console.log('route.query.tab', route.query.tab)
-  settingStore.changeTab(route.query.tab as string)
-}
+// Watch route query changes to switch tab
+watch(() => route.query.tab, (tab) => {
+  if (tab)
+    settingStore.changeTab(tab as string)
+}, { immediate: true })
 
 function onUpdateTab(tabName: string) {
-  console.log('onUpdateTab', tabName)
   settingStore.changeTab(tabName)
 }
-
-onMounted(async () => {
-  console.log('Settings onMounted')
-})
 </script>
 
 <template>
@@ -38,6 +36,9 @@ onMounted(async () => {
       </NTabPane>
       <NTabPane name="indexer" display-directive="show" :tab="t('indexer.setting')">
         <IndexerSetting />
+      </NTabPane>
+      <NTabPane name="cluster" display-directive="show" :tab="t('cluster.title')">
+        <ClusterSetting />
       </NTabPane>
       <NTabPane name="about" :tab="t('menu.about')">
         <About />

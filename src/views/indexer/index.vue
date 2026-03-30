@@ -66,8 +66,8 @@ onMounted(() => {
     <NCard :title="t('indexer.indexer')" class="mb-2">
       <FileSelector @indexing-finish="indexingFinish" @indexing-stop="indexingFinish" />
       <div class="flex justify-end mt-4">
-        <NButton type="primary" text @click="showTasks = true">
-          <span class="hover:underline">{{ t('indexer.indexingTaskHistory') }}</span>
+        <NButton text type="primary" class="text-link" @click="showTasks = true">
+          {{ t('indexer.indexingTaskHistory') }}
         </NButton>
       </div>
     </NCard>

@@ -2,7 +2,7 @@
 import { AttachFileOutlined, DeleteOutlined, FolderOutlined } from '@vicons/material'
 import { open } from '@tauri-apps/plugin-dialog'
 import { invoke } from '@tauri-apps/api/core'
-import { listen } from '@tauri-apps/api/event'
+import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { emptyWatchSetting } from '@/utils/functions'
 import { useIndexerStore } from '@/stores/indexer'
 import { t } from '@/locales'
@@ -18,6 +18,9 @@ const watchSetting = ref<WatchSetting>(emptyWatchSetting())
 const message = useMessage()
 const indexingTitle = ref('')
 const indexingMsg = ref('')
+
+// Store unlisten functions for cleanup
+const unlistenFns: UnlistenFn[] = []
 
 async function openDirDialog() {
   // Replace browser's native input with Tauri dialog
@@ -75,28 +78,50 @@ async function removePath(path: string) {
   console.log('remove path', resp)
 }
 
-listen<string>('watcher-indexing', (eventObj) => {
-  const payload = JSON.parse(eventObj.payload) as IndexingEvent
-  console.log('watcher-indexing', payload)
-  indexingTitle.value = payload.event.toUpperCase()
-  indexingMsg.value = payload.data.msg
-  switch (payload.event) {
-    case 'start':
-      indexerStore.setWatcherProcessing(true)
-      break
-    case 'scan':
-      break
-    case 'embed':
-      break
-    case 'finish':
-      emit('indexingFinish')
-      indexerStore.setWatcherProcessing(false)
-      break
-    case 'stop':
-      emit('indexingStop')
-      indexerStore.setWatcherProcessing(false)
-      break
-  }
+// Setup event listeners with cleanup
+onMounted(async () => {
+  // Load config
+  invoke('load_config_value', { configName: 'fs_watcher_setting' }).then((resp) => {
+    try {
+      const str = resp as string
+      const parsed = JSON.parse(str)
+      watchSetting.value = parsed as WatchSetting
+      console.log('load file watcher setting', watchSetting.value)
+    } catch (e) {
+      console.error('Failed to parse watcher setting:', e)
+    }
+  })
+
+  // Setup event listener
+  const unlisten = await listen<string>('watcher-indexing', (eventObj) => {
+    const payload = JSON.parse(eventObj.payload) as IndexingEvent
+    console.log('watcher-indexing', payload)
+    indexingTitle.value = payload.event.toUpperCase()
+    indexingMsg.value = payload.data.msg
+    switch (payload.event) {
+      case 'start':
+        indexerStore.setWatcherProcessing(true)
+        break
+      case 'scan':
+        break
+      case 'embed':
+        break
+      case 'finish':
+        emit('indexingFinish')
+        indexerStore.setWatcherProcessing(false)
+        break
+      case 'stop':
+        emit('indexingStop')
+        indexerStore.setWatcherProcessing(false)
+        break
+    }
+  })
+  unlistenFns.push(unlisten)
+})
+
+// Cleanup event listeners on unmount
+onUnmounted(() => {
+  unlistenFns.forEach(unlisten => unlisten())
 })
 
 async function reindexing() {
@@ -126,15 +151,6 @@ async function reindexing() {
     window.$message.error(e)
   }
 }
-
-onMounted(async () => {
-  invoke('load_config_value', { configName: 'fs_watcher_setting' }).then((resp) => {
-    const str = resp as string
-    const parsed = JSON.parse(str)
-    watchSetting.value = parsed as WatchSetting
-    console.log('load file watcher setting', watchSetting.value)
-  })
-})
 </script>
 
 <template>
@@ -151,18 +167,19 @@ onMounted(async () => {
         class="mb-2 flex justify-between"
       >
         <div class="flex-1">
-          <NButton ghost @click="openDirDialog">
+          <NButton ghost size="small" @click="openDirDialog">
             {{ t('common.selectFolder')
             }}
           </NButton>
-          <NButton ghost style="margin-left: 8px" @click="openFileDialog">
+          <NButton ghost size="small" style="margin-left: 8px" @click="openFileDialog">
             {{ t('common.selectFile')
             }}
           </NButton>
         </div>
         <div>
           <NButton
-            ghost style="margin-right: 6px"
+            ghost size="small"
+            style="margin-right: 6px"
             :disabled="(watchSetting.directories.length === 0 && watchSetting.files.length === 0) || indexerStore.watcherProcessing"
             @click="reindexing"
           >
@@ -176,18 +193,14 @@ onMounted(async () => {
         </span>
         <div class="flex space-x-2">
           <div class="mx-2">
-            <NButton text @click="openDirDialog">
-              <NText type="success" underline>
-                {{ t('common.selectFolder')
-                }}
-              </NText>
+            <NButton text type="primary" class="text-link" @click="openDirDialog">
+              {{ t('common.selectFolder')
+              }}
             </NButton>
           </div>
-          <NButton text @click="openFileDialog">
-            <NText type="success" underline>
-              {{ t('common.selectFile')
-              }}
-            </NText>
+          <NButton text type="primary" class="text-link" @click="openFileDialog">
+            {{ t('common.selectFile')
+            }}
           </NButton>
         </div>
       </div>
@@ -201,7 +214,7 @@ onMounted(async () => {
                 </NIcon>
                 <span class="truncate max-w-xs" :title="item">{{ item }}</span>
               </div>
-              <NButton quaternary icon-placement="right" size="tiny" @click="removePath(item)">
+              <NButton ghost icon-placement="right" size="tiny" @click="removePath(item)">
                 <template #icon>
                   <DeleteOutlined />
                 </template>
@@ -219,7 +232,7 @@ onMounted(async () => {
                 </NIcon>
                 <span class="truncate max-w-xs" :title="item">{{ item }}</span>
               </div>
-              <NButton quaternary icon-placement="right" size="tiny" @click="removePath(item)">
+              <NButton ghost icon-placement="right" size="tiny" @click="removePath(item)">
                 <template #icon>
                   <DeleteOutlined />
                 </template>

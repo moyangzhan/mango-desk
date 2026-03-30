@@ -24,7 +24,7 @@ pub fn insert(
         let last_insert_rowid = stmt.insert(named_params! {
             ":embedding": &embedding_bytes,
         })?;
-        println!(
+        log::debug!(
             "file_content_embedding_repo.insert() last_insert_rowid: {}",
             last_insert_rowid
         );
@@ -46,7 +46,7 @@ pub fn insert(
                 Ok(Some(build_file_content_embedding(row)?))
             })
             .unwrap_or_else(|e| {
-                println!("file_content_embedding_repo.insert() Error: {}", e);
+                log::debug!("file_content_embedding_repo.insert() Error: {}", e);
                 None
             });
 
@@ -70,7 +70,7 @@ pub fn update(file_content_embedding: &FileContentEmbedding) -> Result<usize, Re
         ":id": &file_content_embedding.id,
         ":embedding": embedding_bytes,
     })?;
-    println!("update file_content_vec affected: {:?}", affected);
+    log::debug!("update file_content_vec affected: {:?}", affected);
     Ok(affected)
 }
 
@@ -90,8 +90,8 @@ pub fn hybrid_search(
             dense_embedding.len() * std::mem::size_of::<f32>(),
         )
     };
-    println!(
-        "content hybrid_search, query_sparse_indices: {:?},query_sparse_values: {:?}, min_score: {}",
+    log::debug!(
+        "content hybrid_search, query_sparse_indices: {:?}, query_sparse_values: {:?}, min_score: {}",
         query_sparse_indices, query_sparse_values, min_score
     );
     let conn = Connection::open(get_db_path())?;
@@ -119,11 +119,11 @@ pub fn hybrid_search(
             score: calculate_content_score(distance, sparse_score, is_short_query),
         })
     })?;
-    println!("Raw search results count: {}", rows.size_hint().0);
+    log::debug!("Raw search results count: {}", rows.size_hint().0);
     let filtered_result = rows
         .filter_map(|res| match res {
             Ok(fce) => {
-                println!(
+                log::debug!(
                     "Raw Search Result - file_id: {}, chunk_id: {}, distance: {}, sparse_score: {}, score: {}",
                     fce.file_id, fce.chunk_index, fce.distance, fce.sparse_score, fce.score
                 );
@@ -141,7 +141,7 @@ pub fn hybrid_search(
                 Some(fce)
             }
             Err(e) => {
-                eprintln!("Error retrieving file embedding: {}", e);
+                log::error!("Error retrieving file embedding: {}", e);
                 None
             }
         })
@@ -171,7 +171,7 @@ pub fn list_chunks_by_ids(ids: &Vec<u32>) -> Result<Vec<String>, RepositoryError
     for row_result in rows {
         match row_result {
             Ok(chunk_text) => segments.push(chunk_text),
-            Err(e) => eprintln!("Error retrieving chunk text: {}", e),
+            Err(e) => log::error!("Error retrieving chunk text: {}", e),
         }
     }
     Ok(segments)

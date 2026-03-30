@@ -28,6 +28,7 @@ export function emptyIndexerSetting(): IndexerSetting {
     ignore_dirs: [] as string[],
     ignore_exts: [] as string[],
     ignore_files: [] as string[],
+    ignore_path_prefixes: [] as string[],
     save_parsed_content: {
       document: false,
       image: true,

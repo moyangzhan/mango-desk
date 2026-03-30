@@ -46,13 +46,13 @@ onMounted(async () => {
         {{ t('about.moreDetail') }}
       </div>
       <div>
-        <NButton text @click="openUrl('https://github.com/moyangzhan/mango-finder')">
+        <NButton text type="primary" class="text-link" @click="openUrl('https://github.com/moyangzhan/mango-finder')">
           <template #icon>
             <NIcon>
               <LogoGithub />
             </NIcon>
           </template>
-          <span class="hover:underline text-xs">MangoFinder on GitHub</span>
+          <span class="text-xs">MangoFinder on GitHub</span>
         </NButton>
       </div>
       <div class="text-xs mt-2 flex flex-col space-y-2">

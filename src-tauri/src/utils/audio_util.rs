@@ -308,6 +308,48 @@ pub struct MusicFingerprint {
     pub tempo_estimate: f32,
 }
 
+impl MusicFingerprint {
+    /// Convert fingerprint to bytes for database storage
+    /// 将指纹转换为字节数组用于数据库存储
+    /// Total: 20 f32 values = 80 bytes
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::with_capacity(80);
+        for &v in &self.spectral_histogram {
+            bytes.extend_from_slice(&v.to_le_bytes());
+        }
+        for &v in &self.energy_bands {
+            bytes.extend_from_slice(&v.to_le_bytes());
+        }
+        bytes.extend_from_slice(&self.avg_zcr.to_le_bytes());
+        bytes.extend_from_slice(&self.tempo_estimate.to_le_bytes());
+        bytes
+    }
+
+    /// Convert bytes from database to fingerprint
+    /// 将数据库字节数组转换为指纹
+    pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
+        if bytes.len() != 80 {
+            return None;
+        }
+        let mut spectral_histogram = [0.0f32; 10];
+        let mut energy_bands = [0.0f32; 8];
+        for i in 0..10 {
+            spectral_histogram[i] = f32::from_le_bytes(bytes[i * 4..(i + 1) * 4].try_into().ok()?);
+        }
+        for i in 0..8 {
+            energy_bands[i] = f32::from_le_bytes(bytes[40 + i * 4..40 + (i + 1) * 4].try_into().ok()?);
+        }
+        let avg_zcr = f32::from_le_bytes(bytes[72..76].try_into().ok()?);
+        let tempo_estimate = f32::from_le_bytes(bytes[76..80].try_into().ok()?);
+        Some(MusicFingerprint {
+            spectral_histogram,
+            energy_bands,
+            avg_zcr,
+            tempo_estimate,
+        })
+    }
+}
+
 /// Extract music fingerprint from audio samples
 /// 从音频采样中提取音乐指纹
 pub fn extract_music_fingerprint(samples: &[f32]) -> MusicFingerprint {

@@ -15,7 +15,7 @@ pub fn get_one(config_name: &str) -> Result<Option<Config>, RepositoryError> {
     }) {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("get one error, config_name:{}, error: {}", config_name, e);
+            log::debug!("get one error, config_name: {}, error: {}", config_name, e);
             return Ok(None);
         }
     };
@@ -26,21 +26,21 @@ pub fn get_val(config_name: &str) -> String {
     let conn = match Connection::open(get_db_path()) {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("Failed to open db: {}", e);
+            log::error!("Failed to open db: {}", e);
             return "".to_string();
         }
     };
     let mut stmt = match conn.prepare("select value from config where name = ?1 limit 1") {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("Failed to prepare stmt: {}", e);
+            log::error!("Failed to prepare stmt: {}", e);
             return "".to_string();
         }
     };
     let config = match stmt.query_row([config_name], |row| Ok(row.get(0)?)) {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("Failed to query map: {}", e);
+            log::debug!("Failed to query map: {}", e);
             return "".to_string();
         }
     };
@@ -65,6 +65,35 @@ pub fn update_by_name(config_name: &str, new_value: &str) -> Result<usize, Repos
     let conn = Connection::open(get_db_path())?;
     let mut stmt = conn.prepare("update config set value = ?1 where name = ?2")?;
     let affected = stmt.execute([new_value, config_name])?;
+    Ok(affected)
+}
+
+/// Get config value as Option<String>
+pub fn get_value(config_name: &str) -> Result<Option<String>, String> {
+    let conn = Connection::open(get_db_path())
+        .map_err(|e| format!("Failed to open db: {}", e))?;
+    let mut stmt = conn
+        .prepare("select value from config where name = ?1 limit 1")
+        .map_err(|e| format!("Failed to prepare stmt: {}", e))?;
+    let result = stmt.query_row([config_name], |row| {
+        let value: String = row.get(0)?;
+        Ok(value)
+    });
+    match result {
+        Ok(value) => Ok(Some(value)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(format!("Failed to query: {}", e)),
+    }
+}
+
+/// Save or update a config value (upsert)
+/// 保存或更新配置值（upsert）
+pub fn upsert(config_name: &str, config_value: &str) -> Result<usize, RepositoryError> {
+    let conn = Connection::open(get_db_path())?;
+    let mut stmt = conn.prepare(
+        "INSERT INTO config (name, value) VALUES (?1, ?2) ON CONFLICT(name) DO UPDATE SET value = ?2"
+    )?;
+    let affected = stmt.execute([config_name, config_value])?;
     Ok(affected)
 }
 

@@ -1,33 +1,43 @@
-import { NButton, NTooltip } from 'naive-ui'
-import type { DataTableBaseColumn, DataTableColumns } from 'naive-ui'
-import type { VNode, VNodeChild } from 'vue'
+import type { DataTableColumns } from 'naive-ui'
 import { t } from '@/locales'
 
-function renderTooltip(trigger: VNode, content: string): VNodeChild {
-  return h(NTooltip, null, {
-    trigger: () => trigger,
-    default: () => content,
-  })
-}
-
-export const getFileColumns = (openFn: (path: string) => void, deleteFn: (id: number) => void): DataTableColumns<FileInfo> => {
+export const getFileColumns = (
+  openFn: (path: string) => void,
+): DataTableColumns<FileInfo> => {
   return [
+    {
+      type: 'selection' as const,
+      fixed: 'left' as const,
+    },
     {
       title: 'ID',
       key: 'id',
       width: 70,
       fixed: 'left' as const,
+      sorter: true,
     },
     {
       title: () => t('common.name'),
       key: 'name',
       width: 150,
       fixed: 'left' as const,
+      sorter: true,
+      render(row: FileInfo) {
+        return h(
+          'span',
+          {
+            class: 'text-link truncate block',
+            onClick: () => openFn(row.path),
+          },
+          { default: () => row.name },
+        )
+      },
     },
     {
       title: () => t('common.category'),
       key: 'category',
       width: 100,
+      sorter: true,
       render(row: FileInfo) {
         let category = ''
         switch (row.category) {
@@ -54,39 +64,19 @@ export const getFileColumns = (openFn: (path: string) => void, deleteFn: (id: nu
     {
       title: () => t('common.path'),
       key: 'path',
-      // render(row: FileInfo) {
-      //   return h(
-      //     NDropdown,
-      //     {
-      //       text: true,
-      //       size: 'small',
-      //       placement: "bottom-start",
-      //       trigger: 'hover',
-      //       options: options,
-      //       onSelect: handleSelect,
-      //     },
-      //     {
-      //       default: () => [
-      //         h(
-      //           'div',
-      //           {
-      //           },
-      //           { default: () => row.path },
-      //         ),
-      //       ]
-      //     },
-      //   )
-      // }
+      sorter: true,
     },
     {
       title: () => t('common.extension'),
       key: 'file_ext',
       width: 100,
+      sorter: true,
     },
     {
       title: () => t('common.fileSize'),
       key: 'file_size',
       width: 100,
+      sorter: true,
       render(row: FileInfo) {
         if (row.file_size > 1024 * 1024 * 1024)
           return `${Math.floor(row.file_size / (1024 * 1024 * 1024))}G`
@@ -101,67 +91,26 @@ export const getFileColumns = (openFn: (path: string) => void, deleteFn: (id: nu
     {
       title: () => t('common.contentIndexStatus'),
       key: 'content_index_status_msg',
-      width: 120,
+      width: 130,
+      sorter: true,
     },
     {
       title: () => t('common.metadataIndexStatus'),
       key: 'meta_index_status_msg',
-      width: 130,
+      width: 150,
+      sorter: true,
     },
     {
       title: () => t('common.fileCreateTime'),
       key: 'file_create_time',
-      width: 120,
+      width: 130,
+      sorter: true,
     },
     {
       title: () => t('common.fileUpdateTime'),
       key: 'file_update_time',
-      width: 120,
-    },
-    {
-      title: (_column: DataTableBaseColumn<FileInfo>) => {
-        return renderTooltip(
-          h(
-            'span',
-            {
-            },
-            { default: () => `${t('common.action')}❔` },
-          ),
-          t('common.removeTip'),
-        )
-      },
-      key: 'actions',
-      width: 100,
-      render(row: FileInfo) {
-        return h(
-          'div',
-          { class: 'flex flex-col' },
-          {
-            default: () => [
-              h(
-                NButton,
-                {
-                  ghost: true,
-                  size: 'tiny',
-                  style: 'margin-bottom: 8px',
-                  onClick: () => openFn(row.path),
-                },
-                { default: () => t('common.open') },
-              ),
-              h(
-                NButton,
-                {
-                  ghost: true,
-                  size: 'tiny',
-                  type: 'error',
-                  onClick: () => deleteFn(row.id),
-                },
-                { default: () => t('common.remove') },
-              ),
-            ],
-          },
-        )
-      },
+      width: 130,
+      sorter: true,
     },
   ]
 }

@@ -105,7 +105,7 @@ impl FsEventNormalizer {
             }
 
             EventKind::Remove(remove_kind) => {
-                println!("remove_kind: {:?}", remove_kind);
+                log::debug!("remove_kind: {:?}", remove_kind);
                 for p in event.paths {
                     let is_file = match remove_kind {
                         notify::event::RemoveKind::File => true,

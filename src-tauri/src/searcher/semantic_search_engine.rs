@@ -31,7 +31,7 @@ pub async fn warmup_embedding_service() -> Result<(), AppError> {
 }
 
 pub async fn search(query: &str) -> Vec<SearchResult> {
-    println!("Search: {}", query);
+    log::debug!("Search: {}", query);
     let start = Instant::now();
     let embed_result = {
         let mut manager = get_manager().write().await;
@@ -84,11 +84,11 @@ pub async fn search(query: &str) -> Vec<SearchResult> {
         },
     )
     .unwrap_or_else(|error| {
-        println!("error: {:?}", error);
+        log::error!("Search error: {:?}", error);
         (vec![], vec![], vec![])
     });
     let result = merge_and_filter_results(content_result, meta_result, fts_result);
-    println!("cost: {:?}", start.elapsed());
+    log::debug!("Search cost: {:?}", start.elapsed());
     result
 }
 
@@ -105,7 +105,7 @@ fn merge_and_filter_results(
 
     // 1. 处理内容路结果 | Process content search results
     for item in content_result {
-        println!(
+        log::debug!(
             "Content Search - file_id: {}, chunk_id: {}, score: {}",
             item.file_id, item.chunk_index, item.score
         );
@@ -125,7 +125,7 @@ fn merge_and_filter_results(
 
     // 2. 处理元数据路结果 (赋予 1.1 倍的加成) | Process metadata results (apply 1.1x boost)
     for item in meta_result {
-        println!(
+        log::debug!(
             "Meta Search - file_id: {}, score: {}, distance: {}, sparse_score: {}",
             item.file_id, item.score, item.distance, item.sparse_score
         );
@@ -157,7 +157,7 @@ fn merge_and_filter_results(
         });
         entry.hit_types.insert(HitType::ContentKeyword);
         for match_keyword in item.matched_keywords {
-            println!(
+            log::debug!(
                 "FTS Search - file_id: {}, keyword: {}",
                 item.file_info.id, match_keyword
             );
@@ -192,7 +192,7 @@ fn merge_and_filter_results(
     let file_ids: Vec<i64> = tmps.iter().map(|t| t.file_id).collect();
     let file_infos = file_info_repo::list_by_ids(&file_ids).unwrap_or_default();
     if file_infos.is_empty() {
-        println!("file_infos is empty");
+        log::debug!("file_infos is empty");
         return Vec::new();
     }
 
@@ -213,6 +213,7 @@ fn merge_and_filter_results(
                 matched_keywords: tmp.match_keywords.into_iter().collect(),
                 matched_chunk_ids: tmp.chunk_ids.into_iter().collect(),
                 similarity_type: None,
+                source_device: None,
             })
         })
         .collect()

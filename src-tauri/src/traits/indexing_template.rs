@@ -24,7 +24,7 @@ pub trait IndexingTemplate {
         let mut loop_count = 0;
         let limit = 1000;
         let total = file_info_repo::count_unindexed_files(self.category().value())?;
-        println!("Total documents to index: {}", total);
+        log::info!("Total {:?} files to index: {}", self.category(), total);
         if total == 0 {
             return Ok(());
         }
@@ -32,11 +32,11 @@ pub trait IndexingTemplate {
         indexing_task_util::set_total_by_category(self.category(), total).await;
         'outer: loop {
             if loop_count > max_loop {
-                println!("Max loop reached, exiting...");
+                log::warn!("Max loop reached, exiting...");
                 break;
             }
             if STOP_INDEX_SIGNAL.load(Ordering::SeqCst) {
-                println!("stopping indexing process");
+                log::info!("Stopping indexing process");
                 frontend_util::send_event(
                     &event_name,
                     &IndexingEvent::Stop {
@@ -46,8 +46,8 @@ pub trait IndexingTemplate {
                 );
                 break;
             }
-            println!(
-                "list_unindexed_files by min_id: {},category:{}",
+            log::debug!(
+                "list_unindexed_files by min_id: {}, category: {:?}",
                 min_id,
                 self.category()
             );
@@ -55,11 +55,10 @@ pub trait IndexingTemplate {
             let file_infos =
                 file_info_repo::list_unindexed_files(min_id, limit, self.category().value())?;
             if file_infos.is_empty() {
-                println!("No documents");
                 break;
             }
             loop_count += 1;
-            println!("Found {} documents to index.", file_infos.len());
+            log::debug!("Found {} files to index in batch {}", file_infos.len(), loop_count);
             min_id = file_infos
                 .iter()
                 .map(|info| info.id)
@@ -67,12 +66,12 @@ pub trait IndexingTemplate {
                 .unwrap_or(min_id + 1000);
             for file_info in file_infos {
                 if STOP_INDEX_SIGNAL.load(Ordering::SeqCst) {
-                    println!("Indexing process interrupted by stop signal");
+                    log::info!("Indexing process interrupted by stop signal");
                     break 'outer;
                 }
                 indexing_task_util::processed_incr(self.category(), 1).await;
                 if !Path::new(&file_info.path).exists() {
-                    println!("File not exist: {}", file_info.path);
+                    log::debug!("File not exist: {}", file_info.path);
                     indexing_task_util::failed_incr(self.category(), 1).await;
                     file_info_repo::delete_by_id(file_info.id)?;
                     file_content_fts_repo::delete_by_file_id(file_info.id)?;
@@ -88,7 +87,7 @@ pub trait IndexingTemplate {
                     },
                 );
                 if let Err(error) = self.embedding_one_file(&file_info).await {
-                    println!("Embedding failed: {}", error.to_string());
+                    log::warn!("Embedding failed: {}", error);
                     indexing_task_util::failed_incr(self.category(), 1).await;
                 }
             }
@@ -109,10 +108,19 @@ pub trait IndexingTemplate {
         // Detect audio type for audio files based on transcription content
         // 根据转录内容检测音频类型
         if self.category() == &FileCategory::Audio {
-            use crate::utils::audio_util::detect_audio_type;
+            use crate::structs::file_metadata::AudioType;
+            use crate::utils::audio_util::{detect_audio_type, extract_music_fingerprint_from_file};
             let audio_type = detect_audio_type(&filtered_content, &file_info.path);
             file_meta.audio_type = Some(audio_type.into());
             let _ = file_info_repo::update_audio_type(file_id, audio_type.into());
+
+            // Extract and store audio fingerprint for music files (for music similarity search)
+            // 为音乐文件提取并存储音频指纹（用于音乐相似性搜索）
+            if matches!(audio_type, AudioType::Music | AudioType::Mixed) {
+                if let Some(fingerprint) = extract_music_fingerprint_from_file(&file_info.path) {
+                    let _ = file_info_repo::update_audio_fingerprint(file_id, &fingerprint.to_bytes());
+                }
+            }
         }
 
         // Calculate and store image hash for image files (for similarity search)
@@ -154,7 +162,7 @@ pub trait IndexingTemplate {
                 FileIndexStatus::Indexed.value(),
                 t!("message.indexing-skip-empty-content").as_ref(),
             );
-            println!("Skip empty content: {}", path_str);
+            log::debug!("Skip empty content: {}", path_str);
             indexing_task_util::skipped_incr(self.category(), 1).await;
         } else {
             match embedding_content(file_id, &filtered_content).await {
@@ -162,7 +170,7 @@ pub trait IndexingTemplate {
                     indexing_task_util::success_incr(self.category(), 1).await;
                 }
                 Err(error) => {
-                    println!("Embedding content error: {}", error.to_string());
+                    log::warn!("Embedding content error: {}", error);
                     let _ = indexing_task_util::failed_incr(self.category(), 1).await;
                 }
             }
@@ -187,7 +195,7 @@ pub async fn embedding_content(file_id: i64, content: &str) -> Result<(), Indexi
             .map_err(|op| AppError::DocumentSplitterError(op.to_string()))?
     };
     for (chunk_index, chunk_text) in chunks.into_iter().enumerate() {
-        println!("Chunk text: {}", chunk_text.len());
+        log::debug!("Processing chunk {} with {} chars", chunk_index, chunk_text.len());
         let mut keep_run = true;
         let chunk_embed_result = {
             let mut manager = get_manager().write().await;
@@ -195,7 +203,7 @@ pub async fn embedding_content(file_id: i64, content: &str) -> Result<(), Indexi
                 Ok(embedding) => embedding,
                 Err(op) => {
                     drop(manager);
-                    println!("embedding chunk error:{}", op.to_string());
+                    log::warn!("Embedding chunk error: {}", op);
                     let _ = file_info_repo::update_content_index_status(
                         file_id,
                         FileIndexStatus::IndexFailed.value(),
@@ -264,7 +272,7 @@ pub async fn embedding_metadata(
         }
         Err(op) => {
             drop(guard);
-            println!("embedding meta error:{}", op.to_string());
+            log::warn!("Embedding meta error: {}", op);
             file_info_repo::update_meta_index_status(
                 file_id,
                 FileIndexStatus::IndexFailed.value(),

@@ -75,6 +75,7 @@ impl SimilarityDetector for DocumentSimilarityDetector {
                     matched_keywords: HashSet::new(),
                     matched_chunk_ids: HashSet::new(),
                     similarity_type: Some(SimilarityType::DocumentSemantic),
+                    source_device: None,
                 })
             })
             .collect();

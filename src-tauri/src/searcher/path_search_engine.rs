@@ -69,6 +69,7 @@ pub async fn search(query: &str) -> Vec<SearchResult> {
                     matched_keywords: match_keywords,
                     matched_chunk_ids: HashSet::new(),
                     similarity_type: None,
+                    source_device: None,
                 };
                 Some(result)
             }
@@ -82,7 +83,7 @@ pub async fn search(query: &str) -> Vec<SearchResult> {
             .then_with(|| a.file_info.id.cmp(&b.file_info.id))
     });
     result.truncate(DEFAULT_PAGE_SIZE);
-    println!("path search time: {:?}", start.elapsed());
+    log::debug!("path search time: {:?}", start.elapsed());
     result
 }
 
@@ -98,20 +99,21 @@ async fn build_index() {
     }
     let total = file_info_repo::count().unwrap_or_default();
     if total == 0 {
-        println!("file_info total == 0");
+        log::debug!("file_info total == 0");
         return;
     }
     let pages = (total + size - 1) / size;
-    println!("total: {}, pages:{}", total, pages);
+    log::debug!("total: {}, pages: {}", total, pages);
     for page in 1..=pages {
         let paths = match file_info_repo::list_paths(page, size, true) {
             Ok(f) => f,
             Err(e) => {
-                eprintln!("Error reading page {}: {}", page, e);
+                log::error!("Error reading page {}: {}", page, e);
                 break;
             }
         };
         if paths.is_empty() {
+            log::debug!("no new paths");
             break;
         }
         let mut cache = PATHS_CACHE.write().await;

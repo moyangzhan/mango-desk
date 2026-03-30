@@ -12,7 +12,7 @@ pub async fn search(query: &str) -> Vec<SearchResult> {
     let fts_results = file_content_fts_repo::search(&query, DEFAULT_PAGE_SIZE)
         .await
         .unwrap_or_else(|error| {
-            println!("fts search error: {}", error);
+            log::error!("fts search error: {}", error);
             Vec::new()
         });
 
@@ -35,14 +35,15 @@ pub async fn search(query: &str) -> Vec<SearchResult> {
                     matched_keywords: mfts_item.matched_keywords.clone(),
                     matched_chunk_ids: mfts_item.chunk_ids.clone(),
                     similarity_type: None,
+                    source_device: None,
                 });
             }
             None => {
-                println!("no match fts item for file id: {}", file_info.id);
+                log::debug!("no match fts item for file id: {}", file_info.id);
             }
         }
     });
-    println!(
+    log::debug!(
         "fts5 search cost: {:?}, results len: {}",
         start.elapsed(),
         results.len()

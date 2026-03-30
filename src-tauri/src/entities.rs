@@ -1,4 +1,4 @@
-use crate::enums::{FileIndexStatus, IndexingTaskStatus};
+use crate::enums::{PairingRequestStatus, OnlineStatus, FileIndexStatus, IndexingTaskStatus, PairingStatus};
 use crate::structs::file_metadata::FileMetadata;
 use crate::structs::sparse_vector::SparseVector;
 use crate::utils::datetime_util;
@@ -131,6 +131,11 @@ pub struct FileInfo {
     /// 8 bytes for 8x8 gradient hash
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub image_hash: Option<Vec<u8>>,
+    /// Audio fingerprint for music similarity (only for audio category files with music type)
+    /// Contains spectral_histogram (10 f32) + energy_bands (8 f32) + avg_zcr (f32) + tempo_estimate (f32)
+    /// Total: 20 f32 values = 80 bytes
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub audio_fingerprint: Option<Vec<u8>>,
     #[serde(with = "datetime_util")]
     pub file_create_time: DateTime<Local>,
     #[serde(with = "datetime_util")]
@@ -159,6 +164,7 @@ impl Default for FileInfo {
             invalid_reason: "".to_string(),
             audio_type: 0, // 0=Unknown (default for non-audio files and unindexed audio)
             image_hash: None, // No hash by default (only for image files)
+            audio_fingerprint: None, // No fingerprint by default (only for music files)
             content_index_status: FileIndexStatus::Waiting.value(),
             content_index_status_msg: "".to_string(),
             meta_index_status: FileIndexStatus::Waiting.value(),
@@ -273,4 +279,114 @@ pub struct FtsSearchResult {
     pub chunk_ids: HashSet<i64>,
     pub matched_keywords: HashSet<String>,
     pub score: usize, // 0 - 100
+}
+
+/// Remote device entity
+/// 远程设备实体
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Device {
+    pub id: i64,
+    /// Remote device's unique ID (UUID)
+    pub device_id: String,
+    /// Device display name
+    pub name: String,
+    /// IP address
+    pub ip_address: String,
+    /// Service port
+    pub port: i32,
+    /// Remote software version
+    pub version: String,
+    /// Online status: online, offline, unknown
+    pub online_status: OnlineStatus,
+    /// Pairing status: none, pending_in, pending_out, paired, rejected
+    pub pairing_status: crate::enums::PairingStatus,
+    /// Remark explaining the pairing status change
+    /// 配对状态变化的说明
+    pub pairing_remark: String,
+    /// Last seen timestamp
+    #[serde(with = "datetime_util")]
+    pub last_seen: DateTime<Local>,
+    /// First discovered timestamp
+    #[serde(with = "datetime_util")]
+    pub first_discovered: DateTime<Local>,
+    /// Number of indexed files on remote device
+    pub index_count: i64,
+    /// JSON: supported search types
+    pub capabilities: String,
+    /// Discovery method: mdns, manual
+    pub discovery_method: String,
+    #[serde(with = "datetime_util")]
+    pub create_time: DateTime<Local>,
+    #[serde(with = "datetime_util")]
+    pub update_time: DateTime<Local>,
+}
+
+impl Default for Device {
+    fn default() -> Self {
+        Self {
+            id: 0,
+            device_id: "".to_string(),
+            name: "".to_string(),
+            ip_address: "".to_string(),
+            port: 7890,
+            version: "".to_string(),
+            online_status: OnlineStatus::Unknown,
+            pairing_status: crate::enums::PairingStatus::None,
+            pairing_remark: "".to_string(),
+            last_seen: Local::now(),
+            first_discovered: Local::now(),
+            index_count: 0,
+            capabilities: "{}".to_string(),
+            discovery_method: "mdns".to_string(),
+            create_time: Local::now(),
+            update_time: Local::now(),
+        }
+    }
+}
+
+/// Pairing request log entity
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PairingRequest {
+    pub id: i64,
+    /// Remote device ID
+    pub device_id: String,
+    /// Remote device name
+    pub device_name: String,
+    /// Remote IP address
+    pub ip_address: String,
+    /// Remote service port
+    pub port: i32,
+    /// Direction: "in" (received) or "out" (sent)
+    pub direction: String,
+    /// Request status
+    pub status: PairingRequestStatus,
+    /// Remark describing the handling result
+    pub remark: String,
+    /// Time when responded
+    #[serde(with = "datetime_util::option")]
+    pub response_time: Option<DateTime<Local>>,
+    /// Request creation time
+    #[serde(with = "datetime_util")]
+    pub create_time: DateTime<Local>,
+    /// Record update time
+    #[serde(with = "datetime_util")]
+    pub update_time: DateTime<Local>,
+}
+
+impl Default for PairingRequest {
+    fn default() -> Self {
+        Self {
+            id: 0,
+            device_id: "".to_string(),
+            device_name: "".to_string(),
+            ip_address: "".to_string(),
+            port: 7890,
+            direction: "in".to_string(),
+            status: PairingRequestStatus::Pending,
+            remark: "".to_string(),
+            response_time: None,
+            create_time: Local::now(),
+            update_time: Local::now(),
+        }
+    }
 }

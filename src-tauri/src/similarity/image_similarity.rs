@@ -105,6 +105,7 @@ impl SimilarityDetector for ImageSimilarityDetector {
                     matched_keywords: HashSet::new(),
                     matched_chunk_ids: HashSet::new(),
                     similarity_type: Some(similarity_type),
+                    source_device: None,
                 })
             })
             .collect();
@@ -153,7 +154,7 @@ pub fn bytes_to_image_hash(bytes: &[u8]) -> ImageHash {
 
 /// Calculate visual similarity score using stored hash bytes
 /// 使用存储的哈希字节计算视觉相似度分数
-fn calculate_visual_score_from_stored(
+pub fn calculate_visual_score_from_stored(
     source_hash: &ImageHash,
     candidate_hash_bytes: &Option<Vec<u8>>,
 ) -> Option<usize> {
@@ -176,5 +177,33 @@ fn calculate_visual_score_from_stored(
         // distance 11 = ~9, distance 64 = 0
         let score = ((64 - distance) as f32 * 100.0 / 53.0) as usize;
         Some(score.min(29)) // Cap at 29 for distances > 10
+    }
+}
+
+/// Calculate visual similarity score from hash bytes directly
+/// 直接从哈希字节计算视觉相似度分数
+pub fn calculate_visual_score(source_hash: &ImageHash, candidate_hash_bytes: &[u8]) -> usize {
+    let candidate_hash = bytes_to_image_hash(candidate_hash_bytes);
+    let distance = source_hash.dist(&candidate_hash);
+
+    // Convert distance to score (0-100)
+    if distance <= 10 {
+        ((10 - distance) * 10) as usize
+    } else {
+        let score = ((64 - distance) as f32 * 100.0 / 53.0) as usize;
+        score.min(29)
+    }
+}
+
+/// Merge visual and semantic scores, taking the maximum
+/// 合并视觉和语义分数，取最大值
+pub fn merge_hybrid_scores(
+    visual_score: usize,
+    semantic_score: usize,
+) -> (usize, SimilarityType) {
+    if visual_score >= semantic_score {
+        (visual_score, SimilarityType::ImageHash)
+    } else {
+        (semantic_score, SimilarityType::ImageSemantic)
     }
 }

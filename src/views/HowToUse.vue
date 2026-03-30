@@ -15,7 +15,7 @@ const showGuideStep = ref(props.showSteps)
   <div class="flex flex-col space-x-2 mt-2 items-start justify-start w-full">
     <slot name="tip">
       <div
-        class="text-left hover:underline cursor-pointer hover:text-(--primary-color)"
+        class="text-left text-link"
         @click="showGuideStep = !showGuideStep"
       >
         {{ t('common.howToUse') }} ？
@@ -28,7 +28,7 @@ const showGuideStep = ref(props.showSteps)
             {{ t('common.useStep2Desc') }}
           </div>
           <div
-            class="hover:underline cursor-pointer hover:text-(--primary-color) flex w-12"
+            class="text-link flex w-12"
             @click="router.push({ name: 'Indexer' })"
           >
             GO

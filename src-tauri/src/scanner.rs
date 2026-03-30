@@ -2,7 +2,7 @@ use crate::entities::{FileInfo, IndexingTask};
 use crate::enums::{FileCategory, FileIndexStatus, IndexingEvent};
 use crate::errors::{AppError, IndexingError};
 use crate::global::{
-    IGNORE_HIDDEN_DIRS, IGNORE_HIDDEN_FILES, INDEXER_SETTING, SCANNING, SCANNING_TOTAL,
+    HOME_PATH, IGNORE_HIDDEN_DIRS, IGNORE_HIDDEN_FILES, INDEXER_SETTING, SCANNING, SCANNING_TOTAL,
     STOP_INDEX_SIGNAL,
 };
 use crate::indexer_service;
@@ -18,6 +18,10 @@ use tokio::sync::mpsc::Sender;
 use tokio::task::JoinSet;
 use tokio::time::{Duration, sleep};
 
+// Interval for logging scan progress (in loop iterations)
+static PROGRESS_LOG_COUNTER: AtomicUsize = AtomicUsize::new(0);
+const PROGRESS_LOG_INTERVAL: usize = 100;
+
 const MAX_RETRIES: usize = 3;
 static UNSCANNED_DIR_COUNT: AtomicUsize = AtomicUsize::new(0);
 
@@ -26,13 +30,14 @@ pub async fn start(paths: &Vec<String>, indexing_task: Arc<IndexingTask>, from: 
         return;
     }
     if SCANNING.load(Ordering::SeqCst) {
-        println!("Scan process already started.");
+        log::info!("Scan process already started.");
         return;
     }
-    println!("Start scan process.");
+    log::info!("Start scan process with {} paths", paths.len());
     SCANNING.store(true, Ordering::SeqCst);
     SCANNING_TOTAL.store(0, Ordering::SeqCst);
     UNSCANNED_DIR_COUNT.store(0, Ordering::SeqCst);
+    PROGRESS_LOG_COUNTER.store(0, Ordering::SeqCst);
     let mut tasks = JoinSet::new();
     let (sender, mut rx) = mpsc::channel::<String>(5000);
     for path in paths {
@@ -55,29 +60,23 @@ pub async fn start(paths: &Vec<String>, indexing_task: Arc<IndexingTask>, from: 
                 );
                 let is_valid = is_valid_file_with(&PathBuf::from(&path_str)).await;
                 if !is_valid {
-                    println!("File is not valid: {}", path_str);
+                    log::debug!("File is not valid: {}", path_str);
                     return;
                 }
                 if let Err(op) = add_or_update_file_info(path_str.to_string()).await {
-                    println!("add_or_update_file_info error:{}", op.to_string());
+                    log::error!("add_or_update_file_info error: {}", op);
                 }
             });
             tasks.spawn(task);
         } else {
             UNSCANNED_DIR_COUNT.fetch_add(1, Ordering::SeqCst);
             let _ = sender.send(path.to_string()).await.map_err(|op| {
-                println!("queue send message error:{}", op.to_string());
+                log::error!("queue send message error: {}", op);
                 return;
             });
         }
     }
     loop {
-        let msg_count_in_queue = rx.len();
-        println!(
-            "Scan process.  unfinish directory count: {}, msg count in queue: {}",
-            UNSCANNED_DIR_COUNT.load(Ordering::SeqCst),
-            msg_count_in_queue
-        );
         tokio::select! {
             maybe_dir = rx.recv() => {
                 let Some(dir) = maybe_dir else { break; };
@@ -91,24 +90,33 @@ pub async fn start(paths: &Vec<String>, indexing_task: Arc<IndexingTask>, from: 
             }
 
             _ = async {
+                // Wait until stop signal or all directories are processed
                 // Do not replace [ UNFINISH_DIR_COUNT.load(Ordering::SeqCst) ] with [ rx.len() ].
                 while !STOP_INDEX_SIGNAL.load(Ordering::SeqCst)
                     && UNSCANNED_DIR_COUNT.load(Ordering::SeqCst) > 0
                 {
                     sleep(Duration::from_millis(500)).await;
+                    // Log progress periodically to avoid huge log files
+                    let counter = PROGRESS_LOG_COUNTER.fetch_add(1, Ordering::SeqCst);
+                    if counter % PROGRESS_LOG_INTERVAL == 0 {
+                        log::debug!(
+                            "Scan progress: unscanned dirs={}",
+                            UNSCANNED_DIR_COUNT.load(Ordering::SeqCst)
+                        );
+                    }
                 }
             } => {
-                println!("Stop signal received or all directories processed.");
+                log::info!("Stop signal received or all directories processed.");
                 break;
             }
         }
     }
     while let Some(task) = tasks.join_next().await {
         if let Err(e) = task {
-            eprintln!("Task failed: {}", e);
+            log::error!("Task failed: {}", e);
         }
     }
-    println!("Scan process was finished.");
+    log::info!("Scan process was finished. Total files: {}", SCANNING_TOTAL.load(Ordering::SeqCst));
     SCANNING.store(false, Ordering::SeqCst);
 }
 
@@ -121,13 +129,13 @@ pub async fn scan_and_store(
     if dir.is_empty() {
         return Ok(());
     }
-    println!("Scan directory: {}", dir);
+    log::debug!("Scan directory: {}", dir);
     let event_name = indexer_service::get_event_from(from);
     let indexer_setting = INDEXER_SETTING.read().await.clone();
     let mut entries = tokio::fs::read_dir(dir).await?;
-    while let Some(entry) = entries.next_entry().await? {
+    'outer: while let Some(entry) = entries.next_entry().await? {
         if STOP_INDEX_SIGNAL.load(Ordering::SeqCst) {
-            println!("Scanning process was stopped.");
+            log::info!("Scanning process was stopped.");
             frontend_util::send_event(
                 &event_name,
                 &IndexingEvent::Stop {
@@ -140,7 +148,6 @@ pub async fn scan_and_store(
         }
         let path_buf = entry.path();
         let path_str = path_buf.to_str().unwrap_or("");
-        println!("Scan file: {}", path_str);
         if path_str.is_empty() {
             continue;
         }
@@ -158,18 +165,23 @@ pub async fn scan_and_store(
                 continue;
             }
             if let Err(op) = add_or_update_file_info(path_str.to_string()).await {
-                println!("add_or_update_file_info error:{}", op.to_string());
+                log::error!("add_or_update_file_info error: {}", op);
                 continue;
             }
         } else if path_buf.is_dir() {
-            println!("Found directory: {}", path_buf.display());
             let dir_name: &str = path_buf.file_name().and_then(|n| n.to_str()).unwrap_or("");
             if indexer_setting.ignore_dirs.contains(&dir_name.to_string()) {
-                println!("ignore dirs:{}", indexer_setting.ignore_dirs.join(","));
+                log::debug!("Ignore directory (in ignore list): {}", dir_name);
                 continue;
             }
+            // Check ignore_path_prefixes (full path prefixes)
+            for ignore_path in &indexer_setting.ignore_path_prefixes {
+                if path_str.starts_with(ignore_path) {
+                    log::debug!("Ignore path prefix: {}", ignore_path);
+                    continue 'outer;
+                }
+            }
             if IGNORE_HIDDEN_DIRS && dir_name.starts_with(".") {
-                println!("ignore hidden dirs");
                 continue;
             }
             let path_owned = path_str.to_owned();
@@ -184,7 +196,7 @@ pub async fn scan_and_store(
                     }
                     Err(mpsc::error::TrySendError::Full(_)) => {
                         if retries >= MAX_RETRIES {
-                            eprintln!("Max retries exceeded for path: {}", path_owned);
+                            log::warn!("Max retries exceeded for path: {}", path_owned);
                             break;
                         }
                         retries += 1;
@@ -192,16 +204,14 @@ pub async fn scan_and_store(
                         tokio::time::sleep(Duration::from_millis(100)).await;
                     }
                     Err(e) => {
-                        println!("Error sending to channel: {}", e);
+                        log::error!("Error sending to channel: {}", e);
                         break;
                     }
                 }
             }
-            // dir_counter.fetch_add(1, Ordering::SeqCst);
         }
     }
     UNSCANNED_DIR_COUNT.fetch_sub(1, Ordering::SeqCst);
-    // dir_counter.fetch_sub(1, Ordering::SeqCst);
     Ok(())
 }
 
@@ -217,12 +227,12 @@ async fn is_valid_file(path_buf: &PathBuf, indexer_setting: &IndexerSetting) -> 
         .unwrap_or("")
         .to_lowercase();
     if ext_str.is_empty() {
-        println!("File has no extension: {}", path_buf.display());
+        // File has no extension - skip silently (common in development)
         return false;
     }
     let ext = ext_str.as_str();
     if indexer_setting.ignore_exts.contains(&ext.to_string()) {
-        println!("File extension is ignored: {}", path_buf.display());
+        log::debug!("File extension is ignored: {}", path_buf.display());
         return false;
     }
     if !indexer_setting.ignore_files.is_empty()
@@ -230,12 +240,12 @@ async fn is_valid_file(path_buf: &PathBuf, indexer_setting: &IndexerSetting) -> 
             .ignore_files
             .contains(&path_buf.to_str().unwrap_or("").to_string())
     {
-        println!("File is ignored: {}", path_buf.display());
+        log::debug!("File is in ignore list: {}", path_buf.display());
         return false;
     }
     let file_name = path_buf.file_name().and_then(|n| n.to_str()).unwrap_or("");
     if IGNORE_HIDDEN_FILES && file_name.starts_with(".") {
-        println!("File is hidden: {}", path_buf.display());
+        // Skip hidden files silently
         return false;
     }
     true
@@ -262,7 +272,7 @@ pub async fn add_or_update_file_info(input_path: String) -> Result<(), IndexingE
         if file_record.content_index_status == FileIndexStatus::Indexed.value()
             && file_record.file_update_time.ge(&modified_time)
         {
-            println!("File is already indexed: {}", path.display());
+            log::debug!("File is already indexed: {}", path.display());
             return Ok(());
         }
         let mut meta = file_util::get_meta_by_record(path.as_path(), &file_record).await?;
@@ -288,7 +298,7 @@ pub async fn add_or_update_file_info(input_path: String) -> Result<(), IndexingE
     }
     // New file
     else {
-        println!("New file: {}, create record for indexing", path.display());
+        log::debug!("New file: {}, creating record for indexing", path.display());
         let mut meta = file_util::get_meta_by_local(path.as_path(), &file_handle).await?;
         let file_category = FileCategory::from_ext(&ext);
         meta.extension = ext.clone();
@@ -307,16 +317,14 @@ pub async fn add_or_update_file_info(input_path: String) -> Result<(), IndexingE
         new_file_record.metadata = meta.clone();
         match file_info_repo::insert(&new_file_record) {
             Ok(Some(new_file_record)) => {
-                println!("New file record created: {}", new_file_record.id);
+                log::debug!("New file record created: {}", new_file_record.id);
             }
             Ok(None) => {
-                println!("Failed to create file record: {}", path.display());
+                log::warn!("Failed to create file record: {}", path.display());
             }
-            Err(op) => println!(
-                "Failed to create file record: {}, error: {}",
-                path.display(),
-                op.to_string()
-            ),
+            Err(op) => {
+                log::error!("Failed to create file record: {}, error: {}", path.display(), op);
+            }
         }
     }
     Ok(())

@@ -5,7 +5,7 @@ use crate::repositories::{file_content_embedding_repo, file_info_repo};
 use crate::structs::file_metadata::AudioType;
 use crate::structs::search_result::SearchResult;
 use crate::traits::similarity_detector::SimilarityDetector;
-use crate::utils::audio_util::{compare_music_fingerprints, extract_music_fingerprint_from_file};
+use crate::utils::audio_util::{compare_music_fingerprints, MusicFingerprint};
 use async_trait::async_trait;
 use std::collections::{HashMap, HashSet};
 
@@ -18,10 +18,10 @@ impl SimilarityDetector for AudioSimilarityDetector {
         let audio_type = AudioType::from(file_info.audio_type);
 
         match audio_type {
-            AudioType::Music => {
+            AudioType::Music | AudioType::Mixed => {
                 self.find_similars_by_fingerprint(file_info, limit).await
             }
-            AudioType::Speech | AudioType::Mixed | AudioType::Unknown => {
+            AudioType::Speech | AudioType::Unknown => {
                 self.find_similars_by_transcription(file_info, limit).await
             }
         }
@@ -36,10 +36,18 @@ impl AudioSimilarityDetector {
         file_info: &FileInfo,
         limit: usize,
     ) -> Result<Vec<SearchResult>, AppError> {
-        let source_fingerprint = match extract_music_fingerprint_from_file(&file_info.path) {
-            Some(fp) => fp,
+        // Read fingerprint from database (already extracted during indexing)
+        // 从数据库读取指纹（索引时已提取并存储）
+        let source_fingerprint = match file_info.audio_fingerprint.as_ref() {
+            Some(bytes) => match MusicFingerprint::from_bytes(bytes) {
+                Some(fp) => fp,
+                None => {
+                    log::warn!("Failed to decode fingerprint for file: {}", file_info.id);
+                    return Ok(Vec::new());
+                }
+            },
             None => {
-                println!("Failed to extract fingerprint from: {}", file_info.path);
+                log::warn!("No fingerprint stored for music file: {}", file_info.id);
                 return Ok(Vec::new());
             }
         };
@@ -55,12 +63,15 @@ impl AudioSimilarityDetector {
                 continue;
             }
 
-            // Extract fingerprint and calculate similarity score
-            if let Some(candidate_fp) = extract_music_fingerprint_from_file(&candidate.path) {
-                let similarity = compare_music_fingerprints(&source_fingerprint, &candidate_fp);
+            // Read fingerprint from database and calculate similarity score
+            // 从数据库读取指纹并计算相似度
+            if let Some(candidate_bytes) = candidate.audio_fingerprint.as_ref() {
+                if let Some(candidate_fp) = MusicFingerprint::from_bytes(candidate_bytes) {
+                    let similarity = compare_music_fingerprints(&source_fingerprint, &candidate_fp);
 
-                if similarity >= 30.0 {
-                    similarities.push((candidate, similarity));
+                    if similarity >= 30.0 {
+                        similarities.push((candidate, similarity));
+                    }
                 }
             }
         }
@@ -77,6 +88,7 @@ impl AudioSimilarityDetector {
                 matched_keywords: HashSet::new(),
                 matched_chunk_ids: HashSet::new(),
                 similarity_type: Some(SimilarityType::AudioFingerprint),
+                source_device: None,
             })
             .collect();
 
@@ -144,6 +156,7 @@ impl AudioSimilarityDetector {
                     matched_keywords: HashSet::new(),
                     matched_chunk_ids: HashSet::new(),
                     similarity_type: Some(SimilarityType::AudioTranscription),
+                    source_device: None,
                 })
             })
             .collect();

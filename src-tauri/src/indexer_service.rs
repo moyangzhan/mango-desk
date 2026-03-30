@@ -108,40 +108,40 @@ pub async fn start_indexing(paths: Vec<String>, from: &str) -> Result<bool, Stri
     // Embedding processing
     INDEXING.store(true, Ordering::SeqCst);
 
-    println!("document indexing...");
+    log::info!("Starting document indexing...");
     let mut document_indexer = indexers::document_indexer::DocumentIndexer::new();
     let _ = document_indexer
         .process(task.clone(), from)
         .await
         .unwrap_or_else(|e| log::error!("start_indexing => Document indexing error,{}", e));
-    println!(
-        "Document indexing done,status:{}",
+    log::info!(
+        "Document indexing done, status: {}",
         serde_json::json!(document_indexer.status)
     );
     indexing_task_util::summary_to_db().await;
 
     let unindex_images_cnt = file_info_repo::count_unindexed_files(FileCategory::Image.value())?;
-    println!("Total image to index: {}", unindex_images_cnt);
+    log::info!("Total images to index: {}", unindex_images_cnt);
     if unindex_images_cnt > 0 {
         if let Ok(mut image_indexer) = indexers::image_indexer::ImageIndexer::new().await {
-            println!("image indexing...");
+            log::info!("Starting image indexing...");
             let _ = image_indexer
                 .process(task.clone(), from)
                 .await
-                .unwrap_or_else(|e| println!("image indexing error,{}", e));
+                .unwrap_or_else(|e| log::error!("Image indexing error: {}", e));
             indexing_task_util::summary_to_db().await;
         }
     }
 
     let unindex_audio_cnt = file_info_repo::count_unindexed_files(FileCategory::Audio.value())?;
-    println!("Total audio to index: {}", unindex_audio_cnt);
+    log::info!("Total audio files to index: {}", unindex_audio_cnt);
     if unindex_audio_cnt > 0 {
         if let Ok(mut audio_indexer) = indexers::audio_indexer::AudioIndexer::new().await {
-            println!("audio indexing...");
+            log::info!("Starting audio indexing...");
             let _ = audio_indexer
                 .process(task.clone(), from)
                 .await
-                .unwrap_or_else(|e| println!("audio indexing error,{}", e));
+                .unwrap_or_else(|e| log::error!("Audio indexing error: {}", e));
             indexing_task_util::summary_to_db().await;
         }
     }
@@ -206,7 +206,7 @@ pub fn remove_directory_index(path: &str) -> Result<(), String> {
     if path.is_empty() {
         return Ok(());
     }
-    file_content_fts_repo::delelte_by_prefix_path(path)?;
+    file_content_fts_repo::delete_by_prefix_path(path)?;
     file_content_embedding_repo::delete_by_file_prefix_path(path)?;
     file_metadata_embedding_repo::delete_by_file_prefix_path(path)?;
     file_info_repo::delete_by_prefix_path(path)?;

@@ -12,7 +12,7 @@ pub async fn keyword_search(query: &str) -> Vec<SearchResult> {
     if query.is_empty() {
         return Vec::new();
     }
-    println!("keyword_search query: {:?}", query);
+    log::debug!("keyword_search query: {:?}", query);
     let query = query.to_owned();
     let (path_results, fts_results) = try_join!(
         task::spawn({
@@ -94,6 +94,7 @@ fn fuse_results(
                     matched_keywords,
                     score: (score as f32 * 0.4).round() as usize,
                     similarity_type: None,
+                    source_device: None,
                 }
             });
     }

@@ -38,9 +38,10 @@ impl DocumentLoader for OdpLoader {
         Ok(text)
     }
     fn load_file_max(&self, file: &std::fs::File, max_load_chars: usize) -> io::Result<String> {
-        unimplemented!(
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
             "load_file_max with File is not supported for odp files, use load_max() with Path instead"
-        )
+        ))
     }
 }
 

@@ -44,7 +44,7 @@ pub fn insert(
                 Ok(Some(build_file_metadata_embedding(row)?))
             })
             .unwrap_or_else(|e| {
-                println!("file_metadata_embedding_repo.insert() Error: {}", e);
+                log::debug!("file_metadata_embedding_repo.insert() Error: {}", e);
                 None
             });
 
@@ -68,7 +68,7 @@ pub fn update(file_metadata_embedding: &FileMetaEmbedding) -> Result<usize, Repo
         ":id": &file_metadata_embedding.id,
         ":embedding": embedding_bytes,
     })?;
-    println!("update file_metadata_vec affected: {:?}", affected);
+    log::debug!("update file_metadata_vec affected: {:?}", affected);
     Ok(affected)
 }
 
@@ -113,7 +113,7 @@ pub fn hybrid_search(
         .into_iter()
         .filter_map(|res| match res {
             Ok(fme) => {
-                println!("meta search file_id: {}, distance: {}, sparse_score: {}, score: {}", fme.file_id, fme.distance, fme.sparse_score, fme.score);
+                log::debug!("meta search file_id: {}, distance: {}, sparse_score: {}, score: {}", fme.file_id, fme.distance, fme.sparse_score, fme.score);
                 if fme.sparse_score < 0.01 {
                     return None;
                 }
@@ -123,7 +123,7 @@ pub fn hybrid_search(
                 Some(fme)
             }
             Err(e) => {
-                eprintln!("Error retrieving file embedding: {}", e);
+                log::error!("Error retrieving file embedding: {}", e);
                 None
             }
         })

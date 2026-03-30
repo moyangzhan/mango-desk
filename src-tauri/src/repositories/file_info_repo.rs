@@ -30,7 +30,7 @@ pub fn insert(file_info: &FileInfo) -> Result<Option<FileInfo>, RepositoryError>
     let file_info = query_stmt
         .query_row([last_insert_rowid], |row| Ok(Some(build_file_info(row)?)))
         .unwrap_or_else(|e| {
-            println!("file_info_repo.insert() Error: {}", e);
+            log::debug!("file_info_repo.insert() Error: {}", e);
             None
         });
 
@@ -55,7 +55,7 @@ pub fn update(file_info: &FileInfo) -> Result<usize, RepositoryError> {
         ":invalid_reason": &file_info.invalid_reason,
         ":file_update_time": datetime_util::micro_datetime_to_str(&file_info.file_update_time),
     })?;
-    println!("update file_info affected: {:?}", affected);
+    log::debug!("update file_info affected: {:?}", affected);
     Ok(affected)
 }
 
@@ -294,7 +294,7 @@ pub fn list_paths_by_min_update_time(
     size: i64,
 ) -> Result<Vec<String>, RepositoryError> {
     let update_time = datetime_util::datetime_to_str(min_update_time);
-    println!("update_time: {}", update_time);
+    log::debug!("update_time: {}", update_time);
     let conn = Connection::open(get_db_path())?;
     let mut stmt = conn.prepare(
         "select path from file_info where update_time > :min_update_time order by id desc limit :size offset :offset",
@@ -384,6 +384,19 @@ pub fn update_image_hash(file_id: i64, image_hash: &[u8]) -> Result<usize, Repos
     Ok(affected)
 }
 
+/// Update audio_fingerprint for a file (for music similarity search)
+/// 更新文件的音频指纹（用于音乐相似性搜索）
+pub fn update_audio_fingerprint(file_id: i64, audio_fingerprint: &[u8]) -> Result<usize, RepositoryError> {
+    let conn = Connection::open(get_db_path())?;
+    let mut stmt =
+        conn.prepare("update file_info set audio_fingerprint = :audio_fingerprint where id = :id")?;
+    let affected = stmt.execute(named_params! {
+        ":id": &file_id,
+        ":audio_fingerprint": audio_fingerprint,
+    })?;
+    Ok(affected)
+}
+
 /// Get all files by a single category (for similarity search)
 pub fn list_by_category(category: i64) -> Result<Vec<FileInfo>, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
@@ -432,7 +445,7 @@ pub fn get_by_id(file_id: i64) -> Result<Option<FileInfo>, RepositoryError> {
     match stmt.query_row([file_id], |row: &Row<'_>| Ok(build_file_info(row)?)) {
         Ok(hit) => return Ok(Some(hit)),
         Err(e) => {
-            println!("file_info_repo.get_by_id() Error: {}", e.to_string());
+            log::debug!("file_info_repo.get_by_id() Error: {}", e);
             return Ok(None);
         }
     }
@@ -444,7 +457,7 @@ pub fn get_by_md5(md5: &str) -> Result<Option<FileInfo>, RepositoryError> {
     match stmt.query_row([md5], |row: &Row<'_>| Ok(build_file_info(row)?)) {
         Ok(hit) => return Ok(Some(hit)),
         Err(e) => {
-            println!("file_info_repo.get_by_md5(),md5:{},Error: {}", md5, e.to_string());
+            log::debug!("file_info_repo.get_by_md5(), md5: {}, Error: {}", md5, e);
             return Ok(None);
         }
     }
@@ -465,7 +478,7 @@ pub fn delete_by_id(file_id: i64) -> Result<usize, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
     let mut stmt = conn.prepare("delete from file_info where id = ?1")?;
     let affected = stmt.execute([file_id])?;
-    println!("delete file_info by id affected: {:?}", affected);
+    log::debug!("delete file_info by id affected: {:?}", affected);
     Ok(affected)
 }
 
@@ -473,7 +486,7 @@ pub fn delete_by_path(path: &str) -> Result<usize, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
     let mut stmt = conn.prepare("delete from file_info where path = ?1")?;
     let affected = stmt.execute([path])?;
-    println!("delete file_info by path affected: {:?}", affected);
+    log::debug!("delete file_info by path affected: {:?}", affected);
     Ok(affected)
 }
 
@@ -498,7 +511,7 @@ pub fn delete_by_prefix_path(pre_path: &str) -> Result<usize, RepositoryError> {
         "DELETE FROM file_info WHERE path = ?1 OR path LIKE ?2",
         (pre_path, pattern),
     )?;
-    println!("delete file_info by prefix path affected: {:?}", affected);
+    log::debug!("delete file_info by prefix path affected: {:?}", affected);
     Ok(affected)
 }
 
@@ -531,7 +544,7 @@ pub fn replace_directory_prefix_path(
         "UPDATE file_info SET path = REPLACE(path, ?1, ?2) WHERE path LIKE ?3",
         (old_pre_path, new_pre_path, pattern),
     )?;
-    println!("replace file_info by prefix path affected: {:?}", affected);
+    log::debug!("replace file_info by prefix path affected: {:?}", affected);
     Ok(affected)
 }
 
@@ -541,7 +554,7 @@ pub fn rename(old_path: &str, new_path: &str, new_name: &str) -> Result<usize, R
         "UPDATE file_info SET path = ?1, name = ?2 WHERE path = ?3",
         (new_path, new_name, old_path),
     )?;
-    println!("rename file_info affected: {:?}", affected);
+    log::debug!("rename file_info affected: {:?}", affected);
     Ok(affected)
 }
 
@@ -570,6 +583,7 @@ fn build_file_info(row: &Row<'_>) -> Result<FileInfo, RepositoryError> {
         md5: row.get("md5").unwrap_or_default(),
         metadata: crate::structs::file_metadata::FileMetadata::from_json(&meta),
         audio_type: row.get("audio_type").unwrap_or_default(),
+        audio_fingerprint: row.get("audio_fingerprint").unwrap_or_default(),
         image_hash,
         file_create_time: datetime_util::str_to_micro_datetime(file_create_time.as_str())?,
         file_update_time: datetime_util::str_to_micro_datetime(file_update_time.as_str())?,

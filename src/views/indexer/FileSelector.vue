@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { AttachFileOutlined, DeleteOutlined, DoneOutlineRound, FileOpenOutlined, FolderOpenOutlined, FolderOutlined, StopCircleOutlined } from '@vicons/material'
 import { open } from '@tauri-apps/plugin-dialog'
-import { TauriEvent, listen } from '@tauri-apps/api/event'
+import { TauriEvent, listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { invoke } from '@tauri-apps/api/core'
 import type { Event } from '@tauri-apps/api/event'
 import { useIndexerStore } from '@/stores/indexer'
@@ -21,6 +21,9 @@ const message = useMessage()
 const btnDisabled = ref(false)
 const indexingTitle = ref('')
 const indexingMsg = ref('')
+
+// Store unlisten functions for cleanup
+const unlistenFns: UnlistenFn[] = []
 
 interface DragPayload {
   paths: string[]
@@ -78,56 +81,71 @@ function clearAllPaths() {
   indexingMsg.value = ''
 }
 
-listen(TauriEvent.DRAG_DROP, async (e: Event<DragPayload>) => {
-  if (router.currentRoute.value.name !== 'Indexer')
-    return
+// Setup event listeners with cleanup
+onMounted(async () => {
+  const unlisten1 = await listen(TauriEvent.DRAG_DROP, async (e: Event<DragPayload>) => {
+    if (router.currentRoute.value.name !== 'Indexer')
+      return
 
-  isDragOver.value = false
-  console.log('Dropped files:', e)
-  const paths = e.payload.paths
-  for (const path of paths) {
-    const pathType = await invoke('check_path_type', { path })
-    addPath(path, pathType === 'directory')
-  }
-})
-listen(TauriEvent.DRAG_LEAVE, (e) => {
-  if (router.currentRoute.value.name !== 'Indexer')
-    return
+    isDragOver.value = false
+    console.log('Dropped files:', e)
+    const paths = e.payload.paths
+    for (const path of paths) {
+      const pathType = await invoke('check_path_type', { path })
+      addPath(path, pathType === 'directory')
+    }
+  })
+  unlistenFns.push(unlisten1)
 
-  isDragOver.value = false
-  console.log('Drag leave', e)
-})
-listen(TauriEvent.DRAG_ENTER, (e) => {
-  if (router.currentRoute.value.name !== 'Indexer')
-    return
+  const unlisten2 = await listen(TauriEvent.DRAG_LEAVE, (e) => {
+    if (router.currentRoute.value.name !== 'Indexer')
+      return
 
-  isDragOver.value = true
-  console.log('Drag enter', e)
+    isDragOver.value = false
+    console.log('Drag leave', e)
+  })
+  unlistenFns.push(unlisten2)
+
+  const unlisten3 = await listen(TauriEvent.DRAG_ENTER, (e) => {
+    if (router.currentRoute.value.name !== 'Indexer')
+      return
+
+    isDragOver.value = true
+    console.log('Drag enter', e)
+  })
+  unlistenFns.push(unlisten3)
+
+  const unlisten4 = await listen<string>('selector-indexing', (eventObj) => {
+    const payload = JSON.parse(eventObj.payload) as IndexingEvent
+    indexingTitle.value = payload.event.toUpperCase()
+    indexingMsg.value = payload.data.msg
+    switch (payload.event) {
+      case 'start':
+        indexerStore.setIndexProcessing(true)
+        break
+      case 'scan':
+        break
+      case 'embed':
+        break
+      case 'finish':
+        emit('indexingFinish')
+        indexerStore.setIndexProcessing(false)
+        selectedList.value.forEach((item) => {
+          item.done = true
+        })
+        break
+      case 'stop':
+        emit('indexingStop')
+        indexerStore.setIndexProcessing(false)
+        break
+    }
+  })
+  unlistenFns.push(unlisten4)
 })
-listen<string>('selector-indexing', (eventObj) => {
-  const payload = JSON.parse(eventObj.payload) as IndexingEvent
-  indexingTitle.value = payload.event.toUpperCase()
-  indexingMsg.value = payload.data.msg
-  switch (payload.event) {
-    case 'start':
-      indexerStore.setIndexProcessing(true)
-      break
-    case 'scan':
-      break
-    case 'embed':
-      break
-    case 'finish':
-      emit('indexingFinish')
-      indexerStore.setIndexProcessing(false)
-      selectedList.value.forEach((item) => {
-        item.done = true
-      })
-      break
-    case 'stop':
-      emit('indexingStop')
-      indexerStore.setIndexProcessing(false)
-      break
-  }
+
+// Cleanup event listeners on unmount
+onUnmounted(() => {
+  unlistenFns.forEach(unlisten => unlisten())
 })
 
 async function startIndexing() {
@@ -201,18 +219,14 @@ async function stopIndexing() {
           <div class="flex space-x-2">
             <span class="mx-2">{{ t('common.or') }}</span>
             <div class="mr-2">
-              <NButton text @click="openDirDialog">
-                <NText type="success" underline>
-                  {{ t('common.selectFolder')
-                  }}
-                </NText>
+              <NButton text type="primary" class="text-link" @click="openDirDialog">
+                {{ t('common.selectFolder')
+                }}
               </NButton>
             </div>
-            <NButton text @click="openFileDialog">
-              <NText type="success" underline>
-                {{ t('common.selectFile')
-                }}
-              </NText>
+            <NButton text type="primary" class="text-link" @click="openFileDialog">
+              {{ t('common.selectFile')
+              }}
             </NButton>
           </div>
         </div>
@@ -226,7 +240,7 @@ async function stopIndexing() {
             {{ t('common.selectedFileAndFolder') }}
           </div>
           <div>
-            <NButton ghost size="tiny" @click="clearAllPaths">
+            <NButton size="tiny" ghost @click="clearAllPaths">
               {{ t('indexer.clearSelected') }}
             </NButton>
           </div>
@@ -275,7 +289,7 @@ async function stopIndexing() {
 
     <div class="flex mt-2">
       <NButton
-        v-if="!indexerStore.indexProcessing" type="primary" style="margin-right: 6px"
+        v-if="!indexerStore.indexProcessing" type="primary" ghost style="margin-right: 6px"
         :disabled="selectedList.length === 0 || indexerStore.indexProcessing" :loading="indexerStore.indexProcessing"
         @click="startIndexing"
       >

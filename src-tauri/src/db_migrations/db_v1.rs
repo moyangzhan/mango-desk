@@ -1,13 +1,13 @@
 use crate::enums::FileContentLanguage;
-use crate::utils::app_util::{get_db_path, get_default_file_content_language};
+use crate::utils::app_util::get_default_file_content_language;
 use anyhow::Result;
 use log::info;
 use rusqlite::Connection;
 use uuid::Uuid;
 
-pub fn exec_ddl() -> Result<()> {
-    info!("dbv1.exec_ddl");
-    let conn: Connection = Connection::open(get_db_path())?;
+/// 使用传入的连接执行 DDL
+pub fn exec_ddl_with_conn(conn: &Connection) -> Result<()> {
+    info!("dbv1.exec_ddl_with_conn");
     // config table
     conn.execute_batch(
         r#"create table if not exists config(
@@ -241,10 +241,9 @@ pub fn exec_ddl() -> Result<()> {
     Ok(())
 }
 
-/// DB_VERSION = 1
-pub fn init_data() -> Result<()> {
-    println!("dbv1.init_data");
-    let conn: Connection = Connection::open(get_db_path())?;
+/// 使用传入的连接初始化数据
+pub fn init_data_with_conn(conn: &Connection) -> Result<()> {
+    info!("dbv1.init_data_with_conn");
 
     // init client_id
     let client_id = Uuid::new_v4().to_string().replace("-", "");
@@ -274,7 +273,7 @@ pub fn init_data() -> Result<()> {
         (default_locale,),
     )?;
     let default_indexer_setting = format!(
-        r#"{{"is_private":true,"parser_mode":"local","file_content_language":"{}","image_parser_mode":"local","audio_parser_mode":"local","ignore_dirs":["node_modules"],"ignore_exts":["tmp"],"ignore_files":[],"save_parsed_content": {{"document":false,"image":true,"audio":true,"video":true}}}}"#,
+        r#"{{"is_private":true,"parser_mode":"local","file_content_language":"{}","image_parser_mode":"local","audio_parser_mode":"local","ignore_dirs":["node_modules"],"ignore_path_prefixes":[],"ignore_exts":["tmp"],"ignore_files":[],"save_parsed_content": {{"document":false,"image":true,"audio":true,"video":true}}}}"#,
         default_file_content_language
     );
     // is_private: Deprecated, kept for backward compatibility

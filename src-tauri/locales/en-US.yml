@@ -6,6 +6,22 @@ common:
   tip: Tip
   yes: Yes
   no: No
+pairing:
+  remark:
+    user-accepted: User accepted pairing request
+    user-rejected: User rejected pairing request
+    remote-accepted: Remote device accepted pairing request
+    remote-rejected: Remote device rejected pairing request
+    user-rejected-device: User rejected device
+    request-expired: Pairing request expired after 24 hours, status reset
+    auto-accepted: Auto-accepted by configuration
+    auto-paired: Auto-paired (mutual request)
+    already-paired: Device already paired, no action needed
+    auto-rejected: Device previously rejected, auto-rejecting
+    waiting-approval: Waiting for user approval
+    status-reset: Pairing status reset by user
+    request-sent: Pairing request sent, waiting for response
+    remote-reset: Remote device reset pairing status
 prompt:
   image-analyze: |
     Analyze the following image and extract all visible information, including but not limited to:  
@@ -41,3 +57,5 @@ message:
   indexing-skip-empty-content: Skipping empty content.
   indexing-skip-by-privacy: "Privacy setting: skip indexing audio"
   abort-tasks-and-exit: Abort running background tasks [%{tasks}] and exit Mango Finder?
+  file-not-found: File not found
+  internal-error: Internal server error

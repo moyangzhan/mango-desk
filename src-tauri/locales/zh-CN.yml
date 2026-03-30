@@ -6,6 +6,22 @@ common:
   tip: 提示
   yes: 是
   no: 否
+pairing:
+  remark:
+    user-accepted: 用户接受了配对请求
+    user-rejected: 用户拒绝了配对请求
+    remote-accepted: 对方接受了配对请求
+    remote-rejected: 对方拒绝了配对请求
+    user-rejected-device: 用户拒绝了该设备
+    request-expired: 配对请求已过期（超过24小时），状态已重置
+    auto-accepted: 根据配置自动接受
+    auto-paired: 双方互发请求自动配对
+    already-paired: 设备已配对，无需重复处理
+    auto-rejected: 设备已被拒绝，自动拒绝后续请求
+    waiting-approval: 等待用户处理
+    status-reset: 用户手动重置了配对状态
+    request-sent: 已发送配对请求，等待对方响应
+    remote-reset: 对方重置了配对状态
 prompt:
   image-analyze: |
     请分析以下图片并提取所有可见信息，包括但不限于：  
@@ -41,3 +57,5 @@ message:
   indexing-skip-empty-content: 文件内容为空，跳过
   indexing-skip-by-privacy: "隐私设置：跳过音频索引"
   abort-tasks-and-exit: 是否中止后台任务 [%{tasks}] 并退出 Mango Finder？
+  file-not-found: 文件未找到
+  internal-error: 服务器内部错误

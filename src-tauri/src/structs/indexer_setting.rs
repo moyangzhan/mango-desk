@@ -43,6 +43,8 @@ pub struct IndexerSetting {
     #[serde(default)]
     pub audio_parser_mode: FileParserMode,
     pub ignore_dirs: Vec<String>,
+    #[serde(default)]
+    pub ignore_path_prefixes: Vec<String>, // Full path prefixes to ignore
     pub ignore_exts: Vec<String>,
     pub ignore_files: Vec<String>, // File absolute path
     #[serde(default)]
@@ -59,6 +61,7 @@ impl Default for IndexerSetting {
             ignore_exts: vec![],
             ignore_files: vec![],
             ignore_dirs: vec![],
+            ignore_path_prefixes: vec![],
             save_parsed_content: SaveParsedContent {
                 document: false,
                 image: true,

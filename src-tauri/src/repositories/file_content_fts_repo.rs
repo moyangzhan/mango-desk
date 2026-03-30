@@ -20,8 +20,8 @@ pub async fn insert(file_id: i64, chunk_id: i64, chunk_text: &str) -> Result<(),
         ":chunk_id": chunk_id,
         ":content": content,
     })?;
-    println!(
-        "insert file_content_fts last_insert_rowid:{}",
+    log::debug!(
+        "insert file_content_fts last_insert_rowid: {}",
         last_insert_rowid
     );
     Ok(())
@@ -40,7 +40,7 @@ pub async fn update(file_id: i64, chunk_id: i64, chunk_text: &str) -> Result<(),
         ":chunk_id": chunk_id,
         ":content": content,
     })?;
-    println!("update file_content_fts affected:{}", affected);
+    log::debug!("update file_content_fts affected: {}", affected);
     Ok(())
 }
 
@@ -48,14 +48,11 @@ pub fn delete_by_file_id(file_id: i64) -> Result<usize, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
     let mut stmt = conn.prepare("delete from file_content_fts where file_id = ?1")?;
     let affected = stmt.execute([file_id])?;
-    println!(
-        "delete file_content_fts by file id affected: {:?}",
-        affected
-    );
+    log::debug!("delete file_content_fts by file id affected: {:?}", affected);
     Ok(affected)
 }
 
-pub fn delelte_by_prefix_path(pre_path: &str) -> Result<usize, RepositoryError> {
+pub fn delete_by_prefix_path(pre_path: &str) -> Result<usize, RepositoryError> {
     if pre_path.is_empty() {
         return Ok(0);
     }
@@ -67,10 +64,7 @@ pub fn delelte_by_prefix_path(pre_path: &str) -> Result<usize, RepositoryError> 
     let conn = Connection::open(get_db_path())?;
     let mut stmt = conn.prepare("delete from file_content_fts join file_info on file_content_fts.file_id = file_info.id where file_info.path = ?1 or file_info.path like ?2")?;
     let affected = stmt.execute((pre_path, pattern))?;
-    println!(
-        "delete file_content_fts by prefix path affected: {:?}",
-        affected
-    );
+    log::debug!("delete file_content_fts by prefix path affected: {:?}", affected);
     Ok(affected)
 }
 
@@ -78,7 +72,7 @@ pub fn clear() -> Result<usize, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
     let mut stmt = conn.prepare("delete from file_content_fts")?;
     let affected = stmt.execute([])?;
-    println!("clear file_content_fts affected: {:?}", affected);
+    log::debug!("clear file_content_fts affected: {:?}", affected);
     Ok(affected)
 }
 
@@ -160,7 +154,7 @@ pub async fn search(query: &str, limit: usize) -> Result<Vec<FtsSearchResult>, R
     let mut results: Vec<FtsSearchResult> = file_map.into_values().collect();
     results.sort_by(|a, b| b.score.cmp(&a.score));
     results.truncate(limit);
-    println!("search file_content_fts cost: {:?}", start.elapsed());
+    log::debug!("search file_content_fts cost: {:?}", start.elapsed());
     Ok(results)
 }
 
@@ -226,7 +220,12 @@ pub fn make_snippet(text: &str, keywords: &[&str], radius: usize) -> String {
         if kw.is_empty() {
             continue;
         }
-        let pattern = Regex::new(&regex::escape(kw)).unwrap();
+        // SAFETY: regex::escape() always produces a valid regex pattern
+        // as it escapes all special regex metacharacters
+        let pattern = match Regex::new(&regex::escape(kw)) {
+            Ok(p) => p,
+            Err(_) => continue, // Skip invalid patterns (should not happen with escape)
+        };
         snippet = pattern
             .replace_all(&snippet, |caps: &regex::Captures| {
                 format!("<b>{}</b>", &caps[0])

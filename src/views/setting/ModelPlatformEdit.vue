@@ -46,7 +46,7 @@ const debounceSave = useDebounceFn(async () => {
     </NFormItem>
     <NFormItem :label="t('proxy.enable')">
       <NSwitch v-model:value="tmpPlatform.is_proxy_enable" class="mr-6" @update:value="debounceSave" />
-      <NButton text tag="a" target="_blank" type="primary" @click="gotoProxySetting">
+      <NButton text tag="a" target="_blank" type="primary" class="text-link" @click="gotoProxySetting">
         {{
           t('common.setting').toLowerCase()
         }}

@@ -8,6 +8,7 @@ interface Window {
 interface AppState {
   theme: string;
   locale: string;
+  clusterPortError: { port: number } | null;
 }
 
 interface SettingState {
@@ -72,6 +73,7 @@ interface IndexerSetting {
   audio_parser_mode: string;
   file_content_language: string;
   ignore_dirs: string[];
+  ignore_path_prefixes: string[];
   ignore_exts: string[];
   ignore_files: string[];
   save_parsed_content: SaveParsedContent;
@@ -160,6 +162,44 @@ interface SearchResult {
   matched_keywords: string[],
   matched_chunk_ids: number[],
   similarity_type?: 'imageHash' | 'imageSemantic' | 'documentSemantic' | 'audioFingerprint' | 'audioTranscription',
+  source_device?: SourceDevice,
+}
+
+// Source device info for search results (only for remote devices)
+interface SourceDevice {
+  device_id: string,
+  device_name: string,
+}
+
+// Search device for device filter
+interface SearchDevice {
+  device_id: string,
+  device_name: string,
+  is_local: boolean,
+  online_status: string,
+  index_count: number,
+}
+
+// Search status for tracking progress
+interface SearchStatus {
+  device_id: string,
+  device_name: string,
+  status: 'Pending' | 'Searching' | 'Completed' | 'Failed',
+  result_count: number,
+  error?: string,
+}
+
+// Local device search result
+interface LocalDeviceSearchResult {
+  results: SearchResult[],
+  total: number,
+}
+
+// Remote device search result
+interface RemoteDeviceSearchResult {
+  results: SearchResult[],
+  statuses: SearchStatus[],
+  total: number,
 }
 
 //  Start { task_id: i64 },
@@ -173,4 +213,47 @@ interface IndexingEvent {
     taskId: number
     msg: string
   }
+}
+
+// Cluster types
+interface Device {
+  id: number;
+  device_id: string;
+  name: string;
+  ip_address: string;
+  port: number;
+  version: string;
+  online_status: 'online' | 'offline' | 'unknown';
+  pairing_status: 'none' | 'pending_in' | 'pending_out' | 'paired' | 'rejected' | 'blocked';
+  last_seen: string;
+  first_discovered: string;
+  index_count: number;
+  capabilities: string;
+  discovery_method: 'mdns' | 'manual';
+  create_time: string;
+  update_time: string;
+}
+
+interface PairingRequest {
+  id: number;
+  device_id: string;
+  device_name: string;
+  ip_address: string;
+  port: number;
+  direction: 'in' | 'out';
+  status: 'pending' | 'accepted' | 'rejected' | 'expired' | 'auto_rejected';
+  remark: string;
+  response_time: string | null;
+  create_time: string;
+  update_time: string;
+}
+
+interface ClusterSetting {
+  enabled: boolean;
+  port: number;
+  device_name: string;
+  allow_to_be_discovered: boolean;
+  auto_request_pairing: boolean;
+  auto_accept_pairing: boolean;
+  online_check_interval: number;
 }

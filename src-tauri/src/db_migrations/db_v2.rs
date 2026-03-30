@@ -1,4 +1,3 @@
-use crate::utils::app_util::get_db_path;
 use anyhow::Result;
 use log::info;
 use rusqlite::Connection;
@@ -6,11 +5,8 @@ use rusqlite::Connection;
 /// DB_VERSION = 2
 /// Add audio_type and image_hash columns to file_info table for efficient similarity search
 /// Add self_hosted_platform table for self-hosted model platforms (Ollama, vLLM, etc.)
-/// 在 file_info 表中添加 audio_type 和 image_hash 字段以提高相似性查询效率
-/// 添加 self_hosted_platform 表用于自托管模型平台
-pub fn exec_ddl() -> Result<()> {
-    info!("dbv2.exec_ddl");
-    let conn: Connection = Connection::open(get_db_path())?;
+pub fn exec_ddl_with_conn(conn: &Connection) -> Result<()> {
+    info!("dbv2.exec_ddl_with_conn");
 
     // Add audio_type column for audio classification
     // Values: 0=Unknown, 1=Speech, 2=Music, 3=Mixed
@@ -59,15 +55,14 @@ pub fn exec_ddl() -> Result<()> {
 }
 
 /// Initialize self_hosted_platform and ai_model data
-pub fn init_data() -> Result<()> {
-    info!("dbv2.init_data");
-    let conn: Connection = Connection::open(get_db_path())?;
+pub fn init_data_with_conn(conn: &Connection) -> Result<()> {
+    info!("dbv2.init_data_with_conn");
 
     // Self-hosted platform init
     conn.execute_batch(
         r#"
-        insert or ignore into self_hosted_platform (name, title, host, port, is_enable) values ('ollama', 'Ollama', '127.0.0.1', 11434, 0);
-        insert or ignore into self_hosted_platform (name, title, host, port, is_enable) values ('vllm', 'vLLM', '127.0.0.1', 8000, 0);
+        insert or ignore into self_hosted_platform (name, title, host, port) values ('ollama', 'Ollama', '127.0.0.1', 11434);
+        insert or ignore into self_hosted_platform (name, title, host, port) values ('vllm', 'vLLM', '127.0.0.1', 8000);
         "#,
     )?;
 

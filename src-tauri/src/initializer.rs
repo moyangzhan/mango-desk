@@ -5,6 +5,7 @@ use crate::global::{
     CONFIG_NAME_INDEXER_SETTING, CONFIG_NAME_PROXY, CONFIG_NAME_WATCHER_SETTING,
     FS_WATCHER_SETTING, INDEXER_SETTING, ONNX_EXEC_PROVIDERS_INITIALIZED, PROXY,
 };
+use crate::cluster;
 use crate::repositories::{config_repo, model_platform_repo, self_hosted_platform_repo};
 use crate::structs::fs_watcher_setting::FsWatcherSetting;
 use crate::structs::indexer_setting::IndexerSetting;
@@ -99,6 +100,9 @@ pub async fn process() {
             CONFIG_NAME_ACTIVE_SELF_HOSTED_PLATFORM
         );
     }
+
+    // Initialize cluster setting
+    cluster::init_cluster_setting().await;
 }
 
 pub trait ConfigLock<T: 'static> {

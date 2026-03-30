@@ -1,68 +1,23 @@
-use crate::db_migrations::{db_v1, db_v2};
-use crate::global::{CONFIG_NAME_DB_VERSION, DB_VERSION};
+use crate::db_manager;
+use crate::db_migrations;
 use crate::utils::app_util::get_db_path;
 use anyhow::Result;
-use log::{error, info};
-use rusqlite::Connection;
+use log::info;
+use std::path::PathBuf;
 
 pub fn init() -> Result<()> {
-    info!("init db, path:{}", get_db_path());
-    let mut is_latest: bool = false;
-    let conn: Connection = Connection::open(get_db_path())?;
-    let mut check_stmt =
-        conn.prepare("select name from sqlite_master where type='table' and name='config'")?;
-    let mut current_db_version: i32 = 0;
-    if check_stmt.exists([])? {
-        current_db_version = conn
-            .query_row(
-                &format!(
-                    "select * from config where name='{}'",
-                    CONFIG_NAME_DB_VERSION
-                ),
-                [],
-                |row| {
-                    let value: String = row.get("value")?;
-                    Ok(value.parse().unwrap_or(0))
-                },
-            )
-            .unwrap_or_else(|e| {
-                error!("db_version not found, set to 0,error:{:?}", e);
-                0
-            });
-        if current_db_version == DB_VERSION {
-            is_latest = true;
-        }
-    }
+    let db_path = PathBuf::from(get_db_path());
+    info!("init db, path:{}", db_path.display());
 
-    info!("db is latest:{}", is_latest);
-    if is_latest {
-        return Ok(());
-    }
+    // Initialize database connection manager
+    db_manager::init_db_manager(&db_path)
+        .map_err(|e| anyhow::anyhow!("Failed to init database manager: {}", e))?;
 
-    for a in current_db_version + 1..DB_VERSION + 1 {
-        info!("db version:{}", a);
-        match a {
-            1 => {
-                db_v1::exec_ddl().unwrap_or_else(|e| {
-                    error!("db_v1 exec_ddl error:{}", e);
-                    ()
-                });
-                db_v1::init_data()?;
-            }
-            2 => {
-                db_v2::exec_ddl().unwrap_or_else(|e| {
-                    error!("db_v2 exec_ddl error:{}", e);
-                    ()
-                });
-                db_v2::init_data()?;
-            }
-            _ => {}
-        }
-    }
+    // Run migrations using the global connection
+    let conn = db_manager::get_connection()
+        .map_err(|e| anyhow::anyhow!("Failed to get database connection: {}", e))?;
 
-    conn.execute(
-        "update config set value=?1 where name=?2",
-        (DB_VERSION, CONFIG_NAME_DB_VERSION),
-    )?;
-    return Ok(());
+    db_migrations::init_with_conn(conn.as_conn())?;
+
+    Ok(())
 }

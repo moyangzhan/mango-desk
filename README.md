@@ -10,7 +10,7 @@
 
 ## What is Mango Finder?
 
-Mango Finder (formerly MangoDesk) is a local-first desktop app for searching your local documents with natural language.
+Mango Finder (formerly MangoDesk) is a local-first desktop app for searching your local documents with natural language, with cross-device search support.
 
 It helps you find information based on what you remember, not file names or folder structures.
 
@@ -18,30 +18,11 @@ It helps you find information based on what you remember, not file names or fold
 
 ### 📌 Use Cases
 
-Mango Finder is especially useful in scenarios where you have **a large amount of local documents** and want to retrieve information using natural language.
+Intelligent search for documents, images, and audio files across multi-device environments.
 
-
-#### Typical Use Cases
-
-- 📝 **Personal Document Libraries**
-  - Years of accumulated notes, PDFs, Word files, Markdown files. etc
-  - Example: *“that note about how rust handles memory ownership”*
-
-- 📂 **SVN / Git Repositories**
-  - Search through design docs, READMEs, technical proposals, and historical solutions
-  - Example: *“the solution we used for the permission system refactor”*
-
-- 🏢 **Team or Company Knowledge Base**
-  - Internal documents, project docs, meeting notes, onboarding materials
-  - Example: *"Q4 budget planning and team feedback from last year"*
-
-- 📚 **Research and Study Materials**
-  - Papers, experiment records, literature notes
-  - Example: *“recent breakthroughs in large language model efficiency”*
-
-- ⚖️ **Legal and Financial Documents**
-  - Contracts, policy documents, reports
-  - Example: *“clauses regarding data privacy and user consent”*
+- 📝 **Personal Document Libraries** - PDFs, Word, Markdown and other accumulated files
+- 🔗 **Multi-Device Environment** - Search across NAS, Mac, Linux, Windows on local network
+- 🏢 **Team Knowledge Base** - Internal documents, project docs, meeting notes, etc.
 
 ### ✨ Features
 
@@ -55,6 +36,10 @@ Mango Finder is especially useful in scenarios where you have **a large amount o
   - Find visually similar images using perceptual hashing, semantically similar documents, or audio files with matching content
   - One click to discover related files based on visual, semantic, or audio fingerprint similarity
 
+- 🔗 **Cross-Device Search**
+  - Connect multiple devices on your local network to search across all connected devices
+  - Find files from your other computers without manually transferring them
+
 - 🌐 **Multilingual & Cross-language Search**
   - Search across **100+ languages** seamlessly. Find English documents using Chinese queries, or vice versa, with zero configuration required
 
@@ -62,8 +47,8 @@ Mango Finder is especially useful in scenarios where you have **a large amount o
   - All data stays on your device, ensuring your privacy
 
 - 🖥️ **Self-Hosted Model Support**
-  - Integration with **Ollama** and **vLLM** for image analysis using local vision models (e.g., LLaVA)
-  - Keep your data completely private by running vision models on your own hardware
+  - Integration with **Ollama** and **vLLM** for deploying private model services
+  - Ideal for team or enterprise intranet environments, data stays within internal network
 
 - ⚡ **Fast and efficient**
   - Instant search results with optimized indexing system
@@ -130,7 +115,26 @@ Install tools: [https://www.rust-lang.org/tools/install](https://www.rust-lang.o
 Install Tauri Prerequisites:
 [https://tauri.app/start/prerequisites/](https://tauri.app/start/prerequisites/)
 
-### 4. Whisper.cpp Dependencies
+### 4. Download Model Files
+
+Download the required model files from one of the following sources:
+
+1. **GitHub Release**: [model.zip](https://github.com/moyangzhan/mango-finder/releases/download/v0.1.0/model.zip) - Contains all required files
+2. **Hugging Face**: [moyangzhan/mango-finder](https://huggingface.co/moyangzhan/mango-finder/tree/main) - Manually download the following files:
+   - *.onnx model files
+   - *_tokenizer.json tokenizer files
+   - whisper-small-q8_0.bin
+
+After downloading, extract the files to the `src-tauri/assets/model` directory.
+
+**Required Files**:
+- embedding.onnx
+- embedding_tokenizer.json
+- vision.onnx
+- vision_tokenizer.json
+- whisper-small-q8_0.bin
+
+### 5. Whisper.cpp Dependencies
 
 The audio transcription feature uses [whisper.cpp](https://github.com/ggerganov/whisper.cpp). Different operating systems require different dependencies.
 
@@ -182,11 +186,59 @@ Compiling on Windows requires **CMake** and **LLVM/Clang 18** (Note: LLVM 19/20/
 
 #### macOS
 
-macOS usually has Clang built-in. If you encounter issues, install Xcode Command Line Tools:
+1. **Install Xcode Command Line Tools** (if not already installed):
+   ```sh
+   xcode-select --install
+   ```
 
-```sh
-xcode-select --install
-```
+2. **Install CMake**:
+   ```sh
+   brew install cmake
+   ```
+
+3. **Set environment variables** (required for Apple Silicon):
+
+   For Apple Silicon Macs (M1/M2/M3), you need to set the following environment variables:
+
+   | Variable | Value | Purpose |
+   |----------|-------|---------|
+   | `CFLAGS` | `-U__ARM_FEATURE_MATMUL_INT8` | Avoid whisper.cpp compilation issues on ARM |
+   | `MACOSX_DEPLOYMENT_TARGET` | `10.15` | Set minimum supported macOS version (Catalina) |
+
+   **Temporary (current terminal session):**
+   ```sh
+   export CFLAGS="-U__ARM_FEATURE_MATMUL_INT8"
+   export MACOSX_DEPLOYMENT_TARGET="10.15"
+   ```
+
+   **Permanent (add to your shell config):**
+   ```sh
+   # For zsh (default on macOS)
+   echo 'export CFLAGS="-U__ARM_FEATURE_MATMUL_INT8"' >> ~/.zshrc
+   echo 'export MACOSX_DEPLOYMENT_TARGET="10.15"' >> ~/.zshrc
+   source ~/.zshrc
+
+   # For bash
+   echo 'export CFLAGS="-U__ARM_FEATURE_MATMUL_INT8"' >> ~/.bash_profile
+   echo 'export MACOSX_DEPLOYMENT_TARGET="10.15"' >> ~/.bash_profile
+   source ~/.bash_profile
+   ```
+
+4. **Add Rust target**:
+
+   ```sh
+   rustup target add aarch64-apple-darwin
+   ```
+
+5. **Build**:
+
+   ```sh
+   pnpm tauri build
+   # Or explicitly specify target
+   pnpm tauri build --target aarch64-apple-darwin
+   ```
+
+> **Note**: The minimum supported macOS version is 10.15 (Catalina).
 
 #### Linux
 
@@ -207,25 +259,6 @@ sudo dnf install gcc-c++ make cmake
 ```sh
 sudo pacman -S base-devel cmake
 ```
-
-### 5. Download Model Files
-
-Download the required model files from one of the following sources:
-
-1. **GitHub Release**: [model.zip](https://github.com/moyangzhan/mango-finder/releases/download/v0.1.0/model.zip) - Contains all required files
-2. **Hugging Face**: [moyangzhan/mango-finder](https://huggingface.co/moyangzhan/mango-finder/tree/main) - Manually download the following files:
-   - *.onnx model files
-   - *_tokenizer.json tokenizer files
-   - whisper-small-q8_0.bin
-
-After downloading, extract the files to the `src-tauri/assets/model` directory.
-
-**Required Files**:
-- embedding.onnx
-- embedding_tokenizer.json
-- vision.onnx
-- vision_tokenizer.json
-- whisper-small-q8_0.bin
 
 ## 🚀 Getting Started
 
@@ -260,11 +293,8 @@ A: Mango Finder follows a local-first architecture to ensure data privacy:
 
 #### Local Data Processing
 - All document indexing and search operations are performed locally on your device
-- No data is transmitted to external servers during normal operation
-
-#### Exception Cases
-- Only when processing images or audio files, remote models may be used (if enabled)
-- These remote models are disabled by default and must be manually enabled by users
+- By default, all features run completely offline without network dependency
+- Remote models are only used for image and audio processing when users **manually enable remote model services**
 
 #### Data storage
 - All user data remains on the local device by default
@@ -278,15 +308,19 @@ A: The codebase includes multiple models serving different purposes:
 
 #### 1. Active Local Models (Enabled by Default)
 - `src-tauri/assets/model/*`
-- These models run locally on users' computers for basic document processing
+- These models run locally on users' computers for document, image, and audio processing
 - Prioritized for privacy and performance
 
-#### 2. Remote Models (Optional)
+#### 2. Self-Hosted Models (Optional)
+- Deploy private model services via **Ollama** or **vLLM**
+- Ideal for teams or enterprises sharing models internally
+- Data stays within the internal network, ensuring enterprise-level privacy
+
+#### 3. Remote Models (Optional)
 - `gpt-5-mini` and `gpt-4o-mini-transcribe`
 - Designed for image and audio parsing
 - Disabled by default, can be enabled if needed
 - Note: We plan to replace these with local alternatives when available
-- Kept as optional features for self-hosting scenarios
 
 #### 3. Reserved Models (Future Features)
 - `qwen-turbo`, `deepseek-chat`, and `deepseek-reasoner`
@@ -295,6 +329,57 @@ A: The codebase includes multiple models serving different purposes:
   - Advanced document analysis
 - Also serves as a foundation for developers who want to customize with these models
 - Maintains flexibility for future feature expansion
+
+
+### Q: Why can't I discover other devices on my local network when using the multi-device feature?
+
+A: Prerequisites for using the multi-device feature:
+- All devices are connected to the **same local network**
+- All devices have **Mango Finder running** with the multi-device feature enabled
+
+The multi-device feature relies on the mDNS protocol for device discovery. The following situations may prevent devices from being discovered:
+
+#### Common Causes
+
+1. **Network Isolation**
+   - Some routers or network environments have "AP Isolation" or "Client Isolation" enabled
+   - This blocks direct communication between devices on the same network
+   - Solution: Log into your router's admin interface and disable "AP Isolation" or similar options
+
+2. **Firewall Restrictions**
+   - Windows Firewall or third-party security software may block inbound connections
+   - Solution: Allow Mango Finder through the firewall, or temporarily disable the firewall for testing
+
+3. **Different Subnets**
+   - Devices connected to different subnets (e.g., 2.4GHz and 5GHz bands sometimes get assigned different subnets)
+   - Solution: Ensure all devices are connected to the same subnet
+
+4. **Port Already in Use**
+   - The default port 7890 is occupied by another program
+   - Mango Finder will try fallback ports (17890, 17891, 17892), but ensure at least one port is available
+
+#### Diagnostic Steps
+
+1. **Test Network Connectivity**
+   ```sh
+   # On device A, ping device B's IP address
+   ping 192.168.1.xxx
+   ```
+   If ping fails, there's a network isolation issue.
+
+2. **Check Port**
+   ```sh
+   # Test if the target device's HTTP service is reachable
+   curl http://192.168.1.xxx:7890/ping
+   ```
+
+3. **Check Firewall**
+   - Windows: Control Panel → Windows Defender Firewall → Allow an app through firewall
+   - macOS: System Preferences → Security & Privacy → Firewall
+
+4. **Add Device Manually**
+   - If auto-discovery still doesn't work, you can click "Add Device" in the device list and manually enter the IP and port
+
 
 ## 📝 License
 

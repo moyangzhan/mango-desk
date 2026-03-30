@@ -41,7 +41,12 @@ impl DocumentLoader for PptxLoader {
         let mut xml_data = String::new();
 
         for i in 0..archive.len() {
-            let mut c_file = archive.by_index(i).unwrap();
+            let mut c_file = archive.by_index(i).map_err(|e| {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("Failed to read zip entry {}: {}", i, e),
+                )
+            })?;
             if c_file.name().starts_with("ppt/slides") {
                 let mut _buff = String::new();
                 let read_result = c_file.read_to_string(&mut _buff)?;

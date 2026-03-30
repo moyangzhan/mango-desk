@@ -94,7 +94,7 @@ pub enum AppError {
         #[from]
         source: anyhow::Error,
     },
-    #[error("sqlite erorr: {source}")]
+    #[error("sqlite error: {source}")]
     SqliteError {
         #[from]
         source: rusqlite::Error,

@@ -152,6 +152,11 @@ async function initStatusData() {
           key: 'ignore-folders',
         },
         {
+          name: t('indexer.ignorePathPrefixes'),
+          status: indexerStore.indexerSetting.ignore_path_prefixes?.length === 0 ? t('common.none') : indexerStore.indexerSetting.ignore_path_prefixes?.join(', '),
+          key: 'ignore-path-prefixes',
+        },
+        {
           name: t('indexer.ignoreHiddenFolders'),
           status: t('common.yes'),
           key: 'ignore-hidden-folders',
@@ -369,9 +374,8 @@ async function saveModel() {
   }
 }
 
-watch(() => appStore.locale, (newVal) => {
-  if (newVal)
-    initStatusData()
+watch(() => appStore.locale, () => {
+  initStatusData()
 })
 
 onMounted(async () => {
@@ -422,9 +426,9 @@ onMounted(async () => {
             <NSpace>
               <NRadio value="local">
                 {{ t('indexer.localMode') }}
-                <NTag v-if="parserMode === 'local'" type="success" size="small" class="ml-1">
+                <AppTag v-if="parserMode === 'local'" type="success" size="small" class="ml-1">
                   {{ t('indexer.fullyPrivate') }}
-                </NTag>
+                </AppTag>
               </NRadio>
               <NRadio value="selfhosted">
                 {{ t('indexer.selfHostedMode') }}
@@ -448,7 +452,7 @@ onMounted(async () => {
                   model: selfHostedVisionModel?.title || selfHostedVisionModel?.name || 'LLaVA',
                 })
               }}
-              <NButton text type="primary" size="tiny" @click="openModelEditModal">
+              <NButton text type="primary" size="tiny" class="text-link" @click="openModelEditModal">
                 {{ t('indexer.editModel') }}
               </NButton>
             </div>
@@ -627,10 +631,10 @@ onMounted(async () => {
       </NForm>
       <template #footer>
         <NSpace justify="end">
-          <NButton @click="showModelEditModal = false">
+          <NButton ghost @click="showModelEditModal = false">
             {{ t('common.cancel') }}
           </NButton>
-          <NButton type="primary" :disabled="!editingModel?.name || !editingModel?.title" @click="saveModel">
+          <NButton type="primary" ghost :disabled="!editingModel?.name || !editingModel?.title" @click="saveModel">
             {{ t('common.save') }}
           </NButton>
         </NSpace>

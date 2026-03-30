@@ -29,7 +29,7 @@ pub async fn init_after_ui_mounted() -> Result<()> {
                     log::error!("file watcher send msg to channel error:{}", error);
                 }
             }
-            Err(err) => println!("file watch error: {:?}", err),
+            Err(err) => log::error!("file watch error: {:?}", err),
         },
         Config::default(),
     )?;
@@ -253,7 +253,7 @@ fn flush_pending(pending: &mut HashMap<PathBuf, FsEvent>) {
                 });
                 let target_path = to.to_string_lossy().to_string();
                 if is_file {
-                    println!("Rename file: {} -> {}", from_path, target_path);
+                    log::debug!("Rename file: {} -> {}", from_path, target_path);
                     let file_info = file_info_repo::get_by_path(&from_path).unwrap_or(None);
                     match file_info {
                         Some(_) => {
@@ -327,9 +327,9 @@ fn flush_pending(pending: &mut HashMap<PathBuf, FsEvent>) {
                 }
             }
             _ => {
-                println!("event: Other")
+                log::debug!("event: Other")
             }
         }
     }
-    println!("--------------------------");
+    log::debug!("--------------------------");
 }

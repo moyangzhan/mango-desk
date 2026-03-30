@@ -1,19 +1,42 @@
 <script setup lang="ts">
 import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
 import { openPath } from '@tauri-apps/plugin-opener'
-import { useDebounceFn } from '@vueuse/core'
 import HowToUse from './HowToUse.vue'
 import SimilarResultsModal from '@/components/SimilarResultsModal.vue'
 import { t } from '@/locales'
 import SvgIcon from '@/components/SvgIcon.vue'
 import { useIndexerStore } from '@/stores/indexer'
+import { useSearch } from '@/composables/useSearch'
 
-const SEMANTIC_SEARCH = 1
-const KEYWORD_SEARCH = 2
+// Use search composable
+const {
+  SEMANTIC_SEARCH,
+  KEYWORD_SEARCH,
+  query,
+  searchResults,
+  localSearching,
+  remoteDeviceSearching,
+  searchType,
+  searchDevices,
+  selectedDeviceIds,
+  searchStatuses,
+  hasRemoteDevices,
+  hitTypeLabels,
+  isKeywordOnlyMatch,
+  toggleDevice,
+  selectAllDevices,
+  getDeviceStatusIcon,
+  getDeviceStatusColor,
+  triggerSearch,
+  clearSearch,
+  loadClusterSetting,
+  highlightText,
+  downloadRemoteFile,
+} = useSearch()
+
+// UI state
 const extIcons = ['csv', 'doc', 'docx', 'html', 'json', 'mp3', 'mp4', 'pdf', 'ppt', 'pptx', 'psd', 'rar', 'txt', 'xls', 'xlsx']
-const query = ref('')
-const searchResults = ref<SearchResult[]>([])
-const searching = ref(false)
 const selectedIndex = ref(-1)
 const inputRef = ref<HTMLInputElement | null>(null)
 const isFocused = ref(false)
@@ -22,26 +45,9 @@ const parsedContent = ref('')
 const showContentModal = ref(false)
 const showChunksModal = ref(false)
 const matchChunks = ref<string[]>([])
-const searchType = ref(SEMANTIC_SEARCH) // 1: semantic search, 2: path search
 
 // Similar results modal ref
 const similarModalRef = ref<InstanceType<typeof SimilarResultsModal> | null>(null)
-
-const hitTypeLabels = computed<Record<string, string>>(() => ({
-  pathKeyword: t('common.hitType.pathKeyword'),
-  contentKeyword: t('common.hitType.contentKeyword'),
-  contentSemantic: t('common.hitType.contentSemantic'),
-  metaSemantic: t('common.hitType.metaSemantic'),
-}))
-
-// Check if the match is purely keyword-based (no semantic or similarity matching)
-// 检查是否为纯关键词匹配（无语义或相似性匹配）
-const isKeywordOnlyMatch = (item: SearchResult): boolean => {
-  if (!item.hit_types || item.hit_types.length === 0)
-    return false
-  const keywordTypes = ['pathKeyword', 'contentKeyword']
-  return item.hit_types.every(type => keywordTypes.includes(type)) && !item.similarity_type
-}
 
 const focusInput = () => {
   inputRef.value?.focus()
@@ -51,49 +57,29 @@ const blurInput = () => {
   inputRef.value?.blur()
 }
 
-let debounceSearch = useDebounceFn(async () => {
-  search()
-}, 600)
-
-watch(searchType, (newVal) => {
-  if (newVal === SEMANTIC_SEARCH) {
-    console.log('switch to semantic search')
-    debounceSearch = useDebounceFn(async () => {
-      search()
-    }, 300)
-  } else if (newVal === KEYWORD_SEARCH) {
-    console.log('switch to keyword search')
-    // Sematic search is slower, so we use a longer debounce time
-    debounceSearch = useDebounceFn(async () => {
-      search()
-    }, 600)
-  }
-  debounceSearch()
-})
-
 function openFile(path = '') {
   openPath(path).then((res) => {
     console.log('openfile', res)
   })
 }
 
-async function loadFileDetail(id = 0) {
+async function loadFileDetail(id = 0, deviceId?: string) {
   showContentModal.value = true
   parsedContent.value = ''
   try {
-    const fileInfo = await invoke<FileInfo>('load_file_detail', { fileId: id })
+    const fileInfo = await invoke<FileInfo>('load_file_detail', { fileId: id, deviceId })
     if (fileInfo)
-      parsedContent.value = fileInfo.content
+      parsedContent.value = fileInfo.content || ''
   } catch (e) {
     console.log(e)
   }
 }
 
-async function loadChunks(ids: number[], keywords: string[]) {
+async function loadChunks(ids: number[], keywords: string[], deviceId?: string) {
   showChunksModal.value = true
   matchChunks.value = []
   try {
-    const chunks = await invoke<string[]>('load_chunks', { ids })
+    const chunks = await invoke<string[]>('load_chunks', { ids, deviceId })
     if (chunks) {
       if (keywords && keywords.length > 0) {
         matchChunks.value = chunks.map((chunk) => {
@@ -109,79 +95,9 @@ async function loadChunks(ids: number[], keywords: string[]) {
 }
 
 function onClear() {
-  query.value = ''
-  searchResults.value = []
+  clearSearch()
   selectedIndex.value = -1
   focusInput()
-}
-
-function escapeRegExp(str: string) {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
-function highlightText(text: string, keywords: string[]) {
-  if (!text || !keywords || keywords.length === 0)
-    return text
-  return keywords.reduce((html, keyword) => {
-    const safeKeyword = escapeRegExp(keyword)
-    const regex = new RegExp(`(${safeKeyword})`, 'gi')
-    return html.replace(
-      regex,
-      '<span class="font-bold text-(--match-word-color)">$1</span>',
-    )
-  }, text)
-}
-
-async function search() {
-  if (searching.value || !query.value) {
-    searchResults.value = []
-    return
-  }
-  try {
-    let query_txt = query.value.trim()
-    let search_name = 'semantic_search'
-    if (searchType.value === KEYWORD_SEARCH) {
-      search_name = 'keyword_search'
-      query_txt = query.value.trim()
-    }
-    if (query_txt.length < 2) {
-      window.$message.warning(t('common.queryTooShort'))
-      return
-    }
-    selectedIndex.value = -1
-    searching.value = true
-    const res = await invoke<SearchResult[]>(search_name, { query: query_txt })
-    if (res.length === 0) {
-      window.$message.warning(t('common.noData'))
-      searchResults.value = []
-      return
-    }
-    searchResults.value = res
-    searchResults.value.forEach((item) => {
-      if (item.hit_types.includes('pathKeyword') && item.matched_keywords.length > 0)
-        item.file_info.html_path = highlightText(item.file_info.path, item.matched_keywords)
-      else
-        item.file_info.html_path = item.file_info.path
-
-      if (item.file_info.category !== 2)
-        return
-
-      // Load image data for display
-      invoke('read_file_data', { path: item.file_info.path }).then((resp) => {
-        if (!resp)
-          throw new Error('No image data received')
-        const mimeType = item.file_info.file_ext.toLowerCase() === 'png' ? 'image/png' : 'image/jpeg'
-        const uint8Array = new Uint8Array(resp as ArrayBuffer)
-        const blob = new Blob([uint8Array], { type: mimeType })
-        const imageUrl = URL.createObjectURL(blob)
-        item.file_info.file_data = imageUrl
-      })
-    })
-  } catch (e) {
-    console.log(e)
-  } finally {
-    searching.value = false
-  }
 }
 
 const keyDown = (e: any) => {
@@ -189,12 +105,12 @@ const keyDown = (e: any) => {
     searchType.value = searchType.value === SEMANTIC_SEARCH ? KEYWORD_SEARCH : SEMANTIC_SEARCH
     query.value = query.value.trim()
     focusInput()
-    debounceSearch()
+    triggerSearch()
   } else if (e.key === 'Enter') {
     if (!isFocused.value && selectedIndex.value > -1)
       openFile(searchResults.value[selectedIndex.value].file_info.path)
     else
-      debounceSearch()
+      triggerSearch()
   } else if (e.key === 'ArrowUp') {
     if (selectedIndex.value === 0) {
       focusInput()
@@ -232,7 +148,32 @@ onMounted(async () => {
   const indexerSetting = await invoke<IndexerSetting>('load_indexer_setting')
   indexerStore.setIndexerSetting(indexerSetting)
   window.addEventListener('keydown', keyDown)
+
+  // Load cluster setting and devices
+  await loadClusterSetting()
+
+  // Listen for device online/offline events
+  listen<string>('device-online', (event) => {
+    const deviceId = event.payload
+    const device = searchDevices.value.find(d => d.device_id === deviceId)
+    if (device)
+      device.online_status = 'online'
+  })
+
+  listen<string>('device-offline', (event) => {
+    const deviceId = event.payload
+    const device = searchDevices.value.find(d => d.device_id === deviceId)
+    if (device)
+      device.online_status = 'offline'
+
+    // Remove offline device from selected
+    if (!selectedDeviceIds.value.includes(deviceId))
+      return
+
+    selectedDeviceIds.value = selectedDeviceIds.value.filter(id => id !== deviceId)
+  })
 })
+
 onUnmounted(() => {
   window.removeEventListener('keydown', keyDown, false)
 })
@@ -255,11 +196,11 @@ onUnmounted(() => {
         <NInput
           ref="inputRef" v-model:value="query" class="flex-1 min-w-[100px] text-left" clearable
           :placeholder="searchType === KEYWORD_SEARCH ? t('common.keywordSearchTip.description') : t('common.semanticSearchTip.description')"
-          @input="debounceSearch" @focus="isFocused = true" @blur="isFocused = false" @clear="onClear"
+          @input="triggerSearch" @focus="isFocused = true" @blur="isFocused = false" @clear="onClear"
         >
           <template #prefix>
-            <NButton
-              type="primary" text
+            <span
+              class="text-link font-medium"
               @click="searchType === SEMANTIC_SEARCH ? KEYWORD_SEARCH : SEMANTIC_SEARCH"
             >
               <span v-if="searchType === SEMANTIC_SEARCH" class="pr-2">
@@ -268,10 +209,65 @@ onUnmounted(() => {
               <span v-else class="pr-2">
                 {{ t('common.keyword') }}
               </span>
-            </NButton>
+            </span>
           </template>
         </NInput>
       </div>
+
+      <!-- Device filter (only show when cluster is enabled and has remote devices) -->
+      <div v-if="hasRemoteDevices && searchDevices.length > 0" class="mt-2 flex items-center gap-2 flex-wrap">
+        <span class="text-xs text-gray-500">{{ t('cluster.deviceFilter') }}:</span>
+        <div class="flex items-center gap-1 flex-wrap">
+          <NTag
+            v-for="device in searchDevices" :key="device.device_id"
+            :type="selectedDeviceIds.includes(device.device_id) ? 'primary' : 'default'"
+            :bordered="selectedDeviceIds.includes(device.device_id)" round size="small" class="cursor-pointer"
+            @click="toggleDevice(device.device_id)"
+          >
+            <span :class="getDeviceStatusColor(device.online_status)" class="mr-1">
+              {{ getDeviceStatusIcon(device.online_status) }}
+            </span>
+            <span v-if="device.is_local">{{ t('cluster.localDevice') }}</span>
+            <span v-else>{{ device.device_name }}</span>
+            <span class="text-xs text-gray-400 ml-1">({{ device.index_count }})</span>
+          </NTag>
+          <NButton
+            v-if="selectedDeviceIds.length !== searchDevices.length" size="tiny" quaternary
+            @click="selectAllDevices"
+          >
+            {{ t('cluster.selectAll') }}
+          </NButton>
+        </div>
+      </div>
+
+      <!-- Search status indicator -->
+      <div v-if="localSearching || remoteDeviceSearching" class="mt-2 text-xs text-gray-500">
+        <div class="flex items-center gap-4">
+          <div v-if="localSearching" class="flex items-center gap-1">
+            <NSpin size="small" />
+            <span>{{ t('cluster.localSearching') }}</span>
+          </div>
+          <div v-if="remoteDeviceSearching" class="flex items-center gap-1">
+            <NSpin size="small" />
+            <span>{{ t('cluster.remoteSearching') }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Device search statuses (show during cross-device search) -->
+      <div v-if="searchStatuses.length > 0 && remoteDeviceSearching" class="mt-2 text-xs text-gray-500">
+        <div class="flex items-center gap-4">
+          <span v-for="status in searchStatuses" :key="status.device_id" class="flex items-center gap-1">
+            <NSpin v-if="status.status === 'Searching' || status.status === 'Pending'" size="small" />
+            <span v-else-if="status.status === 'Completed'" class="text-green-500">✓</span>
+            <span v-else-if="status.status === 'Failed'" class="text-red-500">✗</span>
+            <span>{{ status.device_name }}</span>
+            <span v-if="status.status === 'Completed'" class="text-gray-400">({{ status.result_count }})</span>
+            <span v-if="status.status === 'Failed'" class="text-red-400 text-xs">{{ status.error }}</span>
+          </span>
+        </div>
+      </div>
+
       <div v-if="searchResults.length === 0" class="mt-2 text-xs text-gray-400 w-full text-left">
         <div>{{ t('common.semanticSearchTip.title') }}：{{ t('common.semanticSearchTip.description') }}</div>
         <div>
@@ -326,14 +322,17 @@ onUnmounted(() => {
 
       <NImageGroup v-else>
         <div
-          v-for="(item, idx) in searchResults" :key="item.file_info.path"
+          v-for="(item, idx) in searchResults" :key="`${item.file_info.path}-${idx}`"
           class="group w-full p-2 border-b border-(--border-color)"
           :style="selectedIndex === idx ? 'background-color: var(--secondary-bg-color);border: 1px solid var(--primary-color); box-sizing: border-box;border-radius: 0.25rem;' : ''"
         >
           <!-- Icon + File info -->
           <div class="flex space-x-2">
             <!-- Large image: top aligned -->
-            <div v-if="item.file_info.file_data && item.file_info.category === 2" class="flex justify-center items-start shrink-0 pt-0.5">
+            <div
+              v-if="item.file_info.file_data && item.file_info.category === 2"
+              class="flex justify-center items-start shrink-0 pt-0.5"
+            >
               <NImage width="100" :src="item.file_info.file_data" />
             </div>
             <!-- Small icon: vertically centered -->
@@ -353,12 +352,20 @@ onUnmounted(() => {
             </div>
             <div class="flex-1 flex flex-col justify-between text-left min-w-0 min-h-14">
               <div class="min-h-11">
-                <div
-                  class="cursor-pointer hover:underline hover:text-(--primary-color) truncate"
-                  style="font-weight: 550"
-                  @click="openFile(item.file_info.path)"
-                >
-                  {{ item.file_info.name }}
+                <!-- First row: File name + Source device -->
+                <div class="flex justify-between items-center gap-2">
+                  <div class="text-link truncate" @click="openFile(item.file_info.path)">
+                    {{ item.file_info.name }}
+                  </div>
+                  <NTooltip v-if="item.source_device">
+                    <template #trigger>
+                      <div class="flex items-center gap-1 shrink-0 text-xs">
+                        <span>🖥️</span>
+                        <span class="max-w-24 truncate">{{ item.source_device.device_name }}</span>
+                      </div>
+                    </template>
+                    {{ t('cluster.sourceDevice') }}: {{ item.source_device.device_name }}
+                  </NTooltip>
                 </div>
                 <div class="text-xs truncate">
                   <div v-html="item.file_info.html_path" />
@@ -367,44 +374,47 @@ onUnmounted(() => {
               <!-- Third row: Actions + Metadata -->
               <div class="flex justify-between items-center text-xs text-gray-400">
                 <div class="flex items-center gap-2">
+                  <NButton size="tiny" ghost @click="similarModalRef?.findSimilars(item.file_info, item.source_device?.device_id)">
+                    {{ t('common.findSimilar') }}
+                  </NButton>
                   <NButton
                     v-if="indexerStore.indexerSetting.save_parsed_content.document && item.file_info.category === 1"
-                    size="tiny" @click="loadFileDetail(item.file_info.id)"
+                    size="tiny" ghost @click="loadFileDetail(item.file_info.id, item.source_device?.device_id)"
                   >
                     {{ t('indexer.parsedContent') }}
                   </NButton>
                   <NButton
-                    v-if="indexerStore.indexerSetting.save_parsed_content.image && item.file_info.category === 2 || (indexerStore.indexerSetting.save_parsed_content.audio && item.file_info.category === 3)"
-                    size="tiny" @click="loadFileDetail(item.file_info.id)"
+                    v-if="(indexerStore.indexerSetting.save_parsed_content.image && item.file_info.category === 2) || (indexerStore.indexerSetting.save_parsed_content.audio && item.file_info.category === 3)"
+                    size="tiny" ghost @click="loadFileDetail(item.file_info.id, item.source_device?.device_id)"
                   >
                     {{ t('indexer.recognitionText') }}
                   </NButton>
                   <NButton
-                    v-if="item.matched_chunk_ids && item.matched_chunk_ids.length > 0" size="tiny"
-                    @click="loadChunks(item.matched_chunk_ids, item.matched_keywords)"
+                    v-if="item.matched_chunk_ids && item.matched_chunk_ids.length > 0" size="tiny" ghost
+                    @click="loadChunks(item.matched_chunk_ids, item.matched_keywords, item.source_device?.device_id)"
                   >
                     {{ t('common.matchedSegments', { count: item.matched_chunk_ids.length }) }}
                   </NButton>
-                  <NButton size="tiny" @click="similarModalRef?.findSimilars(item.file_info)">
-                    {{ t('common.findSimilar') }}
+                  <NButton v-if="item.source_device" size="tiny" ghost @click="downloadRemoteFile(item)">
+                    {{ t('common.download') }}
                   </NButton>
                 </div>
                 <div class="flex items-center gap-2">
                   <NTooltip v-if="item.hit_types && item.hit_types.length > 0">
                     <template #trigger>
                       <span class="flex gap-1">
-                        <NTag v-for="hitType in item.hit_types" :key="hitType" size="tiny" :bordered="false" type="info">
+                        <AppTag v-for="hitType in item.hit_types" :key="hitType">
                           {{ hitTypeLabels[hitType] || hitType }}
-                        </NTag>
+                        </AppTag>
                       </span>
                     </template>
                     {{ t('common.hitTypeTip') }}
                   </NTooltip>
                   <NTooltip v-if="item.score && !isKeywordOnlyMatch(item)">
                     <template #trigger>
-                      <NTag size="tiny" :bordered="false" type="info">
+                      <AppTag>
                         {{ item.score }}%
-                      </NTag>
+                      </AppTag>
                     </template>
                     {{ t('common.score') }}: {{ item.score }}%
                   </NTooltip>

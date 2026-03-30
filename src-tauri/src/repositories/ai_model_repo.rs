@@ -14,7 +14,7 @@ pub fn get_one(platform: &str, name: &str) -> Result<Option<AiModel>, Repository
             Ok(Some(build_ai_model(row)?))
         })
         .unwrap_or_else(|e| {
-            println!("ai_model_repo.get_one() Error: {}", e);
+            log::debug!("ai_model_repo.get_one() Error: {}", e);
             None
         });
     return Ok(one);
@@ -30,7 +30,7 @@ pub fn get_one_by_type(platform: &str, one_type: &str) -> Result<Option<AiModel>
             Ok(Some(build_ai_model(row)?))
         })
         .unwrap_or_else(|e| {
-            println!("ai_model_repo.get_one_by_type() Error: {}", e);
+            log::debug!("ai_model_repo.get_one_by_type() Error: {}", e);
             None
         });
     return Ok(one);
@@ -87,7 +87,7 @@ pub fn update(ai_model: &AiModel) -> Result<usize, RepositoryError> {
         ":is_free": &ai_model.is_free,
         ":is_enable": &ai_model.is_enable,
     })?;
-    println!("update ai_model affected: {:?}", affected);
+    log::debug!("update ai_model affected: {:?}", affected);
     Ok(affected)
 }
 
