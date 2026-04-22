@@ -77,7 +77,7 @@ pub fn init_data_with_conn(conn: &Connection) -> Result<()> {
         r#"
         -- Ollama vision model
         insert or ignore into ai_model (name, title, model_types, platform, input_types, remark, is_enable)
-        values ('llava', 'LLaVA', 'vision', 'ollama', 'text,image', 'LLaVA 是一个开源的视觉语言模型，能够理解图片内容并进行对话。需要在 Ollama 中先运行 ollama pull llava 下载模型。| LLaVA is an open-source vision-language model that can understand image content and conduct conversations. Run ollama pull llava to download the model first.', true);
+        values ('llava:latest', 'LLaVA', 'vision', 'ollama', 'text,image', 'LLaVA 是一个开源的视觉语言模型，能够理解图片内容并进行对话。需要在 Ollama 中先运行 ollama pull llava 下载模型。| LLaVA is an open-source vision-language model that can understand image content and conduct conversations. Run ollama pull llava to download the model first.', true);
 
         -- vLLM vision model
         insert or ignore into ai_model (name, title, model_types, platform, input_types, remark, is_enable)

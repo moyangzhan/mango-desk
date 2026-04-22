@@ -187,6 +187,10 @@ export default {
     selfHosted: '自托管',
     notSupport: '不支持',
     selfHostedNotSupportASR: '自托管服务（Ollama/vLLM）不支持语音识别',
+    checkConnection: '测试可用性',
+    checkConnectionSuccess: '连接成功',
+    checkConnectionFailed: '连接失败',
+    visionModel: '当前使用的视觉模型',
   },
   proxy: {
     enable: '启用代理',
@@ -201,7 +205,6 @@ export default {
     activePlatform: '激活的模型平台',
     selectForActivePlatform: '选择要激活的模型平台',
     platofrmSelector: '模型平台选择',
-    platformSetting: '模型平台设置',
     embeddingModel: '嵌入模型',
     tokenizer: '分词器',
   },

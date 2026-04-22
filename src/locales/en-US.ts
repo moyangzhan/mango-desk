@@ -186,6 +186,10 @@ export default {
     selfHosted: 'Self-Hosted',
     notSupport: 'Not Support',
     selfHostedNotSupportASR: 'Self-hosted services (Ollama/vLLM) do not support ASR',
+    checkConnection: 'Test Availability',
+    checkConnectionSuccess: 'Connection successful',
+    checkConnectionFailed: 'Connection failed',
+    visionModel: 'Current Vision Model',
   },
   proxy: {
     enable: 'Proxy Enable',

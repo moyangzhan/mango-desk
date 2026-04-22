@@ -105,6 +105,21 @@ pub fn update_basic(id: i64, name: &str, title: &str, remark: &str) -> Result<us
     Ok(affected)
 }
 
+pub fn list_by_platform(platform: &str) -> Result<Vec<AiModel>, RepositoryError> {
+    let conn = Connection::open(get_db_path())?;
+    let mut stmt = conn.prepare(
+        "select * from ai_model where platform = :platform and is_enable = 1",
+    )?;
+    let rows = stmt.query_map(&[(":platform", platform)], |row| {
+        Ok(build_ai_model(row)?)
+    })?;
+    let mut result = Vec::new();
+    for item in rows {
+        result.push(item?);
+    }
+    Ok(result)
+}
+
 fn build_ai_model(row: &Row<'_>) -> Result<AiModel, RepositoryError> {
     let create_time_str: String = row.get("create_time")?;
     let update_time_str: String = row.get("update_time")?;

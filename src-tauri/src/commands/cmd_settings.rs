@@ -93,6 +93,56 @@ pub async fn update_model_platform(platform: ModelPlatform) -> Result<usize, App
 }
 
 #[command]
+pub async fn check_self_hosted_platform(platform: SelfHostedPlatform) -> Result<String, String> {
+    use crate::repositories::ai_model_repo;
+    use crate::utils::llm_client_util::create_client_for_self_hosted;
+
+    if platform.host.is_empty() {
+        return Err("Host is required".to_string());
+    }
+
+    // 1. Check platform availability
+    let base_url = format!("http://{}:{}", platform.host, platform.port);
+    let client = reqwest::Client::new();
+    let resp = client.get(&base_url).send().await.map_err(|_| {
+        format!(
+            "Unable to connect to {}:{}",
+            platform.host, platform.port
+        )
+    })?;
+    if !resp.status().is_success() {
+        return Err(format!("Platform returned HTTP {}", resp.status()));
+    }
+
+    // 2. Check if configured models are available
+    let openai_client = create_client_for_self_hosted(&platform)
+        .map_err(|e| e.to_string())?;
+    let models = openai_client
+        .models()
+        .list()
+        .await
+        .map_err(|e| format!("Failed to list models: {}", e))?;
+    let remote_model_ids: Vec<&str> = models.data.iter().map(|m| m.id.as_str()).collect();
+
+    let configured = ai_model_repo::list_by_platform(&platform.name).map_err(|e| e.to_string())?;
+    let mut missing = vec![];
+    for model in &configured {
+        if !remote_model_ids.iter().any(|id| id == &model.name.as_str()) {
+            missing.push(model.name.clone());
+        }
+    }
+
+    if !missing.is_empty() {
+        return Err(format!(
+            "Configured models not found on platform: {}",
+            missing.join(", ")
+        ));
+    }
+
+    Ok(format!("ok ({} models)", configured.len()))
+}
+
+#[command]
 pub async fn load_active_platform() -> String {
     let platform = ACTIVE_MODEL_PLATFORM.read().await;
     platform.name.clone()
@@ -162,6 +212,46 @@ pub async fn update_self_hosted_platform(platform: SelfHostedPlatform) -> Result
         }
     }
     Ok(result)
+}
+
+#[command]
+pub async fn check_model_platform(platform: ModelPlatform) -> Result<String, String> {
+    use crate::global::PROXY;
+
+    if platform.base_url.is_empty() {
+        return Err("Base URL is required".to_string());
+    }
+    if platform.api_key.is_empty() {
+        return Err("API key is required".to_string());
+    }
+
+    let url = format!("{}/models", platform.base_url.trim_end_matches('/'));
+    let proxy = PROXY.read().await.clone();
+
+    let client = if platform.is_proxy_enable && !proxy.host.is_empty() {
+        let proxy_url = format!("{}://{}:{}", proxy.protocal, proxy.host, proxy.port);
+        reqwest::Client::builder()
+            .proxy(reqwest::Proxy::http(&proxy_url).map_err(|e| e.to_string())?)
+            .build()
+            .map_err(|e| e.to_string())?
+    } else {
+        reqwest::Client::new()
+    };
+
+    let resp = client
+        .get(&url)
+        .bearer_auth(&platform.api_key)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if resp.status().is_success() {
+        Ok("ok".to_string())
+    } else {
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        Err(format!("HTTP {}: {}", status, body))
+    }
 }
 
 // ========== Proxy commands ==========

@@ -29,7 +29,7 @@ mod types;
 mod utils;
 
 use crate::commands::{
-    add_device_manually, add_watch_path, check_devices, check_devices_status, check_path_type, clear_index,
+    add_device_manually, add_watch_path, check_devices, check_devices_status, check_model_platform, check_path_type, check_self_hosted_platform, clear_index,
     clear_pairing_requests, count_files, count_indexing_tasks, count_pending_pairing_requests,
     delete_index_item, delete_index_items, delete_indexing_task, delete_pairing_request,
     delete_pairing_requests, download_multilingual_model, fetch_remote_file,
@@ -195,6 +195,8 @@ pub fn run() {
             toggle_cluster,
             check_devices,
             check_devices_status,
+            check_model_platform,
+            check_self_hosted_platform,
             load_devices,
             load_pairing_requests,
             load_pending_pairing_requests,

@@ -21,11 +21,9 @@ type ParserMode = 'local' | 'selfhosted' | 'remote' | 'mixed'
 const indexerStore = useIndexerStore()
 const appStore = useAppStore()
 const activePlatform = ref('openai')
-const activeTab = ref('openai')
 const modelPlatformList = ref<ModelPlatform[]>([])
 const selfHostedPlatformList = ref<SelfHostedPlatform[]>([])
 const activeSelfHostedPlatform = ref('')
-const activeSelfHostedTab = ref('')
 const dataRef = ref<RowData[]>([])
 const imageParserDesc = ref('')
 const audioParserDesc = ref('')
@@ -40,6 +38,8 @@ const parserMode = ref<ParserMode>('local')
 const selfHostedVisionModel = ref<AiModel | null>(null)
 const showModelEditModal = ref(false)
 const editingModel = ref<AiModel | null>(null)
+const showSelfHostedModal = ref(false)
+const showCloudModal = ref(false)
 
 initStatusData()
 
@@ -210,10 +210,10 @@ const columns = computed<DataTableColumns<RowData>>(() => [
 async function doActivePlatformChanged(selectedName: string) {
   activePlatform.value = selectedName
   try {
-    const res = await invoke('set_active_platform', {
+    await invoke('set_active_platform', {
       platformName: selectedName,
     })
-    console.log('set_active_platform result', res)
+    window.$message.success(t('common.updateSuccess'))
   } catch (error) {
     console.error('set active tab error', error)
   }
@@ -222,12 +222,11 @@ async function doActivePlatformChanged(selectedName: string) {
 
 async function doActiveSelfHostedPlatformChanged(selectedName: string) {
   activeSelfHostedPlatform.value = selectedName
-  activeSelfHostedTab.value = selectedName
   try {
-    const res = await invoke('set_active_self_hosted_platform', {
+    await invoke('set_active_self_hosted_platform', {
       platformName: selectedName,
     })
-    console.log('set_active_self_hosted_platform result', res)
+    window.$message.success(t('common.updateSuccess'))
   } catch (error) {
     console.error('set active self-hosted platform error', error)
   }
@@ -273,19 +272,6 @@ async function doParserModeChanged(mode: ParserMode) {
 
   updateIndexerSetting()
 }
-
-// Computed: show self-hosted settings when image uses selfhosted
-// Note: audio doesn't support selfhosted mode (no ASR support in Ollama/vLLM)
-const showSelfHostedSetting = computed(() => {
-  return indexerStore.indexerSetting.image_parser_mode === 'selfhosted'
-})
-
-// Computed: show cloud settings when image or audio uses remote
-const showCloudSetting = computed(() => {
-  const imageMode = indexerStore.indexerSetting.image_parser_mode
-  const audioMode = indexerStore.indexerSetting.audio_parser_mode
-  return imageMode === 'remote' || audioMode === 'remote'
-})
 
 // Handle image parser mode change
 function onImageParserModeChanged(mode: string) {
@@ -360,9 +346,14 @@ async function saveModel() {
   if (!editingModel.value)
     return
   try {
+    let modelName = editingModel.value.name
+    if (activeSelfHostedPlatform.value === 'ollama' && modelName && !modelName.includes(':')) {
+      modelName = `${modelName}:latest`
+      editingModel.value.name = modelName
+    }
     await invoke('update_ai_model', {
       id: editingModel.value.id,
-      name: editingModel.value.name,
+      name: modelName,
       title: editingModel.value.title,
       remark: editingModel.value.remark,
     })
@@ -397,14 +388,12 @@ onMounted(async () => {
     activeSelfHostedPlatform.value = await invoke<string>(
       'load_active_self_hosted_platform',
     )
-    activeSelfHostedTab.value = activeSelfHostedPlatform.value
 
     const userDataPath = await invoke<string>('get_data_path')
     console.log('userDataPath', userDataPath)
     modelPath.value = await join(userDataPath, 'model')
     console.log('modelPath', modelPath.value)
     dbPath.value = await join(userDataPath, 'storage')
-    activeTab.value = activePlatform.value
     initStatusData()
   } catch (e) {
     console.error('IndexerSetting onMounted error', e)
@@ -452,8 +441,10 @@ onMounted(async () => {
                   model: selfHostedVisionModel?.title || selfHostedVisionModel?.name || 'LLaVA',
                 })
               }}
-              <NButton text type="primary" size="tiny" class="text-link" @click="openModelEditModal">
-                {{ t('indexer.editModel') }}
+            </div>
+            <div v-if="parserMode === 'selfhosted'" class="mt-1">
+              <NButton text type="primary" size="tiny" class="text-link" @click="showSelfHostedModal = true">
+                {{ t('indexer.selfHostedSetting') }}
               </NButton>
             </div>
             <div v-if="parserMode === 'remote'">
@@ -464,6 +455,11 @@ onMounted(async () => {
                   )?.title,
                 })
               }}
+            </div>
+            <div v-if="parserMode === 'remote'" class="mt-1">
+              <NButton text type="primary" size="tiny" class="text-link" @click="showCloudModal = true">
+                {{ t('indexer.cloudModeSetting') }}
+              </NButton>
             </div>
             <div v-if="parserMode === 'mixed'">
               {{ t('indexer.mixedModeDesc') }}
@@ -526,12 +522,10 @@ onMounted(async () => {
           </tbody>
         </NTable>
 
-        <!-- Self-hosted platform settings (show when image or audio uses selfhosted) -->
-        <NCard
-          v-if="showSelfHostedSetting" :title="t('indexer.selfHostedSetting')" size="small"
-          :bordered="true"
-        >
-          <NFormItem :label="t('indexer.selectActivePlatform')">
+        <!-- Self-hosted platform modal -->
+        <NModal v-model:show="showSelfHostedModal" preset="card" :title="t('indexer.selfHostedSetting')" style="width: 600px">
+          <NScrollbar style="max-height: 70vh">
+            <NFormItem :label="t('indexer.selectActivePlatform')">
             <NRadioGroup :value="activeSelfHostedPlatform" @update:value="doActiveSelfHostedPlatformChanged">
               <NRadio
                 v-for="platform in selfHostedPlatformList" :key="platform.id" :label="platform.title"
@@ -539,24 +533,30 @@ onMounted(async () => {
               />
             </NRadioGroup>
           </NFormItem>
-          <NFormItem :label="t('indexer.detailConfig')">
-            <NTabs v-model:value="activeSelfHostedTab" type="line" animated placement="left">
-              <NTabPane
-                v-for="platform in selfHostedPlatformList" :key="platform.name" :name="platform.name"
-                :tab="platform.title"
-              >
-                <SelfHostedPlatformEdit :platform="platform" @saved="onSelfHostedPlatformSaved" />
-              </NTabPane>
-            </NTabs>
-          </NFormItem>
-        </NCard>
+          <NCard size="small" :bordered="true">
+            <NFormItem :label="t('common.visionModel')">
+              <span class="selectable mr-4">{{ selfHostedVisionModel?.title || selfHostedVisionModel?.name || '-' }}</span>
+              <NButton text type="primary" size="tiny" class="text-link ml-2" @click="openModelEditModal">
+                {{ t('indexer.editModel') }}
+              </NButton>
+            </NFormItem>
+            <NFormItem :label="selfHostedPlatformList.find(p => p.name === activeSelfHostedPlatform)?.title + ' ' + t('common.setting')">
+              <SelfHostedPlatformEdit
+                v-for="platform in selfHostedPlatformList"
+                v-show="platform.name === activeSelfHostedPlatform"
+                :key="platform.name"
+                :platform="platform"
+                @saved="onSelfHostedPlatformSaved"
+              />
+            </NFormItem>
+          </NCard>
+          </NScrollbar>
+        </NModal>
 
-        <!-- Cloud platform settings (show when image or audio uses remote) -->
-        <NCard
-          v-if="showCloudSetting" :title="t('indexer.cloudModeSetting')" size="small"
-          :bordered="true"
-        >
-          <NFormItem :label="t('model.selectForActivePlatform')">
+        <!-- Cloud platform modal -->
+        <NModal v-model:show="showCloudModal" preset="card" :title="t('indexer.cloudModeSetting')" style="width: 600px">
+          <NScrollbar style="max-height: 70vh">
+            <NFormItem :label="t('model.selectForActivePlatform')">
             <NRadioGroup :value="activePlatform" @update:value="doActivePlatformChanged">
               <NRadio
                 v-for="platform in modelPlatformList" :key="platform.id" :label="platform.title"
@@ -564,18 +564,19 @@ onMounted(async () => {
               />
             </NRadioGroup>
           </NFormItem>
-          <NFormItem :label="t('indexer.detailConfig')">
-            <NTabs v-model:value="activeTab" type="line" animated placement="left">
-              <NTabPane
-                v-for="platform in modelPlatformList" :key="platform.name" :name="platform.name"
-                :tab="platform.title"
-              >
-                <ModelPlatformEdit :model-platform="platform" @saved="onModelPlatformSaved" />
-              </NTabPane>
-            </NTabs>
-          </NFormItem>
-        </NCard>
-      </div>
+          <NCard size="small" :bordered="true">
+            <div>
+              <ModelPlatformEdit
+                v-for="platform in modelPlatformList"
+                v-show="platform.name === activePlatform"
+                :key="platform.name"
+                :model-platform="platform"
+                @saved="onModelPlatformSaved"
+              />
+            </div>
+          </NCard>
+          </NScrollbar>
+        </NModal>      </div>
     </NCard>
     <NCard :title="t('common.storage')" class="mb-4 px-0" size="small" :bordered="true" hoverable>
       <div class="flex flex-col">
