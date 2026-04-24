@@ -229,7 +229,7 @@ pub async fn check_model_platform(platform: ModelPlatform) -> Result<String, Str
     let proxy = PROXY.read().await.clone();
 
     let client = if platform.is_proxy_enable && !proxy.host.is_empty() {
-        let proxy_url = format!("{}://{}:{}", proxy.protocal, proxy.host, proxy.port);
+        let proxy_url = format!("{}://{}:{}", proxy.protocol, proxy.host, proxy.port);
         reqwest::Client::builder()
             .proxy(reqwest::Proxy::http(&proxy_url).map_err(|e| e.to_string())?)
             .build()

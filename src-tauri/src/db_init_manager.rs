@@ -4,17 +4,18 @@ use rusqlite::Connection;
 use log::{error, info, warn};
 use tauri::Emitter;
 
-static DB_MANAGER: OnceLock<DbManager> = OnceLock::new();
+static DB_INIT_MANAGER: OnceLock<DbInitManager> = OnceLock::new();
 
-/// Database connection manager
-struct DbManager {
-    /// Current connection (Mutex because Connection is Send but not Sync)
+/// Manages database initialization, path switching, and corruption recovery.
+/// Only used during app startup — repository functions open their own connections.
+struct DbInitManager {
+    /// Current connection (held only during init/migration)
     conn: Mutex<Option<Connection>>,
     /// Current database path
     current_path: Mutex<Option<PathBuf>>,
 }
 
-impl DbManager {
+impl DbInitManager {
     fn new() -> Self {
         Self {
             conn: Mutex::new(None),
@@ -230,25 +231,25 @@ fn notify_db_recovered(backup_path: &str) {
 
 /// Initialize database manager
 pub fn init_db_manager(db_path: &PathBuf) -> Result<(), String> {
-    let manager = DB_MANAGER.get_or_init(DbManager::new);
+    let manager = DB_INIT_MANAGER.get_or_init(DbInitManager::new);
     manager.init(db_path)
 }
 
 /// Switch database path
 pub fn switch_db_path(new_path: &PathBuf) -> Result<(), String> {
-    let manager = DB_MANAGER.get().ok_or("Database manager not initialized")?;
+    let manager = DB_INIT_MANAGER.get().ok_or("Database manager not initialized")?;
     manager.switch_path(new_path)
 }
 
 /// Get database connection
 pub fn get_connection() -> Result<ConnectionGuard<'static>, DbError> {
-    let manager = DB_MANAGER.get().ok_or(DbError::NotInitialized)?;
+    let manager = DB_INIT_MANAGER.get().ok_or(DbError::NotInitialized)?;
     manager.get_connection()
 }
 
 /// Check if database is available
 pub fn is_db_available() -> bool {
-    DB_MANAGER.get().map(|m| m.is_available()).unwrap_or(false)
+    DB_INIT_MANAGER.get().map(|m| m.is_available()).unwrap_or(false)
 }
 
 // ==================== Error Types ====================

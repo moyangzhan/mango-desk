@@ -2,7 +2,7 @@ mod audio_parser;
 mod cluster;
 mod commands;
 mod db_initializer;
-mod db_manager;
+mod db_init_manager;
 mod db_migrations;
 mod document_loaders;
 mod embedding_service;

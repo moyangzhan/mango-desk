@@ -5,7 +5,6 @@ use crate::utils::audio_util::is_supported_audio_file;
 use crate::utils::llm_client_util::create_client;
 use async_openai::types::{AudioResponseFormat, CreateTranscriptionRequestArgs};
 use async_trait::async_trait;
-use rusqlite::Result;
 
 #[async_trait]
 pub trait AudioAnalyzer: WithPlatformConfig + Send + Sync {
@@ -42,7 +41,7 @@ pub trait AudioAnalyzer: WithPlatformConfig + Send + Sync {
             .build()?;
 
         let response = client.audio().transcribe(request).await?;
-        println!("{}", response.text);
+        log::debug!("{}", response.text);
         Ok(response.text)
     }
 }

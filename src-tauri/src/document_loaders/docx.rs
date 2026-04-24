@@ -55,7 +55,7 @@ impl DocumentLoader for DocxLoader {
             if c_file.name() == "word/document.xml" {
                 let read_result = c_file.read_to_string(&mut xml_data)?;
                 if read_result == 0 {
-                    println!("Error reading file")
+                    log::warn!("Error reading file")
                 }
                 break;
             }
@@ -84,7 +84,7 @@ impl DocumentLoader for DocxLoader {
                         txt.push(decode.into_owned());
 
                         let total_chars: usize = txt.iter().map(|s| s.chars().count()).sum();
-                        if total_chars > max_load_chars {
+                        if max_load_chars > 0 && total_chars > max_load_chars {
                             break;
                         }
                     }

@@ -258,7 +258,7 @@ pub fn init_data_with_conn(conn: &Connection) -> Result<()> {
         "insert or ignore into config (name, value) VALUES (?1, ?2)",
         (
             "proxy",
-            r#"{"protocal":"http","host":"127.0.0.1","port":1087}"#,
+            r#"{"protocol":"http","host":"127.0.0.1","port":1087}"#,
         ),
     )?;
 

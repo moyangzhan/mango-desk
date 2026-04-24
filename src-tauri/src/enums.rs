@@ -35,7 +35,7 @@ pub enum ModelPlatformName {
     SiliconFlow,
     DashScope,
     DeepSeek,
-    OpenAiCompatable,
+    OpenAiCompatible,
 }
 
 impl ModelPlatformName {
@@ -45,7 +45,7 @@ impl ModelPlatformName {
             "siliconflow" => ModelPlatformName::SiliconFlow,
             "dashscope" => ModelPlatformName::DashScope,
             "deepseek" => ModelPlatformName::DeepSeek,
-            "opeai_compatible" => ModelPlatformName::OpenAiCompatable,
+            "openai_compatible" => ModelPlatformName::OpenAiCompatible,
             _ => ModelPlatformName::OpenAi,
         }
     }
@@ -55,7 +55,7 @@ impl ModelPlatformName {
             ModelPlatformName::SiliconFlow => "siliconflow",
             ModelPlatformName::DashScope => "dashscope",
             ModelPlatformName::DeepSeek => "deepseek",
-            ModelPlatformName::OpenAiCompatable => "opeai_compatible",
+            ModelPlatformName::OpenAiCompatible => "openai_compatible",
         }
     }
 }

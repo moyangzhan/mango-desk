@@ -29,16 +29,17 @@ impl SparseVector {
 
     /// 转换为存入 SQLite 的 BLOB | Convert to SQLite BLOB for storage
     pub fn to_blob(&self) -> Vec<u8> {
-        bincode::serialize(self)
-            .map_err(|e| anyhow::anyhow!("Failed to serialize sparse vector: {}", e))
-            .unwrap_or_default()
+        bincode::serialize(self).unwrap_or_else(|e| {
+            log::error!("Failed to serialize sparse vector: {}", e);
+            Vec::new()
+        })
     }
 
     /// 从 SQLite BLOB 解析 | Parse from SQLite BLOB
-    pub fn from_blob(blob: &[u8]) -> Self {
-        bincode::deserialize(blob).unwrap_or_else(|_| SparseVector {
-            indices: vec![],
-            values: vec![],
+    pub fn from_blob(blob: &[u8]) -> SparseVector {
+        bincode::deserialize(blob).unwrap_or_else(|e| {
+            log::error!("Failed to deserialize sparse vector: {}", e);
+            SparseVector::default()
         })
     }
 

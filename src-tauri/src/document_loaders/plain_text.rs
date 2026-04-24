@@ -2,7 +2,7 @@ use crate::global::PLAIN_TEXT_EXTS;
 use crate::traits::document_loader::DocumentLoader;
 use std::fs::File;
 use std::io;
-use std::io::Read;
+use std::io::{Read, BufReader};
 use std::path::Path;
 
 #[derive(Debug)]
@@ -40,10 +40,15 @@ impl DocumentLoader for PlainTextLoader {
     }
 
     fn load_file_max(&self, file: &File, max_load_chars: usize) -> io::Result<String> {
+        let mut reader = BufReader::new(file);
         let mut contents = String::new();
-        file.take((max_load_chars * 4) as u64)
-            .read_to_string(&mut contents)?;
-        let contents = contents.chars().take(max_load_chars).collect::<String>();
+        if max_load_chars > 0 {
+            reader.take((max_load_chars * 4) as u64)
+                .read_to_string(&mut contents)?;
+            contents = contents.chars().take(max_load_chars).collect::<String>();
+        } else {
+            reader.read_to_string(&mut contents)?;
+        }
         return Ok(contents);
     }
 }

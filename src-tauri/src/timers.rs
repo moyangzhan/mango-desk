@@ -43,7 +43,7 @@ async fn embedding_service_cleanup() {
                     guard.remove_if_expired();
                 }
                 Err(_) => {
-                    println!(
+                    log::warn!(
                         "Failed to acquire write lock on service manager, try again 1 sec later"
                     );
                     last_service_check = Instant::now() - Duration::from_secs(29);

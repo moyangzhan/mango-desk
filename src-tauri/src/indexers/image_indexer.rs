@@ -85,7 +85,7 @@ impl ImageIndexer {
                             ModelPlatformName::SiliconFlow => Box::new(SiliconFlow::new().await),
                             ModelPlatformName::DashScope => Box::new(DashScope::new().await),
                             ModelPlatformName::DeepSeek => {
-                                println!("DeepSeek do not support image analysis yet.");
+                                log::warn!("DeepSeek do not support image analysis yet.");
                                 return Err(AppError::UnsupportedImageAnalyze(
                                     "Deepseek model platforms".to_string(),
                                 ));
@@ -128,7 +128,7 @@ impl IndexingTemplate for ImageIndexer {
             return match parser.generate_caption_from_path(&file_info.path).await {
                 Ok(content) => content,
                 Err(e) => {
-                    eprintln!("Error parsing image locally: {}", e);
+                    log::error!("Error parsing image locally: {}", e);
                     String::new()
                 }
             };
@@ -139,7 +139,7 @@ impl IndexingTemplate for ImageIndexer {
             let model = match &self.self_hosted_model {
                 Some(m) => m,
                 None => {
-                    eprintln!("No AI model configured for self-hosted image analysis");
+                    log::warn!("No AI model configured for self-hosted image analysis");
                     return String::new();
                 }
             };
@@ -147,7 +147,7 @@ impl IndexingTemplate for ImageIndexer {
                 .analyze_image(model, &file_info.path)
                 .await
                 .unwrap_or_else(|e| {
-                    eprintln!("Error analyzing image with self-hosted service: {}", e);
+                    log::error!("Error analyzing image with self-hosted service: {}", e);
                     String::new()
                 });
         }
@@ -157,7 +157,7 @@ impl IndexingTemplate for ImageIndexer {
             let model = match &self.remote_model {
                 Some(m) => m,
                 None => {
-                    eprintln!("No AI model configured for image analysis");
+                    log::warn!("No AI model configured for image analysis");
                     return String::new();
                 }
             };
@@ -165,12 +165,12 @@ impl IndexingTemplate for ImageIndexer {
                 .analyze_image(model, &file_info.path)
                 .await
                 .unwrap_or_else(|e| {
-                    eprintln!("Error analyzing image: {}", e);
+                    log::error!("Error analyzing image: {}", e);
                     String::new()
                 });
         }
 
-        eprintln!("No image parser available");
+        log::warn!("No image parser available");
         String::new()
     }
 }

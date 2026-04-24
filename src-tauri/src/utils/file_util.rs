@@ -14,7 +14,7 @@ pub fn list_files_by_directory(scan_dir: &str) -> Result<(), Box<dyn std::error:
         let entry = entry?;
         let path = entry.path();
         if path.is_file() {
-            println!("Found file: {}", path.display());
+            log::debug!("Found file: {}", path.display());
         } else if path.is_dir() {
             list_files_by_directory(path.to_str().unwrap_or_default())?;
         }

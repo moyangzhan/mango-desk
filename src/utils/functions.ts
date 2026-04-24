@@ -12,7 +12,7 @@ export function emptyModelPlatform() {
 
 export function emptyProxyInfo() {
   return {
-    protocal: 'http',
+    protocol: 'http',
     host: '',
     port: 0,
   }

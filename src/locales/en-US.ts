@@ -193,7 +193,7 @@ export default {
   },
   proxy: {
     enable: 'Proxy Enable',
-    protocal: 'Protocal',
+    protocol: 'Protocol',
     host: 'Host',
     port: 'Port',
     setting: 'Proxy Setting',

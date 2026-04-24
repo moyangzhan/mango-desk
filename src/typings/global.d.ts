@@ -54,7 +54,7 @@ interface AiModel {
 }
 
 interface ProxyInfo {
-  protocal: string;
+  protocol: string;
   host: string;
   port: number;
 }

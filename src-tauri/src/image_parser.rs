@@ -28,7 +28,7 @@ impl ImageParser {
             .with_optimization_level(GraphOptimizationLevel::Level3)?
             .with_intra_threads(logical_cores)?
             .commit_from_file(get_vision_0_path())?;
-        println!("Successfully loaded vision and decoder models.");
+        log::debug!("Successfully loaded vision and decoder models.");
         Ok(ImageParser {
             vision_session: AsyncMutex::new(vision_session),
             tokenizer: Tokenizer::from_file(get_vision_tokenizer_path())
@@ -131,7 +131,7 @@ impl ImageParser {
                 .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
                 .map(|(index, _)| index as i64)
                 .unwrap_or_else(|| {
-                    println!("Failed to get next token id");
+                    log::warn!("Failed to get next token id");
                     0
                 });
 

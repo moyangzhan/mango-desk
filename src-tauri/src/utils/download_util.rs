@@ -111,7 +111,7 @@ pub async fn download_files(
         let proxy_info: ProxyInfo = (*PROXY.read().await).clone();
         builder = builder.proxy(reqwest::Proxy::http(format!(
             "{}://{}:{}",
-            proxy_info.protocal, proxy_info.host, proxy_info.port
+            proxy_info.protocol, proxy_info.host, proxy_info.port
         ))?);
     }
     let client = builder.build()?;
@@ -200,7 +200,7 @@ pub async fn download_file(
                         .send(DownloadEvent::Finish {
                             download_id: download_id.to_string(),
                         })
-                        .unwrap_or_else(|e| eprintln!("Failed to send finished event: {}", e));
+                        .unwrap_or_else(|e| log::error!("Failed to send finished event: {}", e));
                     return Ok(());
                 }
                 info!(
@@ -234,7 +234,7 @@ pub async fn download_file(
                     .send(DownloadEvent::Finish {
                         download_id: download_id.to_string(),
                     })
-                    .unwrap_or_else(|e| eprintln!("Failed to send finished event: {}", e));
+                    .unwrap_or_else(|e| log::error!("Failed to send finished event: {}", e));
                 return Ok(());
             }
             Err(e) => {

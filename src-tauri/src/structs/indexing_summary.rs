@@ -34,7 +34,7 @@ impl IndexingSummary {
             FileCategory::Image => &mut self.image,
             FileCategory::Audio => &mut self.audio,
             _ => {
-                println!("Unknown support file category");
+                log::warn!("Unknown support file category");
                 &mut self.document
             }
         }

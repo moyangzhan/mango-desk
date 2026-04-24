@@ -2,7 +2,6 @@ use crate::entities::AiModel;
 use crate::errors::AppError;
 use crate::traits::with_self_hosted_config::WithSelfHostedConfig;
 use async_trait::async_trait;
-use rusqlite::Result;
 
 #[async_trait]
 pub trait SelfHostedAudioAnalyzer: WithSelfHostedConfig + Send + Sync {

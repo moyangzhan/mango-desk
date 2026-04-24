@@ -61,7 +61,7 @@ pub async fn summary_to_db() {
         summary.duration,
     )
     .unwrap_or_else(|e| {
-        println!("update_cnt error:{}", e);
+        log::error!("update_cnt error:{}", e);
         0
     });
 }

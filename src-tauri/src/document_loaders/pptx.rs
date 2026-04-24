@@ -51,7 +51,7 @@ impl DocumentLoader for PptxLoader {
                 let mut _buff = String::new();
                 let read_result = c_file.read_to_string(&mut _buff)?;
                 if read_result == 0 {
-                    println!("Error reading file")
+                    log::warn!("Error reading file")
                 }
                 xml_data += _buff.as_str();
             }

@@ -208,8 +208,8 @@ onMounted(async () => {
     </NCard>
     <NCard :title="t('proxy.setting')" class="mb-4" size="small" :bordered="true">
       <div class="flex flex-col">
-        <NFormItem :label="t('proxy.protocal')">
-          <NInput v-model:value="proxy.protocal" />
+        <NFormItem :label="t('proxy.protocol')">
+          <NInput v-model:value="proxy.protocol" />
         </NFormItem>
 
         <NFormItem :label="t('proxy.host')">

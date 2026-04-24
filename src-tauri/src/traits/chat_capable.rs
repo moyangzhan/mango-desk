@@ -6,7 +6,6 @@ use async_openai::types::{
     CreateChatCompletionRequestArgs,
 };
 use futures::stream::StreamExt;
-use rusqlite::Result;
 
 pub trait ChatCapable: WithPlatformConfig {
     async fn chat(
@@ -30,7 +29,7 @@ pub trait ChatCapable: WithPlatformConfig {
                 result.push_str(content);
             }
         }
-        return Ok("".to_string());
+        return Ok(result);
     }
 
     async fn chat_stream<F>(
@@ -63,18 +62,18 @@ pub trait ChatCapable: WithPlatformConfig {
                         response.choices.iter().for_each(|chat_choice| {
                             if let Some(ref content) = chat_choice.delta.content {
                                 if let Err(e) = callback(content) {
-                                    eprintln!("Callback error: {}", e);
+                                    log::error!("Callback error: {}", e);
                                 }
                             }
                         });
                     } else if response.usage.is_some() {
                         response.usage.iter().for_each(|usage| {
-                            println!("usage: {}", usage.total_tokens);
+                            log::debug!("usage: {}", usage.total_tokens);
                         })
                     }
                 }
                 Err(err) => {
-                    eprintln!("chat error: {}", err);
+                    log::error!("chat error: {}", err);
                     return Err(Box::new(err));
                 }
             }

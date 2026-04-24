@@ -95,7 +95,7 @@ pub fn hybrid_search(
             std::ptr::read(ptr as *const [f32; 256])
         };
         let sparse_blob: Vec<u8> = row.get("sparse_weights").unwrap_or(vec![]); // Default to empty vector if sparse_weights is not available
-        let sparse_vec: SparseVector = SparseVector::from_blob(&sparse_blob);
+        let sparse_vec = SparseVector::from_blob(&sparse_blob);
         let distance: f32 = row.get("distance").unwrap_or(1.0); // Default to 1.0 if distance is not available
         let sparse_score = sparse_vec.dot_product(query_sparse_indices, query_sparse_values);
         Ok(FileMetaEmbedding {

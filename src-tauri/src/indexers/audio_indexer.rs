@@ -51,7 +51,7 @@ impl<'a> AudioIndexer {
                             ModelPlatformName::OpenAi => Box::new(OpenAi::new().await),
                             ModelPlatformName::SiliconFlow => Box::new(SiliconFlow::new().await),
                             ModelPlatformName::DashScope | ModelPlatformName::DeepSeek => {
-                                println!("DeepSeek and DashScope do not support audio analysis yet.");
+                                log::warn!("DeepSeek and DashScope do not support audio analysis yet.");
                                 return Err(AppError::UnsupportedAudioAnalyze(
                                     "Deepseek and Dashscope".to_string(),
                                 ));
@@ -88,14 +88,14 @@ impl IndexingTemplate for AudioIndexer {
     async fn load_content(&self, file_info: &FileInfo) -> String {
         match &self.local_parser {
             Some(parser) => parser.parse(&file_info.path).await.unwrap_or_else(|e| {
-                println!("audio parser error:{}", e);
+                log::error!("audio parser error:{}", e);
                 String::new()
             }),
             None => {
                 let model = match &self.remote_model {
                     Some(m) => m,
                     None => {
-                        eprintln!("No AI model configured for audio analysis");
+                        log::warn!("No AI model configured for audio analysis");
                         return String::new();
                     }
                 };
@@ -104,11 +104,11 @@ impl IndexingTemplate for AudioIndexer {
                         .analyze_audio(model, &file_info.path)
                         .await
                         .unwrap_or_else(|e| {
-                            eprintln!("Error analyzing image: {}", e);
+                            log::error!("Error analyzing audio: {}", e);
                             String::new()
                         }),
                     None => {
-                        eprintln!("No remote service configured for audio analysis");
+                        log::warn!("No remote service configured for audio analysis");
                         String::new()
                     }
                 }

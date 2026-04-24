@@ -135,7 +135,7 @@ impl DocumentLoader for PdfLoader {
     }
 
     fn load(&self, path: &Path) -> io::Result<String> {
-        println!("Load:{} ", path.display());
+        log::debug!("Load:{} ", path.display());
         let mut doc = load_pdf(&path)?;
         if doc.is_encrypted() {
             doc.decrypt(&"")
@@ -143,9 +143,9 @@ impl DocumentLoader for PdfLoader {
         }
         let text = get_pdf_text(&doc, usize::MAX)?;
         if !text.errors.is_empty() {
-            eprintln!("{} has {} errors:", path.display(), text.errors.len());
+            log::warn!("{} has {} errors:", path.display(), text.errors.len());
             for error in &text.errors[..10] {
-                eprintln!("{error:?}");
+                log::warn!("{error:?}");
             }
         }
         let contents = text
@@ -158,7 +158,7 @@ impl DocumentLoader for PdfLoader {
     }
 
     fn load_max(&self, path: &Path, max_load_chars: usize) -> io::Result<String> {
-        println!("Load:{} ", path.display());
+        log::debug!("Load:{} ", path.display());
         let mut doc = load_pdf(&path)?;
         if doc.is_encrypted() {
             doc.decrypt(&"")
@@ -166,9 +166,9 @@ impl DocumentLoader for PdfLoader {
         }
         let pdf_text = get_pdf_text(&doc, max_load_chars)?;
         if !pdf_text.errors.is_empty() {
-            eprintln!("{} has {} errors:", path.display(), pdf_text.errors.len());
+            log::warn!("{} has {} errors:", path.display(), pdf_text.errors.len());
             for error in &pdf_text.errors[..10] {
-                eprintln!("{error:?}");
+                log::warn!("{error:?}");
             }
         }
         let contents = pdf_text

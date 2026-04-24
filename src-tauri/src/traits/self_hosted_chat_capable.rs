@@ -7,7 +7,6 @@ use async_openai::types::{
 };
 use async_trait::async_trait;
 use futures::stream::StreamExt;
-use rusqlite::Result;
 
 #[async_trait]
 pub trait SelfHostedChatCapable: WithSelfHostedConfig + Send + Sync {
@@ -65,18 +64,18 @@ pub trait SelfHostedChatCapable: WithSelfHostedConfig + Send + Sync {
                         response.choices.iter().for_each(|chat_choice| {
                             if let Some(ref content) = chat_choice.delta.content {
                                 if let Err(e) = callback(content) {
-                                    eprintln!("Callback error: {}", e);
+                                    log::error!("Callback error: {}", e);
                                 }
                             }
                         });
                     } else if response.usage.is_some() {
                         response.usage.iter().for_each(|usage| {
-                            println!("usage: {}", usage.total_tokens);
+                            log::debug!("usage: {}", usage.total_tokens);
                         })
                     }
                 }
                 Err(err) => {
-                    eprintln!("Self-hosted chat error: {}", err);
+                    log::error!("Self-hosted chat error: {}", err);
                     return Err(Box::new(err));
                 }
             }

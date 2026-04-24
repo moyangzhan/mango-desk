@@ -68,24 +68,24 @@ impl DeepSeek {
                         let message = choices[0]["message"].clone();
                         if let Some(content) = message["content"].as_str() {
                             if let Err(e) = callback(content) {
-                                eprintln!("Callback error: {}", e);
+                                log::error!("Callback error: {}", e);
                             }
                         } else if let Some(reaoning_content) = message["reasoning_content"].as_str()
                         {
                             if let Err(e) = reasoning_callback(reaoning_content) {
-                                eprintln!("Callback error: {}", e);
+                                log::error!("Callback error: {}", e);
                             }
                         }
                     } else if !chunk["usage"].is_null() {
                         let usage = chunk["usage"].clone();
-                        println!("\nUsage:");
-                        println!("{}", usage.to_string());
+                        log::debug!("\nUsage:");
+                        log::debug!("{}", usage.to_string());
                     } else {
-                        println!("Unknown chunk: {}", chunk.to_string());
+                        log::debug!("Unknown chunk: {}", chunk.to_string());
                     }
                 }
                 Err(err) => {
-                    eprintln!("DeepSeek chat error: {}", err);
+                    log::error!("DeepSeek chat error: {}", err);
                     return Err(Box::new(err));
                 }
             }

@@ -194,7 +194,7 @@ export default {
   },
   proxy: {
     enable: '启用代理',
-    protocal: '协议',
+    protocol: '协议',
     host: '地址',
     port: '端口',
     setting: '代理设置',

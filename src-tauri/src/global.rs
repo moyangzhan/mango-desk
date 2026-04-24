@@ -81,7 +81,7 @@ pub static ACTIVE_SELF_HOSTED_PLATFORM: LazyLock<AsyncRwLock<SelfHostedPlatform>
 
 pub static PROXY: LazyLock<AsyncRwLock<ProxyInfo>> = LazyLock::new(|| {
     AsyncRwLock::new(ProxyInfo {
-        protocal: "".to_string(),
+        protocol: "".to_string(),
         host: "".to_string(),
         port: 0,
     })

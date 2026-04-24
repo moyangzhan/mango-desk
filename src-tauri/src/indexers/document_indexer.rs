@@ -34,7 +34,7 @@ impl IndexingTemplate for DocumentIndexer {
                 .load_max(Path::new(&file_info.path), MAX_DOCUMENT_LOAD_CHARS)
                 .unwrap_or("".to_string()),
             None => {
-                println!(
+                log::warn!(
                     "No document loader found for extension: {}",
                     &file_info.file_ext
                 );

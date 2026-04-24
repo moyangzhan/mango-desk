@@ -9,7 +9,6 @@ use async_openai::types::{
     ChatCompletionRequestUserMessageContentPart, CreateChatCompletionRequestArgs,
 };
 use async_trait::async_trait;
-use rusqlite::Result;
 use rust_i18n::t;
 
 #[async_trait]
@@ -45,10 +44,11 @@ pub trait SelfHostedImageAnalyzer: WithSelfHostedConfig + Send + Sync {
             .build()?;
         let response = client.chat().create(request).await?;
 
-        Ok(response.choices[0]
-            .message
-            .content
-            .clone()
+        Ok(response
+            .choices
+            .into_iter()
+            .next()
+            .and_then(|c| c.message.content)
             .unwrap_or_default())
     }
 }

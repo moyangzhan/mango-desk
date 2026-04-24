@@ -22,7 +22,7 @@ pub(crate) fn read_data<P: AsRef<Path>>(
         if c_file.name() == content_name {
             let read_result = c_file.read_to_string(&mut xml_data)?;
             if read_result == 0 {
-                println!("Error reading file")
+                log::warn!("Error reading file")
             }
             break;
         }

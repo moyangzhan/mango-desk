@@ -158,7 +158,7 @@ pub async fn push_to_index() {
             file_info_repo::list_paths_by_min_update_time(&last_build_time, page as i64, page_size)
                 .unwrap_or_default();
         if paths.is_empty() {
-            println!("no new paths");
+            log::debug!("no new paths");
             break;
         }
         let mut paths_guard = PATHS_CACHE.write().await;
