@@ -104,6 +104,7 @@ async function findSimilars(fileInfo: FileInfo, sourceDeviceId?: string) {
               const uint8Array = new Uint8Array(resp)
               const blob = new Blob([uint8Array], { type: mimeType })
               item.file_info.file_data = URL.createObjectURL(blob)
+              createdBlobUrls.add(item.file_info.file_data)
             }
           }).catch((e) => {
             console.warn('Failed to load remote image:', item.source_device?.device_name, item.file_info.name, e)
@@ -116,6 +117,7 @@ async function findSimilars(fileInfo: FileInfo, sourceDeviceId?: string) {
             const uint8Array = new Uint8Array(resp)
             const blob = new Blob([uint8Array], { type: mimeType })
             item.file_info.file_data = URL.createObjectURL(blob)
+            createdBlobUrls.add(item.file_info.file_data)
           }
         }).catch((e) => {
           console.warn('Failed to load image:', item.file_info.path, e)

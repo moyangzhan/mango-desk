@@ -6,6 +6,7 @@ import { listen } from '@tauri-apps/api/event'
 import { EditOutlined, PlusOutlined } from '@vicons/material'
 import { t } from '@/locales'
 import { useAppStore } from '@/stores/app'
+import { formatTime } from '@/utils/functions'
 import DeviceList from './DeviceList.vue'
 import AppTag from '@/components/AppTag.vue'
 
@@ -35,6 +36,7 @@ const clusterSetting = ref<ClusterSetting>({
 // Edit local device form
 const editPort = ref(7890)
 const editDeviceName = ref('')
+const localIp = ref('localhost')
 
 const localDeviceName = computed(() => {
   return clusterSetting.value.device_name || t('cluster.localDevice')
@@ -62,6 +64,15 @@ const addingDevice = ref(false)
 // Cluster enabled status
 const clusterEnabled = ref(false)
 
+async function loadLocalIp() {
+  try {
+    localIp.value = await invoke<string>('get_local_ip')
+  }
+  catch {
+    localIp.value = 'localhost'
+  }
+}
+
 async function loadData() {
   loading.value = true
   try {
@@ -70,7 +81,7 @@ async function loadData() {
     clusterSetting.value = setting
     clusterEnabled.value = setting?.enabled ?? false
 
-    await Promise.all([loadDevices(), loadPairingRequests()])
+    await Promise.all([loadDevices(), loadPairingRequests(), loadLocalIp()])
   }
   catch (e) {
     console.error('Failed to load data:', e)
@@ -284,24 +295,6 @@ async function handleCheckDevices() {
   }
 }
 
-function formatTime(dateStr: string): string {
-  const date = new Date(dateStr)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
-
-  if (diffMins < 1)
-    return t('common.just')
-  if (diffMins < 60)
-    return `${diffMins}${t('common.minutes')}${t('common.ago')}`
-
-  const diffHours = Math.floor(diffMins / 60)
-  if (diffHours < 24)
-    return `${diffHours}${t('common.hours')}${t('common.ago')}`
-
-  return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-}
-
 async function addDeviceManually() {
   if (!newDeviceName.value.trim() || !newDeviceIp.value.trim()) {
     window.$message.warning(t('cluster.invalidDeviceInfo'))
@@ -493,7 +486,7 @@ const pairingRequestColumns = [
     title: () => t('common.createTime'),
     key: 'create_time',
     width: 150,
-    render: (row: PairingRequest) => formatTime(row.create_time),
+    render: (row: PairingRequest) => formatTime(row.create_time, t),
   },
   {
     title: () => t('cluster.remark'),
@@ -560,7 +553,7 @@ const pairingRequestColumns = [
                     {{ localDeviceName }}
                   </div>
                   <div class="text-xs text-gray-500">
-                    localhost:{{ clusterSetting.port }}
+                    {{ localIp }}:{{ clusterSetting.port }}
                   </div>
                 </div>
               </div>
@@ -725,10 +718,10 @@ const pairingRequestColumns = [
               {{ selectedDevice.discovery_method || '-' }}
             </NDescriptionsItem>
             <NDescriptionsItem :label="t('cluster.firstDiscovered')">
-              {{ selectedDevice.first_discovered ? formatTime(selectedDevice.first_discovered) : '-' }}
+              {{ selectedDevice.first_discovered ? formatTime(selectedDevice.first_discovered, t) : '-' }}
             </NDescriptionsItem>
             <NDescriptionsItem :label="t('cluster.lastSeen')">
-              {{ selectedDevice.last_seen ? formatTime(selectedDevice.last_seen) : '-' }}
+              {{ selectedDevice.last_seen ? formatTime(selectedDevice.last_seen, t) : '-' }}
             </NDescriptionsItem>
           </NDescriptions>
         </template>

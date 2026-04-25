@@ -10,6 +10,11 @@ use tauri::{command, Emitter};
 // ========== Device commands ==========
 
 #[command]
+pub fn get_local_ip() -> Result<String, String> {
+    cluster::http_client::get_local_ip()
+}
+
+#[command]
 pub fn load_devices() -> Result<Vec<Device>, String> {
     device_repo::list().map_err(|e| e.to_string())
 }

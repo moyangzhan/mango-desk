@@ -372,7 +372,6 @@ watch(() => appStore.locale, () => {
 onMounted(async () => {
   console.log('IndexerSetting onMounted')
   try {
-    indexerStore.indexerSetting = await invoke<IndexerSetting>('load_indexer_setting')
     const indexerSetting = await invoke<IndexerSetting>('load_indexer_setting')
     indexerStore.setIndexerSetting(indexerSetting)
 

@@ -15,7 +15,7 @@ export function useSearch() {
   const remoteDeviceSearching = ref(false)
   const searchPhase = ref<'idle' | 'local' | 'cross-device'>('idle')
   const searchType = ref(SEMANTIC_SEARCH)
-  const searchSeqNum = ref(0)
+  const searchGeneration = ref(0)
 
   // Cluster search state
   const searchDevices = ref<SearchDevice[]>([])
@@ -65,17 +65,22 @@ export function useSearch() {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   }
 
+  const escapeHtml = (str: string) => {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+  }
+
   const highlightText = (text: string, keywords: string[]) => {
     if (!text || !keywords || keywords.length === 0)
-      return text
+      return escapeHtml(text)
+    const escaped = escapeHtml(text)
     return keywords.reduce((html, keyword) => {
-      const safeKeyword = escapeRegExp(keyword)
-      const regex = new RegExp(`(${safeKeyword})`, 'gi')
+      const safeKeyword = escapeHtml(keyword)
+      const regex = new RegExp(`(${escapeRegExp(safeKeyword)})`, 'gi')
       return html.replace(
         regex,
         '<span class="font-bold text-(--match-word-color)">$1</span>',
       )
-    }, text)
+    }, escaped)
   }
 
   // Deduplicate results by device + path, keeping higher score
@@ -201,7 +206,7 @@ export function useSearch() {
       return
     }
 
-    const currentSeq = ++searchSeqNum.value
+    const currentGen = searchGeneration.value
 
     localSearching.value = true
     searchPhase.value = 'local'
@@ -214,7 +219,7 @@ export function useSearch() {
         searchType: search_type_str,
       })
 
-      if (currentSeq !== searchSeqNum.value) {
+      if (currentGen !== searchGeneration.value) {
         console.log('Local search response stale, ignoring')
         return
       }
@@ -227,12 +232,12 @@ export function useSearch() {
         window.$message.warning(t('common.noData'))
     } catch (e) {
       console.log('Local search error:', e)
-      if (currentSeq === searchSeqNum.value)
+      if (currentGen === searchGeneration.value)
         localResults.value = []
     } finally {
       // Always reset localSearching, but only update phase if this is the current search
       localSearching.value = false
-      if (currentSeq === searchSeqNum.value && !remoteDeviceSearching.value)
+      if (currentGen === searchGeneration.value && !remoteDeviceSearching.value)
         searchPhase.value = 'idle'
     }
   }
@@ -246,7 +251,7 @@ export function useSearch() {
     if (query_txt.length < 2)
       return
 
-    const currentSeq = ++searchSeqNum.value
+    const currentGen = searchGeneration.value
 
     remoteDeviceSearching.value = true
     searchPhase.value = 'cross-device'
@@ -262,7 +267,7 @@ export function useSearch() {
         deviceIds,
       })
 
-      if (currentSeq !== searchSeqNum.value) {
+      if (currentGen !== searchGeneration.value) {
         console.log('Remote device search response stale, ignoring')
         return
       }
@@ -277,12 +282,12 @@ export function useSearch() {
         window.$message.warning(t('common.noData'))
     } catch (e) {
       console.log('Remote device search error:', e)
-      if (currentSeq === searchSeqNum.value) {
+      if (currentGen === searchGeneration.value) {
         remoteResults.value = []
         filterResults()
       }
     } finally {
-      if (currentSeq === searchSeqNum.value) {
+      if (currentGen === searchGeneration.value) {
         remoteDeviceSearching.value = false
         searchPhase.value = 'idle'
       }
@@ -295,6 +300,9 @@ export function useSearch() {
 
   // Trigger search (called from input)
   const triggerSearch = () => {
+    // Bump generation so any in-flight local/remote results from previous queries are rejected
+    searchGeneration.value++
+
     // Refresh device list and check status (min 5s interval) before searching
     // 搜索前刷新设备列表并检查状态（最短间隔5秒）
     if (clusterEnabled.value) {
@@ -306,9 +314,9 @@ export function useSearch() {
         // Trigger lightweight status check (ping only, no mDNS restart)
         // 触发轻量级状态检查（仅 ping，不重启 mDNS）
         invoke('check_devices_status').catch(e => console.log('Failed to check devices status:', e))
+        // Refresh device list alongside status check
+        loadSearchDevices()
       }
-      // Refresh device list
-      loadSearchDevices()
     }
 
     if (selectedLocalDevice.value)
@@ -498,5 +506,6 @@ export function useSearch() {
     highlightText,
     openFile,
     downloadRemoteFile,
+    cleanup: cleanupBlobUrls,
   }
 }

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { t } from '@/locales'
+import { formatTime } from '@/utils/functions'
 
 const props = defineProps<{
   devices: Device[]
@@ -46,33 +47,12 @@ const filteredDevices = computed(() => {
   return props.devices.filter(d => d.pairing_status === deviceFilter.value)
 })
 
-const deviceCounts = computed(() => ({
-  all: props.devices.length,
-  pending_in: props.devices.filter(d => d.pairing_status === 'pending_in').length,
-  pending_out: props.devices.filter(d => d.pairing_status === 'pending_out').length,
-  paired: props.devices.filter(d => d.pairing_status === 'paired').length,
-  rejected: props.devices.filter(d => d.pairing_status === 'rejected').length,
-  blocked: props.devices.filter(d => d.pairing_status === 'blocked').length,
-  none: props.devices.filter(d => d.pairing_status === 'none').length,
-}))
-
-function formatTime(dateStr: string): string {
-  const date = new Date(dateStr)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
-
-  if (diffMins < 1)
-    return t('common.just')
-  if (diffMins < 60)
-    return `${diffMins}${t('common.minutes')}${t('common.ago')}`
-
-  const diffHours = Math.floor(diffMins / 60)
-  if (diffHours < 24)
-    return `${diffHours}${t('common.hours')}${t('common.ago')}`
-
-  return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-}
+const deviceCounts = computed(() => {
+  const counts = { pending_in: 0, pending_out: 0, paired: 0, rejected: 0, blocked: 0, none: 0 }
+  for (const d of props.devices)
+    counts[d.pairing_status as keyof typeof counts]++
+  return { all: props.devices.length, ...counts }
+})
 
 function getStatusDescription(status: string): string {
   const descMap: Record<string, string> = {
@@ -192,7 +172,7 @@ function getStatusDescription(status: string): string {
                     {{ t('cluster.discoveryMethodMdns') }}
                   </AppTag>
                   <span>·</span>
-                  <span>{{ formatTime(device.last_seen) }}</span>
+                  <span>{{ formatTime(device.last_seen, t) }}</span>
                 </div>
                 <div v-if="device.pairing_status !== 'none'" class="text-xs text-gray-400 truncate mt-0.5">
                   {{ getStatusDescription(device.pairing_status) }}

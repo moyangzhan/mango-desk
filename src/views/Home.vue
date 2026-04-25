@@ -33,6 +33,7 @@ const {
   loadClusterSetting,
   highlightText,
   downloadRemoteFile,
+  cleanup: cleanupSearch,
 } = useSearch()
 
 // UI state
@@ -147,7 +148,6 @@ const keyDown = (e: any) => {
 onMounted(async () => {
   const indexerSetting = await invoke<IndexerSetting>('load_indexer_setting')
   indexerStore.setIndexerSetting(indexerSetting)
-  window.addEventListener('keydown', keyDown)
 
   // Load cluster setting and devices
   await loadClusterSetting()
@@ -175,7 +175,15 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  window.removeEventListener('keydown', keyDown, false)
+  cleanupSearch()
+})
+
+onActivated(() => {
+  window.addEventListener('keydown', keyDown)
+})
+
+onDeactivated(() => {
+  window.removeEventListener('keydown', keyDown)
 })
 </script>
 

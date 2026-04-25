@@ -53,3 +53,21 @@ export function emptyWatchSetting() {
     files: [] as string[],
   }
 }
+
+export function formatTime(dateStr: string, t: (key: string) => string): string {
+  const date = new Date(dateStr)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+
+  if (diffMins < 1)
+    return t('common.just')
+  if (diffMins < 60)
+    return `${diffMins}${t('common.minutes')}${t('common.ago')}`
+
+  const diffHours = Math.floor(diffMins / 60)
+  if (diffHours < 24)
+    return `${diffHours}${t('common.hours')}${t('common.ago')}`
+
+  return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+}

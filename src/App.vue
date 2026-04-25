@@ -90,16 +90,14 @@ function gotoSetting() {
   activeMenu.value = 'menu-setting'
   router.push({ name: 'Setting' })
 }
-const isDark = computed(() => {
-  console.log(appStore.getTheme)
-  if (appStore.getTheme === 'dark') {
+const isDark = computed(() => appStore.getTheme === 'dark' ? darkTheme : null)
+
+watch(() => appStore.getTheme, (theme) => {
+  if (theme === 'dark')
     document.body.classList.add('dark')
-    return darkTheme
-  } else {
+  else
     document.body.classList.remove('dark')
-    return null
-  }
-})
+}, { immediate: true })
 
 // Load pending pairing request count
 async function loadPendingPairingCount() {
@@ -191,7 +189,7 @@ onMounted(() => {
         <NLayout>
           <RouterView v-slot="{ Component, route }">
             <KeepAlive>
-              <component :is="Component" :key="route.fullPath" />
+              <component :is="Component" />
             </KeepAlive>
           </RouterView>
         </NLayout>
