@@ -2,7 +2,7 @@
 import { AttachFileOutlined, DeleteOutlined, DoneOutlineRound, FileOpenOutlined, FolderOpenOutlined, FolderOutlined, StopCircleOutlined } from '@vicons/material'
 import { open } from '@tauri-apps/plugin-dialog'
 import { TauriEvent, listen } from '@tauri-apps/api/event'
-import type { Event, type UnlistenFn } from '@tauri-apps/api/event'
+import type { Event, UnlistenFn } from '@tauri-apps/api/event'
 
 import { invoke } from '@tauri-apps/api/core'
 
