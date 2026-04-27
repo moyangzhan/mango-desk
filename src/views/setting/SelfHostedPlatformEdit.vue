@@ -4,14 +4,14 @@ import { useDebounceFn } from '@vueuse/core'
 import { t } from '@/locales'
 import { useAppStore } from '@/stores/app'
 
+const props = defineProps<Props>()
+const emit = defineEmits<Emit>()
 const appStore = useAppStore()
 const labelWidth = computed(() => appStore.locale === 'zh-CN' ? 60 : 100)
 
 interface Props {
   platform: SelfHostedPlatform
 }
-const props = defineProps<Props>()
-const emit = defineEmits<Emit>()
 interface Emit {
   (ev: 'saved', updatedPlatform: SelfHostedPlatform): void
 }
@@ -37,11 +37,9 @@ async function checkConnection() {
   try {
     await invoke('check_self_hosted_platform', { platform: tmpPlatform.value })
     window.$message.success(t('common.checkConnectionSuccess'))
-  }
-  catch (e: any) {
+  } catch (e: any) {
     window.$message.error(`${t('common.checkConnectionFailed')}: ${e}`)
-  }
-  finally {
+  } finally {
     checking.value = false
   }
 }

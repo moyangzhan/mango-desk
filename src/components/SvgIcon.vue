@@ -12,8 +12,7 @@ async function loadIcon(name: string) {
   try {
     const module = await import(`../${props.dir}/icons/${name}.svg?component`)
     dynamicIcon.value = module.default
-  }
-  catch (error) {
+  } catch (error) {
     console.error(`SVG load error for name: ${name}`, error)
   }
 }

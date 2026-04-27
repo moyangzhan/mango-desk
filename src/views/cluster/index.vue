@@ -4,10 +4,10 @@ import { useRouter } from 'vue-router'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { EditOutlined, PlusOutlined } from '@vicons/material'
+import DeviceList from './DeviceList.vue'
 import { t } from '@/locales'
 import { useAppStore } from '@/stores/app'
 import { formatTime } from '@/utils/functions'
-import DeviceList from './DeviceList.vue'
 import AppTag from '@/components/AppTag.vue'
 
 const router = useRouter()
@@ -45,9 +45,9 @@ const localDeviceName = computed(() => {
 // Port error from global state
 const portError = computed(() => {
   const error = appStore.getClusterPortError
-  if (error) {
+  if (error)
     return t('cluster.portBindError', { port: error.port })
-  }
+
   return null
 })
 
@@ -67,8 +67,7 @@ const clusterEnabled = ref(false)
 async function loadLocalIp() {
   try {
     localIp.value = await invoke<string>('get_local_ip')
-  }
-  catch {
+  } catch {
     localIp.value = 'localhost'
   }
 }
@@ -82,11 +81,9 @@ async function loadData() {
     clusterEnabled.value = setting?.enabled ?? false
 
     await Promise.all([loadDevices(), loadPairingRequests(), loadLocalIp()])
-  }
-  catch (e) {
+  } catch (e) {
     console.error('Failed to load data:', e)
-  }
-  finally {
+  } finally {
     loading.value = false
   }
 }
@@ -95,8 +92,7 @@ async function loadDevices() {
   try {
     const result = await invoke<Device[]>('load_devices')
     devices.value = result || []
-  }
-  catch (e) {
+  } catch (e) {
     console.error('Failed to load devices:', e)
   }
 }
@@ -105,8 +101,7 @@ async function loadPairingRequests() {
   try {
     const result = await invoke<PairingRequest[]>('load_pairing_requests')
     pairingRequests.value = result || []
-  }
-  catch (e) {
+  } catch (e) {
     console.error('Failed to load pairing requests:', e)
   }
 }
@@ -132,8 +127,7 @@ async function clearAllPairingRequests() {
     window.$message.success(t('common.operationSuccess'))
     selectedPairingRequestIds.value = []
     await loadPairingRequests()
-  }
-  catch (e) {
+  } catch (e) {
     console.error('Failed to clear pairing requests:', e)
     window.$message.error(t('common.operationFailed'))
   }
@@ -148,8 +142,7 @@ async function deleteSelectedPairingRequests() {
     window.$message.success(t('common.operationSuccess'))
     selectedPairingRequestIds.value = []
     await loadPairingRequests()
-  }
-  catch (e) {
+  } catch (e) {
     console.error('Failed to delete pairing requests:', e)
     window.$message.error(t('common.operationFailed'))
   }
@@ -185,8 +178,7 @@ async function handleDeviceReject(device: Device) {
     await invoke('reject_device', { deviceId: device.device_id })
     window.$message.success(t('common.operationSuccess'))
     await loadDevices()
-  }
-  catch (e) {
+  } catch (e) {
     console.error('Failed to reject device:', e)
     window.$message.error(t('common.operationFailed'))
   }
@@ -201,8 +193,7 @@ async function handleUnrejectDevice(device: Device) {
       window.$message.warning(t('cluster.unrejectButOffline'))
 
     await loadDevices()
-  }
-  catch (e) {
+  } catch (e) {
     console.error('Failed to unreject device:', e)
     window.$message.error(t('common.operationFailed'))
   }
@@ -217,8 +208,7 @@ async function handleResetPairingStatus(device: Device) {
       window.$message.warning(t('cluster.resetPairingStatusSuccessButOffline'))
 
     await loadDevices()
-  }
-  catch (e) {
+  } catch (e) {
     console.error('Failed to reset pairing status:', e)
     window.$message.error(t('common.operationFailed'))
   }
@@ -234,8 +224,7 @@ async function handleRequestPairing(device: Device) {
     })
     window.$message.success(t('common.operationSuccess'))
     await loadDevices()
-  }
-  catch (e) {
+  } catch (e) {
     console.error('Failed to send pairing request:', e)
     window.$message.error(t('common.operationFailed'))
   }
@@ -251,12 +240,10 @@ async function handleAcceptPairing(device: Device) {
       await invoke('respond_pairing_request', { id: request.id, accept: true })
       window.$message.success(t('common.operationSuccess'))
       await loadDevices()
-    }
-    else {
+    } else {
       window.$message.warning(t('common.noData'))
     }
-  }
-  catch (e) {
+  } catch (e) {
     console.error('Failed to accept pairing:', e)
     window.$message.error(t('common.operationFailed'))
   }
@@ -272,12 +259,10 @@ async function handleRejectPairing(device: Device) {
       await invoke('respond_pairing_request', { id: request.id, accept: false })
       window.$message.success(t('common.operationSuccess'))
       await loadDevices()
-    }
-    else {
+    } else {
       window.$message.warning(t('common.noData'))
     }
-  }
-  catch (e) {
+  } catch (e) {
     console.error('Failed to reject pairing:', e)
     window.$message.error(t('common.operationFailed'))
   }
@@ -288,8 +273,7 @@ async function handleCheckDevices() {
     await invoke('check_devices')
     await loadDevices()
     window.$message.success(t('common.operationSuccess'))
-  }
-  catch (e) {
+  } catch (e) {
     console.error('Failed to check devices:', e)
     window.$message.error(t('common.operationFailed'))
   }
@@ -314,12 +298,10 @@ async function addDeviceManually() {
     newDeviceIp.value = ''
     newDevicePort.value = 7890
     await loadDevices()
-  }
-  catch (e) {
+  } catch (e) {
     console.error('Failed to add device:', e)
     window.$message.error(t('common.operationFailed'))
-  }
-  finally {
+  } finally {
     addingDevice.value = false
   }
 }
@@ -341,8 +323,7 @@ async function saveLocalDevice() {
     clusterSetting.value = updatedSetting
     window.$message.success(t('common.saveSuccess'))
     showEditLocalDeviceModal.value = false
-  }
-  catch (e) {
+  } catch (e) {
     console.error('Failed to save local device:', e)
     window.$message.error(t('common.operationFailed'))
   }
@@ -517,7 +498,9 @@ const pairingRequestColumns = [
         </div>
         <div class="mt-6 text-sm text-gray-400 dark:text-gray-500 text-center">
           <div class="inline-block text-left">
-            <div class="font-medium mb-2">{{ t('cluster.howToUse.title') }}</div>
+            <div class="font-medium mb-2">
+              {{ t('cluster.howToUse.title') }}
+            </div>
             <div>
               <div>1. {{ t('cluster.howToUse.step1') }}</div>
               <div>2. {{ t('cluster.howToUse.step2') }}</div>

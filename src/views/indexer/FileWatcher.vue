@@ -2,7 +2,7 @@
 import { AttachFileOutlined, DeleteOutlined, FolderOutlined } from '@vicons/material'
 import { open } from '@tauri-apps/plugin-dialog'
 import { invoke } from '@tauri-apps/api/core'
-import { listen, type UnlistenFn } from '@tauri-apps/api/event'
+import { type UnlistenFn, listen } from '@tauri-apps/api/event'
 import { emptyWatchSetting } from '@/utils/functions'
 import { useIndexerStore } from '@/stores/indexer'
 import { t } from '@/locales'

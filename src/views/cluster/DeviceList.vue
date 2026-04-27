@@ -35,9 +35,8 @@ function handleCheckDevices() {
 watch(() => props.devices, (devices) => {
   if (!initialCheckDone.value && devices.length > 0) {
     initialCheckDone.value = true
-    if (deviceFilter.value === 'pending_in' && devices.filter(d => d.pairing_status === 'pending_in').length === 0) {
+    if (deviceFilter.value === 'pending_in' && devices.filter(d => d.pairing_status === 'pending_in').length === 0)
       deviceFilter.value = 'all'
-    }
   }
 }, { immediate: true })
 
@@ -87,23 +86,31 @@ function getStatusDescription(status: string): string {
 
     <!-- Filter Buttons -->
     <div class="flex flex-wrap gap-2 mb-3">
-      <NButton :type="deviceFilter === 'all' ? 'primary' : 'default'" :ghost="deviceFilter === 'all'" size="small"
-        @click="deviceFilter = 'all'">
+      <NButton
+        :type="deviceFilter === 'all' ? 'primary' : 'default'" :ghost="deviceFilter === 'all'" size="small"
+        @click="deviceFilter = 'all'"
+      >
         {{ t('cluster.pairing.all') }} ({{ deviceCounts.all }})
       </NButton>
-      <NButton v-if="deviceCounts.pending_in > 0" type="warning" ghost size="small"
-        @click="deviceFilter = 'pending_in'">
+      <NButton
+        v-if="deviceCounts.pending_in > 0" type="warning" ghost size="small"
+        @click="deviceFilter = 'pending_in'"
+      >
         {{ t('cluster.pairing.pendingIn') }} ({{ deviceCounts.pending_in }})
       </NButton>
       <NButton v-if="deviceCounts.pending_out > 0" type="info" ghost size="small" @click="deviceFilter = 'pending_out'">
         {{ t('cluster.pairing.pendingOut') }} ({{ deviceCounts.pending_out }})
       </NButton>
-      <NButton :type="deviceFilter === 'paired' ? 'success' : 'default'" :ghost="deviceFilter === 'paired'" size="small"
-        @click="deviceFilter = 'paired'">
+      <NButton
+        :type="deviceFilter === 'paired' ? 'success' : 'default'" :ghost="deviceFilter === 'paired'" size="small"
+        @click="deviceFilter = 'paired'"
+      >
         {{ t('cluster.pairing.paired') }} ({{ deviceCounts.paired }})
       </NButton>
-      <NButton v-if="deviceCounts.none > 0" :ghost="deviceFilter === 'none'" size="small"
-        @click="deviceFilter = 'none'">
+      <NButton
+        v-if="deviceCounts.none > 0" :ghost="deviceFilter === 'none'" size="small"
+        @click="deviceFilter = 'none'"
+      >
         {{ t('cluster.pairing.none') }} ({{ deviceCounts.none }})
       </NButton>
       <NButton v-if="deviceCounts.rejected > 0" type="error" ghost size="small" @click="deviceFilter = 'rejected'">
@@ -117,21 +124,25 @@ function getStatusDescription(status: string): string {
     <!-- Device List -->
     <NSpin :show="loading">
       <div v-if="filteredDevices.length > 0" class="space-y-2">
-        <div v-for="device in filteredDevices" :key="device.device_id" class="p-3 border rounded-lg cursor-pointer"
+        <div
+          v-for="device in filteredDevices" :key="device.device_id" class="p-3 border rounded-lg cursor-pointer"
           :class="{
             'border-red-300 bg-red-50 dark:bg-red-900/20': device.pairing_status === 'rejected',
             'border-gray-300 bg-gray-50 dark:bg-gray-800': device.pairing_status === 'blocked',
             'border-green-300 bg-green-50 dark:bg-green-900/20': device.pairing_status === 'paired',
             'border-yellow-300 bg-yellow-50 dark:bg-yellow-900/20': device.pairing_status === 'pending_in',
             'border-blue-300 bg-blue-50 dark:bg-blue-900/20': device.pairing_status === 'pending_out',
-          }" @click="emit('view', device)">
+          }" @click="emit('view', device)"
+        >
           <div class="flex items-center justify-between gap-3">
             <div class="flex items-center gap-3 min-w-0 flex-1">
-              <div class="w-3 h-3 rounded-full shrink-0" :class="{
-                'bg-green-500': device.online_status === 'online',
-                'bg-gray-400': device.online_status === 'offline',
-                'bg-gray-300': device.online_status === 'unknown',
-              }" />
+              <div
+                class="w-3 h-3 rounded-full shrink-0" :class="{
+                  'bg-green-500': device.online_status === 'online',
+                  'bg-gray-400': device.online_status === 'offline',
+                  'bg-gray-300': device.online_status === 'unknown',
+                }"
+              />
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-2 flex-wrap">
                   <span class="font-medium text-link truncate">

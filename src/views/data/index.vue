@@ -87,13 +87,12 @@ const filteredFiles = computed(() => {
   return result
 })
 
-function handleSortChange(options: { columnKey: string, order: 'ascend' | 'descend' | false }) {
-  if (options.order === false) {
+function handleSortChange(options: { columnKey: string; order: 'ascend' | 'descend' | false }) {
+  if (options.order === false)
     sortInfo.value = null
-  }
-  else {
+
+  else
     sortInfo.value = { columnKey: options.columnKey, order: options.order }
-  }
 }
 
 function handleCategoryFilter(category: number | null) {
@@ -114,8 +113,7 @@ async function handleDeleteSelected() {
     window.$message.success(t('common.operationSuccess'))
     selectedFileIds.value = []
     handlePageChange(1)
-  }
-  catch (e) {
+  } catch (e) {
     console.error('Failed to delete files:', e)
     window.$message.error(t('common.operationFailed'))
   }
@@ -143,12 +141,12 @@ function handleDeleteDropdownSelect(key: string) {
 }
 
 async function handleConfirmClear() {
-  if (clearConfirmType.value === 'selected') {
+  if (clearConfirmType.value === 'selected')
     await handleDeleteSelected()
-  }
-  else {
+
+  else
     await clearIndex()
-  }
+
   showClearConfirm.value = false
 }
 
@@ -223,34 +221,48 @@ onMounted(() => {
         </div>
         <!-- Right: Search and Category Filter -->
         <div class="flex flex-wrap items-center gap-2 justify-end">
-          <NButton :type="categoryFilter === null ? 'primary' : 'default'" :ghost="categoryFilter === null" size="small"
-            @click="handleCategoryFilter(null)">
+          <NButton
+            :type="categoryFilter === null ? 'primary' : 'default'" :ghost="categoryFilter === null" size="small"
+            @click="handleCategoryFilter(null)"
+          >
             {{ t('cluster.pairing.all') }} ({{ categoryCounts.all }})
           </NButton>
-          <NButton :type="categoryFilter === 1 ? 'primary' : 'default'" :ghost="categoryFilter === 1" size="small"
-            @click="handleCategoryFilter(1)">
+          <NButton
+            :type="categoryFilter === 1 ? 'primary' : 'default'" :ghost="categoryFilter === 1" size="small"
+            @click="handleCategoryFilter(1)"
+          >
             {{ t('common.document') }} ({{ categoryCounts.document }})
           </NButton>
-          <NButton :type="categoryFilter === 2 ? 'primary' : 'default'" :ghost="categoryFilter === 2" size="small"
-            @click="handleCategoryFilter(2)">
+          <NButton
+            :type="categoryFilter === 2 ? 'primary' : 'default'" :ghost="categoryFilter === 2" size="small"
+            @click="handleCategoryFilter(2)"
+          >
             {{ t('common.image') }} ({{ categoryCounts.image }})
           </NButton>
-          <NButton :type="categoryFilter === 3 ? 'primary' : 'default'" :ghost="categoryFilter === 3" size="small"
-            @click="handleCategoryFilter(3)">
+          <NButton
+            :type="categoryFilter === 3 ? 'primary' : 'default'" :ghost="categoryFilter === 3" size="small"
+            @click="handleCategoryFilter(3)"
+          >
             {{ t('common.audio') }} ({{ categoryCounts.audio }})
           </NButton>
-          <NButton :type="categoryFilter === 5 ? 'primary' : 'default'" :ghost="categoryFilter === 5" size="small"
-            @click="handleCategoryFilter(5)">
+          <NButton
+            :type="categoryFilter === 5 ? 'primary' : 'default'" :ghost="categoryFilter === 5" size="small"
+            @click="handleCategoryFilter(5)"
+          >
             {{ t('common.other') }} ({{ categoryCounts.other }})
           </NButton>
-          <NInput v-model:value="searchKeyword" :placeholder="t('indexer.searchPathPlaceholder')" clearable size="small"
-            style="width: 200px" @update:value="selectedFileIds = []" />
+          <NInput
+            v-model:value="searchKeyword" :placeholder="t('indexer.searchPathPlaceholder')" clearable size="small"
+            style="width: 200px" @update:value="selectedFileIds = []"
+          />
         </div>
       </div>
-      <NDataTable remote :columns="fileColumns" :data="filteredFiles" :pagination="paginationReactive" :bordered="false"
+      <NDataTable
+        remote :columns="fileColumns" :data="filteredFiles" :pagination="paginationReactive" :bordered="false"
         striped scroll-x="1700" :max-height="height - 320" :row-key="(row: FileInfo) => row.id"
         :checked-row-keys="selectedFileIds" @update:page="handlePageChange" @update:checked-row-keys="handleCheck"
-        @update:sorter="handleSortChange" />
+        @update:sorter="handleSortChange"
+      />
 
       <!-- Delete Confirmation Modal -->
       <NModal v-model:show="showClearConfirm" preset="dialog" :title="t('common.warning')" :auto-focus="false">
@@ -274,4 +286,3 @@ onMounted(() => {
     </NCard>
   </div>
 </template>
-

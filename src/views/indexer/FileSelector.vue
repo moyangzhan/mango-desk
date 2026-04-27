@@ -1,9 +1,11 @@
 <script lang="ts" setup>
 import { AttachFileOutlined, DeleteOutlined, DoneOutlineRound, FileOpenOutlined, FolderOpenOutlined, FolderOutlined, StopCircleOutlined } from '@vicons/material'
 import { open } from '@tauri-apps/plugin-dialog'
-import { TauriEvent, listen, type UnlistenFn } from '@tauri-apps/api/event'
+import { TauriEvent, listen } from '@tauri-apps/api/event'
+import type { Event, type UnlistenFn } from '@tauri-apps/api/event'
+
 import { invoke } from '@tauri-apps/api/core'
-import type { Event } from '@tauri-apps/api/event'
+
 import { useIndexerStore } from '@/stores/indexer'
 import router from '@/router'
 import { t } from '@/locales'

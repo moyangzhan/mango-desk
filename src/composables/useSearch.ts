@@ -175,8 +175,7 @@ export function useSearch() {
         }).catch((e) => {
           console.warn('Failed to load remote image:', item.source_device?.device_name, item.file_info.name, e)
         })
-      }
-      else {
+      } else {
         // Local image: use read_file_data
         invoke('read_file_data', { path: item.file_info.path }).then((resp) => {
           if (!resp)
@@ -298,6 +297,22 @@ export function useSearch() {
   let debounceLocalSearch = useDebounceFn(localSearch, 600)
   const debounceRemoteDeviceSearch = useDebounceFn(searchRemoteDevices, 1000)
 
+  // Load search devices
+  const loadSearchDevices = async () => {
+    try {
+      const devices = await invoke<SearchDevice[]>('list_online_devices')
+      searchDevices.value = devices
+      // Default to local device only
+      if (selectedDeviceIds.value.length === 0) {
+        const localDevice = devices.find(d => d.is_local)
+        if (localDevice)
+          selectedDeviceIds.value = [localDevice.device_id]
+      }
+    } catch (e) {
+      console.log('Failed to load search devices:', e)
+    }
+  }
+
   // Trigger search (called from input)
   const triggerSearch = () => {
     // Bump generation so any in-flight local/remote results from previous queries are rejected
@@ -341,22 +356,6 @@ export function useSearch() {
     remoteResults.value = []
     searchStatuses.value = []
     searchPhase.value = 'idle'
-  }
-
-  // Load search devices
-  const loadSearchDevices = async () => {
-    try {
-      const devices = await invoke<SearchDevice[]>('list_online_devices')
-      searchDevices.value = devices
-      // Default to local device only
-      if (selectedDeviceIds.value.length === 0) {
-        const localDevice = devices.find(d => d.is_local)
-        if (localDevice)
-          selectedDeviceIds.value = [localDevice.device_id]
-      }
-    } catch (e) {
-      console.log('Failed to load search devices:', e)
-    }
   }
 
   // Load cluster setting

@@ -525,30 +525,30 @@ onMounted(async () => {
         <NModal v-model:show="showSelfHostedModal" preset="card" :title="t('indexer.selfHostedSetting')" style="width: 600px">
           <NScrollbar style="max-height: 70vh">
             <NFormItem :label="t('indexer.selectActivePlatform')">
-            <NRadioGroup :value="activeSelfHostedPlatform" @update:value="doActiveSelfHostedPlatformChanged">
-              <NRadio
-                v-for="platform in selfHostedPlatformList" :key="platform.id" :label="platform.title"
-                :value="platform.name"
-              />
-            </NRadioGroup>
-          </NFormItem>
-          <NCard size="small" :bordered="true">
-            <NFormItem :label="t('common.visionModel')">
-              <span class="selectable mr-4">{{ selfHostedVisionModel?.title || selfHostedVisionModel?.name || '-' }}</span>
-              <NButton text type="primary" size="tiny" class="text-link ml-2" @click="openModelEditModal">
-                {{ t('indexer.editModel') }}
-              </NButton>
+              <NRadioGroup :value="activeSelfHostedPlatform" @update:value="doActiveSelfHostedPlatformChanged">
+                <NRadio
+                  v-for="platform in selfHostedPlatformList" :key="platform.id" :label="platform.title"
+                  :value="platform.name"
+                />
+              </NRadioGroup>
             </NFormItem>
-            <NFormItem :label="selfHostedPlatformList.find(p => p.name === activeSelfHostedPlatform)?.title + ' ' + t('common.setting')">
-              <SelfHostedPlatformEdit
-                v-for="platform in selfHostedPlatformList"
-                v-show="platform.name === activeSelfHostedPlatform"
-                :key="platform.name"
-                :platform="platform"
-                @saved="onSelfHostedPlatformSaved"
-              />
-            </NFormItem>
-          </NCard>
+            <NCard size="small" :bordered="true">
+              <NFormItem :label="t('common.visionModel')">
+                <span class="selectable mr-4">{{ selfHostedVisionModel?.title || selfHostedVisionModel?.name || '-' }}</span>
+                <NButton text type="primary" size="tiny" class="text-link ml-2" @click="openModelEditModal">
+                  {{ t('indexer.editModel') }}
+                </NButton>
+              </NFormItem>
+              <NFormItem :label="`${selfHostedPlatformList.find(p => p.name === activeSelfHostedPlatform)?.title} ${t('common.setting')}`">
+                <SelfHostedPlatformEdit
+                  v-for="platform in selfHostedPlatformList"
+                  v-show="platform.name === activeSelfHostedPlatform"
+                  :key="platform.name"
+                  :platform="platform"
+                  @saved="onSelfHostedPlatformSaved"
+                />
+              </NFormItem>
+            </NCard>
           </NScrollbar>
         </NModal>
 
@@ -556,26 +556,27 @@ onMounted(async () => {
         <NModal v-model:show="showCloudModal" preset="card" :title="t('indexer.cloudModeSetting')" style="width: 600px">
           <NScrollbar style="max-height: 70vh">
             <NFormItem :label="t('model.selectForActivePlatform')">
-            <NRadioGroup :value="activePlatform" @update:value="doActivePlatformChanged">
-              <NRadio
-                v-for="platform in modelPlatformList" :key="platform.id" :label="platform.title"
-                :value="platform.name"
-              />
-            </NRadioGroup>
-          </NFormItem>
-          <NCard size="small" :bordered="true">
-            <div>
-              <ModelPlatformEdit
-                v-for="platform in modelPlatformList"
-                v-show="platform.name === activePlatform"
-                :key="platform.name"
-                :model-platform="platform"
-                @saved="onModelPlatformSaved"
-              />
-            </div>
-          </NCard>
+              <NRadioGroup :value="activePlatform" @update:value="doActivePlatformChanged">
+                <NRadio
+                  v-for="platform in modelPlatformList" :key="platform.id" :label="platform.title"
+                  :value="platform.name"
+                />
+              </NRadioGroup>
+            </NFormItem>
+            <NCard size="small" :bordered="true">
+              <div>
+                <ModelPlatformEdit
+                  v-for="platform in modelPlatformList"
+                  v-show="platform.name === activePlatform"
+                  :key="platform.name"
+                  :model-platform="platform"
+                  @saved="onModelPlatformSaved"
+                />
+              </div>
+            </NCard>
           </NScrollbar>
-        </NModal>      </div>
+        </NModal>
+      </div>
     </NCard>
     <NCard :title="t('common.storage')" class="mb-4 px-0" size="small" :bordered="true" hoverable>
       <div class="flex flex-col">

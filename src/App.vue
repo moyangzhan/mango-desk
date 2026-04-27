@@ -187,7 +187,7 @@ onMounted(() => {
           </div>
         </NLayoutSider>
         <NLayout>
-          <RouterView v-slot="{ Component, route }">
+          <RouterView v-slot="{ Component }">
             <KeepAlive>
               <component :is="Component" />
             </KeepAlive>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { emit } from '@tauri-apps/api/event'
 import { t } from '@/locales'
@@ -22,9 +22,9 @@ const loading = ref(false)
 // Read port error from global state (set by App.vue global listener)
 const portError = computed(() => {
   const error = appStore.getClusterPortError
-  if (error) {
+  if (error)
     return t('cluster.portBindError', { port: error.port })
-  }
+
   return null
 })
 
