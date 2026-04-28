@@ -226,6 +226,33 @@ jobs:
       - name: List Files
         run: find artifacts -type f | sort
 
+      - name: Get existing release body
+        id: existing_release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BODY=$(gh release view "${{ github.ref_name }}" --json body -q '.body' 2>/dev/null || echo "")
+          echo "found_body=${BODY}" >> "$GITHUB_OUTPUT"
+        shell: bash
+
+      - name: Build release body
+        id: build_body
+        env:
+          EXISTING_BODY: ${{ steps.existing_release.outputs.found_body }}
+          CHANGELOG: ${{ steps.changelog.outputs.CHANGELOG }}
+        run: |
+          {
+            echo "$EXISTING_BODY"
+            echo ""
+            echo "---"
+            echo ""
+            echo "#### Changelog"
+            echo "$CHANGELOG"
+          } | sed '/^$/N;/^\n$/d' > body.md
+          # Remove trailing blank lines
+          sed -i -e :a -e '/^\n*$/{$d;N;ba' -e '}' body.md
+        shell: bash
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
@@ -237,14 +264,6 @@ jobs:
             artifacts/macos-build/*.dmg
             # artifacts/macos-build/x86_64-apple-darwin/release/bundle/dmg/*.dmg
           name: Release ${{ github.ref_name }}
-          body: |
-            ### Release ${{ github.ref_name }}
-            
-            #### Changelog
-            ${{ steps.changelog.outputs.CHANGELOG }}
-            
-            ---
-            
-            See the assets below for the builds.
+          body_path: body.md
           draft: false
           prerelease: false
