@@ -17,6 +17,7 @@ mod indexer_service;
 mod indexers;
 mod initializer;
 mod model_platform_services;
+mod ocr_service;
 mod repositories;
 mod scanner;
 mod searcher;

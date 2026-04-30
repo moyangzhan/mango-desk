@@ -279,6 +279,9 @@ export default {
     saveParsedContentWarn:
       '建议：此举会占用大量磁盘空间，建议磁盘空间充足时使用',
     saveDocumentParsedContent: '保存文档的解析内容',
+    documentOutputFormat: '文档解析输出格式',
+    plainTextToDb: '纯文本（存储到数据库）',
+    markdownToFile: 'Markdown（保存为文件）',
     saveImageParsedContent: '保存图片识别的内容',
     saveAudioParsedContent: '保存音频转录的文本',
     saveVideoParsedContent: '保存视频的解析内容',

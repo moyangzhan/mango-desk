@@ -2,7 +2,7 @@ use crate::embedding_service_manager::get_manager;
 use crate::entities::{FileContentEmbedding, FileInfo, FileMetaEmbedding, IndexingTask};
 use crate::enums::{FileCategory, FileIndexStatus, IndexingEvent};
 use crate::errors::{AppError, IndexingError};
-use crate::global::{INDEXER_SETTING, STOP_INDEX_SIGNAL};
+use crate::global::{INDEXER_SETTING, STOP_INDEX_SIGNAL, STORAGE_PATH};
 use crate::indexer_service;
 use crate::repositories::{
     file_content_embedding_repo, file_content_fts_repo, file_info_repo,
@@ -136,7 +136,34 @@ pub trait IndexingTemplate {
             .await
             .save_parsed_content
             .need_store(self.category());
-        if save_parsed_content {
+
+        // Document output format: check if Markdown file mode is enabled
+        let doc_output_format = INDEXER_SETTING
+            .read()
+            .await
+            .document_output_format
+            .clone();
+
+        if self.category() == &FileCategory::Document && doc_output_format == "markdown" {
+            // Markdown mode: save as .md file, store relative path in DB
+            if let Some(storage) = STORAGE_PATH.get() {
+                let md_dir = Path::new(storage).join("parsed_documents");
+                let _ = std::fs::create_dir_all(&md_dir);
+                let md_filename = format!("{}.md", &file_info.md5);
+                let md_path = md_dir.join(&md_filename);
+                if let Err(e) = std::fs::write(&md_path, &filtered_content) {
+                    log::warn!("Failed to write markdown file {}: {}", md_path.display(), e);
+                }
+                let relative_path = format!("parsed_documents/{}", md_filename);
+                let _ = file_info_repo::update_content_meta(
+                    file_id,
+                    &relative_path,
+                    &file_meta.to_json(),
+                )?;
+            } else {
+                let _ = file_info_repo::update_content_meta(file_id, "", &file_meta.to_json())?;
+            }
+        } else if save_parsed_content {
             let _ = file_info_repo::update_content_meta(
                 file_id,
                 &filtered_content,

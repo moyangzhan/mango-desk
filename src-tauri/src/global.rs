@@ -1,10 +1,8 @@
-use crate::document_loaders::docx::DocxLoader;
-use crate::document_loaders::excel::ExcelLoader;
+use crate::document_loaders::anytomd_loader::AnyToMdLoader;
 use crate::document_loaders::odp::OdpLoader;
+use crate::document_loaders::ods::OdsLoader;
 use crate::document_loaders::odt::OdtLoader;
-use crate::document_loaders::pdf::PdfLoader;
-use crate::document_loaders::plain_text::PlainTextLoader;
-use crate::document_loaders::pptx::PptxLoader;
+use crate::document_loaders::pdfplumber_loader::PdfPlumberLoader;
 use crate::entities::{ModelPlatform, SelfHostedPlatform};
 use crate::structs::fs_watcher_setting::FsWatcherSetting;
 use crate::structs::indexer_setting::IndexerSetting;
@@ -41,6 +39,10 @@ pub const AUDIO_TOKENIZER_NAME: &str = "audio_tokenizer.json";
 // whisper.cpp model
 pub const WHISPER_MODEL_NAME: &str = "whisper-small-q8_0.bin";
 
+// OCR model
+pub const OCR_DETECTION_MODEL_NAME: &str = "text-detection-ssfbcj81.rten";
+pub const OCR_RECOGNITION_MODEL_NAME: &str = "text-rec-checkpoint-s52qdbqt.rten";
+
 // assets/model/model.onnx
 pub static EMBEDDING_MODEL_PATH: OnceLock<String> = OnceLock::new();
 // assets/model/tokenizer.json
@@ -55,6 +57,13 @@ pub static AUDIO_TOKENIZER_PATH: OnceLock<String> = OnceLock::new();
 
 // Whisper.cpp model path
 pub static WHISPER_MODEL_PATH: OnceLock<String> = OnceLock::new();
+
+// OCR model paths
+pub static OCR_DETECTION_MODEL_PATH: OnceLock<String> = OnceLock::new();
+pub static OCR_RECOGNITION_MODEL_PATH: OnceLock<String> = OnceLock::new();
+
+// Extracted images storage path
+pub static EXTRACTED_IMAGES_PATH: OnceLock<String> = OnceLock::new();
 
 pub static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
 
@@ -111,12 +120,14 @@ macro_rules! define_document_exts {
 }
 define_document_exts! {
     DOCX_EXTS: ["docx"];
-    EXCEL_EXTS: ["xlsx", "xls", "xlsm", "xlsb", "xla", "xlam", "ods"];
+    EXCEL_EXTS: ["xlsx", "xls", "xlsm", "xlsb", "xla", "xlam"];
+    ODS_EXTS: ["ods"];
     ODP_EXTS: ["odp"];
     ODT_EXTS: ["odt"];
     PDF_EXTS: ["pdf"];
     PPTX_EXTS: ["pptx"];
-    PLAIN_TEXT_EXTS: ["txt", "log", "md", "mdx", "ini"];
+    PLAIN_TEXT_EXTS: ["txt", "log", "md", "mdx", "ini", "toml", "yaml", "yml"];
+    ANYTOMD_EXTRA_EXTS: ["html", "htm", "ipynb", "json", "xml", "csv"];
 }
 pub const SUPPORTED_IMAGE_EXTS: [&str; 5] = ["jpg", "jpeg", "png", "gif", "webp"];
 pub const SUPPORTED_AUDIO_EXTS: [&str; 8] =
@@ -128,13 +139,11 @@ type DocHandler = Arc<dyn DocumentLoader + Send + Sync>;
 pub static EXT_TO_DOC_LOADER: LazyLock<AsyncRwLock<HashMap<String, DocHandler>>> =
     LazyLock::new(|| {
         let loaders: Vec<Arc<dyn DocumentLoader + Send + Sync>> = vec![
-            Arc::new(DocxLoader::default()) as DocHandler,
-            Arc::new(ExcelLoader::default()) as DocHandler,
+            Arc::new(AnyToMdLoader::default()) as DocHandler,
             Arc::new(OdpLoader::default()) as DocHandler,
+            Arc::new(OdsLoader::default()) as DocHandler,
             Arc::new(OdtLoader::default()) as DocHandler,
-            Arc::new(PdfLoader::default()) as DocHandler,
-            Arc::new(PptxLoader::default()) as DocHandler,
-            Arc::new(PlainTextLoader::default()) as DocHandler,
+            Arc::new(PdfPlumberLoader::default()) as DocHandler,
         ];
         // key: extension, value: document loader
         let mut ext_to_loader = HashMap::new();

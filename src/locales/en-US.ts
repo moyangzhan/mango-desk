@@ -288,6 +288,9 @@ export default {
     saveParsedContentWarn:
       'Note: This will use significant disk space. Enable only when you have sufficient storage.',
     saveDocumentParsedContent: 'Save Document Parsed Content',
+    documentOutputFormat: 'Document Output Format',
+    plainTextToDb: 'Plain Text (Store in Database)',
+    markdownToFile: 'Markdown (Save as File)',
     saveImageParsedContent: 'Save Image Recognition Text',
     saveAudioParsedContent: 'Save Audio Recognition Text',
     saveVideoParsedContent: 'Save Video Recognition Text',

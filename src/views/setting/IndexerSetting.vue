@@ -248,6 +248,11 @@ async function doParsedContentChange3(value: boolean) {
   updateIndexerSetting()
 }
 
+async function onDocOutputFormatChanged(value: string) {
+  indexerStore.indexerSetting.document_output_format = value
+  updateIndexerSetting()
+}
+
 async function doParserModeChanged(mode: ParserMode) {
   // Mixed mode cannot be set by user directly
   if (mode === 'mixed')
@@ -589,6 +594,21 @@ onMounted(async () => {
           </div>
         </NAlert>
         <div class="flex flex-col space-y-2 my-4">
+          <div>
+            <div>{{ t('indexer.documentOutputFormat') }}</div>
+            <NRadioGroup
+              size="small"
+              :value="indexerStore.indexerSetting.document_output_format || 'text'"
+              @update:value="onDocOutputFormatChanged"
+            >
+              <NRadio value="text">
+                {{ t('indexer.plainTextToDb') }}
+              </NRadio>
+              <NRadio value="markdown">
+                {{ t('indexer.markdownToFile') }}
+              </NRadio>
+            </NRadioGroup>
+          </div>
           <div>
             <div>{{ t('indexer.saveDocumentParsedContent') }}</div>
             <NSwitch

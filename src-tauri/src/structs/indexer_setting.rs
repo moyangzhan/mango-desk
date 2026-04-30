@@ -49,6 +49,8 @@ pub struct IndexerSetting {
     pub ignore_files: Vec<String>, // File absolute path
     #[serde(default)]
     pub save_parsed_content: SaveParsedContent,
+    #[serde(default = "default_document_output_format")]
+    pub document_output_format: String, // "text" | "markdown"
 }
 
 impl Default for IndexerSetting {
@@ -68,6 +70,11 @@ impl Default for IndexerSetting {
                 video: true,
                 audio: true,
             },
+            document_output_format: default_document_output_format(),
         }
     }
+}
+
+fn default_document_output_format() -> String {
+    "text".to_string()
 }

@@ -191,3 +191,23 @@ pub fn copy_file(src: &PathBuf, dest: &PathBuf) -> anyhow::Result<()> {
     std::fs::copy(src, dest)?;
     Ok(())
 }
+
+pub fn copy_dir(src: &Path, dest: &Path) -> anyhow::Result<()> {
+    if !src.exists() {
+        return Ok(());
+    }
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
+        let src_path = entry.path();
+        let dest_path = dest.join(entry.file_name());
+        if src_path.is_dir() {
+            copy_dir(&src_path, &dest_path)?;
+        } else {
+            if let Some(parent) = dest_path.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            std::fs::copy(&src_path, &dest_path)?;
+        }
+    }
+    Ok(())
+}

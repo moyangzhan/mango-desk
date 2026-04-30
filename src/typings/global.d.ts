@@ -77,6 +77,7 @@ interface IndexerSetting {
   ignore_exts: string[];
   ignore_files: string[];
   save_parsed_content: SaveParsedContent;
+  document_output_format: string; // "text" | "markdown"
 }
 
 interface DownloadState {

@@ -3,9 +3,10 @@ use crate::global::{
     APP_DATA_PATH, AUDIO_DECODER_NAME, AUDIO_DECODER_PATH, AUDIO_ENCODER_NAME, AUDIO_ENCODER_PATH,
     AUDIO_TOKENIZER_NAME, AUDIO_TOKENIZER_PATH, DB_PATH, DOWNLOADING, EMBEDDING_MODEL_NAME,
     EMBEDDING_MODEL_PATH, EMBEDDING_TOKENIZER_NAME, EMBEDDING_TOKENIZER_PATH, EXIT_APP_SIGNAL,
-    HOME_PATH, INDEXING, SCANNING, STOP_INDEX_SIGNAL, STORAGE_PATH, TMP_PATH, TRAY_ID,
-    VISION_MODEL_PATH, VISION_NAME, VISION_TOKENIZER_NAME, VISION_TOKENIZER_PATH,
-    WHISPER_MODEL_NAME, WHISPER_MODEL_PATH,
+    EXTRACTED_IMAGES_PATH, HOME_PATH, INDEXING, OCR_DETECTION_MODEL_NAME, OCR_DETECTION_MODEL_PATH,
+    OCR_RECOGNITION_MODEL_NAME, OCR_RECOGNITION_MODEL_PATH, SCANNING, STOP_INDEX_SIGNAL,
+    STORAGE_PATH, TMP_PATH, TRAY_ID, VISION_MODEL_PATH, VISION_NAME, VISION_TOKENIZER_NAME,
+    VISION_TOKENIZER_PATH, WHISPER_MODEL_NAME, WHISPER_MODEL_PATH,
 };
 use crate::utils::file_util;
 use log::{error, info, warn};
@@ -136,12 +137,24 @@ pub async fn set_data_path(
         error!("Failed to write data path record: {}", e);
     }
     let old_path_buf = PathBuf::from(old_data_path);
+    let old_storage = old_path_buf.join("storage");
+    let new_storage = ndp.join("storage");
     if old_path_buf.exists() {
-        let old_db = old_path_buf.join("storage").join("mango-finder.db");
+        let old_db = old_storage.join("mango-finder.db");
         if old_db.exists() {
-            let new_db = ndp.join("storage").join("mango-finder.db");
+            let new_db = new_storage.join("mango-finder.db");
             file_util::copy_file(&old_db, &new_db)
                 .map_err(|e| format!("Failed to copy db file: {}", e))?;
+        }
+        // Copy Markdown parsed documents and extracted images
+        for dir_name in &["parsed_documents", "extracted_images"] {
+            let old_dir = old_storage.join(dir_name);
+            if old_dir.exists() {
+                let new_dir = new_storage.join(dir_name);
+                if let Err(e) = file_util::copy_dir(&old_dir, &new_dir) {
+                    log::warn!("Failed to copy {} directory: {}", dir_name, e);
+                }
+            }
         }
     }
     let mut guard = APP_DATA_PATH.write().await;
@@ -385,6 +398,42 @@ fn init_embedding_model_path(app_handle: &AppHandle) {
         .unwrap_or_else(|e| {
             error!("Failed to set WHISPER_MODEL_PATH: {}", e);
         });
+
+    // OCR models
+    let ocr_detection_path = build_in_model_path
+        .join(OCR_DETECTION_MODEL_NAME)
+        .to_string_lossy()
+        .into_owned();
+    OCR_DETECTION_MODEL_PATH
+        .set(ocr_detection_path)
+        .unwrap_or_else(|e| {
+            error!("Failed to set OCR_DETECTION_MODEL_PATH: {}", e);
+        });
+    let ocr_recognition_path = build_in_model_path
+        .join(OCR_RECOGNITION_MODEL_NAME)
+        .to_string_lossy()
+        .into_owned();
+    OCR_RECOGNITION_MODEL_PATH
+        .set(ocr_recognition_path)
+        .unwrap_or_else(|e| {
+            error!("Failed to set OCR_RECOGNITION_MODEL_PATH: {}", e);
+        });
+
+    // Extracted images directory
+    let extracted_images_path = Path::new(
+        STORAGE_PATH.get().unwrap_or(&String::new()),
+    )
+    .join("extracted_images");
+    if !extracted_images_path.exists() {
+        create_dir(&extracted_images_path).unwrap_or_else(|error| {
+            error!("Failed to create extracted_images directory: {}", error);
+        });
+    }
+    EXTRACTED_IMAGES_PATH
+        .set(extracted_images_path.to_string_lossy().into_owned())
+        .unwrap_or_else(|e| {
+            error!("Failed to set EXTRACTED_IMAGES_PATH: {}", e);
+        });
 }
 
 pub fn get_db_path() -> String {
@@ -446,6 +495,27 @@ pub fn get_audio_tokenizer_path() -> String {
 
 pub fn get_whisper_model_path() -> String {
     WHISPER_MODEL_PATH
+        .get()
+        .unwrap_or(&String::new())
+        .to_string()
+}
+
+pub fn get_ocr_detection_model_path() -> String {
+    OCR_DETECTION_MODEL_PATH
+        .get()
+        .unwrap_or(&String::new())
+        .to_string()
+}
+
+pub fn get_ocr_recognition_model_path() -> String {
+    OCR_RECOGNITION_MODEL_PATH
+        .get()
+        .unwrap_or(&String::new())
+        .to_string()
+}
+
+pub fn get_extracted_images_path() -> String {
+    EXTRACTED_IMAGES_PATH
         .get()
         .unwrap_or(&String::new())
         .to_string()

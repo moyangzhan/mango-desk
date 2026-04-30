@@ -39,9 +39,7 @@ tokenizers = { version = "0.22.1", default-features = false, features = [
   "onig",
 ] }
 text-splitter = { version = "0.28.0", features = ["tokenizers"] }
-# excel parser
-calamine = { version = "0.31.0", features = ["chrono"] }
-# doc、ppt parser
+# doc、ppt parser (used by ODT/ODP/ODS loaders)
 zip = "6.0.0"
 quick-xml = "0.38.3"
 thiserror = "2.0.17"
@@ -52,7 +50,6 @@ infer = "0.19.0"
 async-trait = "0.1.89"
 csv = "1.3.1"
 derive_builder = "0.20.2"
-lopdf = "0.38.0"
 md-5 = "0.10.6"
 chrono = "0.4.42"
 notify = "8.2.0"
@@ -66,6 +63,12 @@ regex = "1.12.2"
 sys-locale = "0.3.2"
 image = "0.25.9"
 bincode = "1.3.3"
+# Document parsing
+anytomd = { version = "1.2.2", default-features = false }
+pdfplumber = "0.2.0"
+# OCR
+ocrs = "0.12"
+rten = "0.24"
 symphonia = { version = "0.5.5", features = ["all"] }
 whisper-rs = "0.15"
 image_hasher = "3.1"
