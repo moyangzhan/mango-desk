@@ -1,7 +1,7 @@
 use crate::entities::{FileInfo, IndexingTask};
 use crate::enums::{CommandResultCode, DownloadEvent};
 use crate::fs_watcher::watcher;
-use crate::global::{FS_WATCHER_SETTING, INDEXING, INDEXING_FROM_WATCHER, SCANNING, STOP_INDEX_SIGNAL};
+use crate::global::{FS_WATCHER_SETTING, INDEXING, INDEXING_FROM_WATCHER, MIGRATING, SCANNING, STOP_INDEX_SIGNAL, STORAGE_PATH};
 use crate::indexer_service;
 use crate::repositories::{
     file_content_embedding_repo, file_content_fts_repo, file_info_repo,
@@ -34,6 +34,14 @@ pub async fn start_indexing(paths: Vec<String>, from: &str) -> Result<CommandRes
     }
     if INDEXING.load(Ordering::SeqCst) {
         log::info!("Indexing process is already running");
+        let result = CommandResult::error(
+            CommandResultCode::INDEXING,
+            t!("message.indexing-processing").to_string(),
+        );
+        return Ok(result);
+    }
+    if MIGRATING.load(Ordering::SeqCst) {
+        log::info!("Cannot start indexing while migration is in progress");
         let result = CommandResult::error(
             CommandResultCode::INDEXING,
             t!("message.indexing-processing").to_string(),
@@ -113,7 +121,19 @@ pub async fn load_file_detail(file_id: i64, device_id: Option<String>) -> Result
     }
 
     // Local query
-    let file = file_info_repo::get_by_id(file_id)?;
+    let mut file = file_info_repo::get_by_id(file_id)?;
+    if let Some(ref mut f) = file {
+        // In "file" storage mode, content field stores a relative path — read actual content from disk
+        if f.content.starts_with("parsed_documents/") {
+            if let Some(storage) = STORAGE_PATH.get() {
+                let md_path = std::path::Path::new(storage).join(&f.content);
+                f.content = std::fs::read_to_string(&md_path).unwrap_or_else(|e| {
+                    log::warn!("Failed to read parsed document {}: {}", md_path.display(), e);
+                    f.content.clone()
+                });
+            }
+        }
+    }
     Ok(file)
 }
 

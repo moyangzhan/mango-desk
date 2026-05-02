@@ -306,6 +306,22 @@ pub async fn is_embedding_model_changed() -> Result<bool, String> {
     return indexer_service::is_embedding_model_changed().await;
 }
 
+#[command]
+pub async fn migrate_content_storage(category: &str, new_mode: &str) -> Result<(), String> {
+    indexer_service::start_content_migration(category, new_mode).await
+}
+
+#[command]
+pub async fn count_indexed_files(category: &str) -> Result<i64, String> {
+    let cat = match category {
+        "document" => 1,
+        "image" => 2,
+        "audio" => 3,
+        _ => return Err(format!("Unknown category: {}", category)),
+    };
+    file_info_repo::count_indexed_by_category(cat).map_err(|e| e.to_string())
+}
+
 // ========== Config commands ==========
 
 #[command]

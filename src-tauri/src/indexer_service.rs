@@ -1,9 +1,9 @@
 use crate::embedding_service::EmbeddingService;
-use crate::enums::{FileCategory, IndexingEvent};
+use crate::enums::{FileCategory, IndexingEvent, MigrationEvent};
 use crate::errors::AppError;
 use crate::global::{
-    ACTIVE_MODEL_PLATFORM, CONFIG_NAME_INDEXER_SETTING, INDEXER_SETTING, INDEXING,
-    INDEXING_FROM_WATCHER, SCANNING, SCANNING_TOTAL, STOP_INDEX_SIGNAL,
+    ACTIVE_MODEL_PLATFORM, CONFIG_NAME_INDEXER_SETTING, INDEXER_SETTING,
+    INDEXING, INDEXING_FROM_WATCHER, MIGRATING, SCANNING, SCANNING_TOTAL, STOP_INDEX_SIGNAL, STORAGE_PATH,
 };
 use crate::indexers;
 use crate::initializer;
@@ -30,6 +30,287 @@ pub async fn update_indexer_setting(indexer_setting: IndexerSetting) -> Result<u
     )
     .await;
     Ok(result)
+}
+
+/// 启动内容存储迁移任务（后台执行）
+///
+/// 切换方向：
+///   database → file    : 读取 DB 中的 content → 写入 parsed_documents/{md5}.md → 更新 DB 为相对路径
+///   database → none    : 清空 DB 中的 content（仅文档）
+///   file → database    : 读取 .md 文件 → 写入 DB content → 删除 .md 文件
+///   file → none        : 删除 .md 文件 → 清空 DB content（仅文档）
+///   none → database    : 重新解析原始文件（仅文档）→ 保存到 DB
+///   none → file        : 重新解析原始文件（仅文档）→ 写入 .md → DB 存相对路径
+///
+/// 注意：none → 其他方向仅支持文档类型，图片和音频不提供 none 选项
+pub async fn start_content_migration(category: &str, new_mode: &str) -> Result<(), String> {
+    if MIGRATING.load(Ordering::SeqCst) {
+        return Err("Migration already in progress".to_string());
+    }
+    if INDEXING.load(Ordering::SeqCst) {
+        return Err("Cannot migrate while indexing is in progress".to_string());
+    }
+
+    let category_enum = match category {
+        "document" => FileCategory::Document,
+        "image" => FileCategory::Image,
+        "audio" => FileCategory::Audio,
+        _ => return Err(format!("Unknown category: {}", category)),
+    };
+
+    let old_mode = {
+        let setting = INDEXER_SETTING.read().await;
+        setting.content_storage.get_for_category(&category_enum).to_string()
+    };
+
+    if old_mode == new_mode {
+        return Ok(());
+    }
+
+    // Update in-memory setting only (persist to DB after migration succeeds)
+    {
+        let mut setting = INDEXER_SETTING.write().await;
+        match category {
+            "document" => setting.content_storage.document = new_mode.to_string(),
+            "image" => setting.content_storage.image = new_mode.to_string(),
+            "audio" => setting.content_storage.audio = new_mode.to_string(),
+            _ => {}
+        }
+    }
+
+    let category_str = category.to_string();
+    let new_mode = new_mode.to_string();
+    let old_mode = old_mode;
+
+    tokio::spawn(async move {
+        MIGRATING.store(true, Ordering::SeqCst);
+        let result = migrate_content_storage_inner(&category_str, &category_enum, &old_mode, &new_mode).await;
+        MIGRATING.store(false, Ordering::SeqCst);
+
+        if let Err(e) = result {
+            log::error!("Content storage migration failed: {}", e);
+            // Revert in-memory setting on failure
+            let mut setting = INDEXER_SETTING.write().await;
+            match category_str.as_str() {
+                "document" => setting.content_storage.document = old_mode.clone(),
+                "image" => setting.content_storage.image = old_mode.clone(),
+                "audio" => setting.content_storage.audio = old_mode.clone(),
+                _ => {}
+            }
+        }
+
+        // Persist setting to DB (reflects either new mode on success or reverted mode on failure)
+        let setting = INDEXER_SETTING.read().await;
+        if let Ok(json) = serde_json::to_string(&*setting) {
+            if let Err(e) = config_repo::update_by_name(CONFIG_NAME_INDEXER_SETTING, &json) {
+                log::error!("Failed to persist indexer setting after migration: {}", e);
+            }
+        }
+    });
+
+    Ok(())
+}
+
+async fn migrate_content_storage_inner(
+    category_str: &str,
+    category: &FileCategory,
+    old_mode: &str,
+    new_mode: &str,
+) -> Result<(), String> {
+    let files = file_info_repo::list_by_category(category.value())
+        .map_err(|e| e.to_string())?;
+    let total = files.len() as i64;
+
+    frontend_util::send_event(
+        "migration-event",
+        &MigrationEvent::Start {
+            category: category_str.to_string(),
+            total,
+        },
+    );
+
+    let storage_path = STORAGE_PATH.get().cloned().unwrap_or_default();
+    let mut migrated = 0i64;
+    let mut failed = 0i64;
+
+    for file in &files {
+        match do_migrate_one(file, old_mode, new_mode, &storage_path, category).await {
+            Ok(true) => migrated += 1,
+            Ok(false) => {} // no change needed
+            Err(e) => {
+                log::warn!("Migration failed for file {}: {}", file.path, e);
+                failed += 1;
+            }
+        }
+
+        frontend_util::send_event(
+            "migration-event",
+            &MigrationEvent::Progress {
+                category: category_str.to_string(),
+                current: migrated + failed,
+                total,
+            },
+        );
+    }
+
+    frontend_util::send_event(
+        "migration-event",
+        &MigrationEvent::Complete {
+            category: category_str.to_string(),
+            migrated,
+            failed,
+        },
+    );
+
+    log::info!(
+        "Content storage migration complete: category={}, {}→{}, migrated={}, failed={}",
+        category_str, old_mode, new_mode, migrated, failed
+    );
+    Ok(())
+}
+
+/// Migrate a single file's content storage. Returns Ok(true) if migrated, Ok(false) if skipped.
+async fn do_migrate_one(
+    file: &crate::entities::FileInfo,
+    old_mode: &str,
+    new_mode: &str,
+    storage_path: &str,
+    category: &FileCategory,
+) -> Result<bool, String> {
+    let is_file_mode = file.content.starts_with("parsed_documents/");
+
+    match (old_mode, new_mode) {
+        // database → file: DB has content, write to .md
+        ("database", "file") => {
+            if is_file_mode || file.content.is_empty() {
+                return Ok(false); // already in file mode or no content
+            }
+            let md_dir = std::path::Path::new(storage_path).join("parsed_documents");
+            let _ = std::fs::create_dir_all(&md_dir);
+            let md_filename = format!("{}.md", &file.md5);
+            let md_path = md_dir.join(&md_filename);
+            std::fs::write(&md_path, &file.content)
+                .map_err(|e| format!("write {}: {}", md_path.display(), e))?;
+            let relative_path = format!("parsed_documents/{}", md_filename);
+            file_info_repo::update_content_only(file.id, &relative_path)
+                .map_err(|e| e.to_string())?;
+            Ok(true)
+        }
+
+        // database → none: clear content (document only)
+        ("database", "none") => {
+            if file.content.is_empty() || is_file_mode {
+                return Ok(false);
+            }
+            file_info_repo::update_content_only(file.id, "")
+                .map_err(|e| e.to_string())?;
+            Ok(true)
+        }
+
+        // file → database: read .md → write to DB → delete .md
+        ("file", "database") => {
+            if !is_file_mode {
+                return Ok(false); // not in file mode
+            }
+            let md_path = std::path::Path::new(storage_path).join(&file.content);
+            let content = std::fs::read_to_string(&md_path)
+                .map_err(|e| format!("read {}: {}", md_path.display(), e))?;
+            file_info_repo::update_content_only(file.id, &content)
+                .map_err(|e| e.to_string())?;
+            let _ = std::fs::remove_file(&md_path);
+            Ok(true)
+        }
+
+        // file → none: delete .md + clear DB (document only)
+        ("file", "none") => {
+            if is_file_mode {
+                let md_path = std::path::Path::new(storage_path).join(&file.content);
+                let _ = std::fs::remove_file(&md_path);
+            }
+            if !file.content.is_empty() {
+                file_info_repo::update_content_only(file.id, "")
+                    .map_err(|e| e.to_string())?;
+            }
+            Ok(true)
+        }
+
+        // none → database: re-parse file → save to DB
+        ("none", "database") => {
+            let content = reparse_file(file, category).await?;
+            if content.is_empty() {
+                return Ok(false);
+            }
+            file_info_repo::update_content_only(file.id, &content)
+                .map_err(|e| e.to_string())?;
+            Ok(true)
+        }
+
+        // none → file: re-parse file → write .md → save relative path
+        ("none", "file") => {
+            let content = reparse_file(file, category).await?;
+            if content.is_empty() {
+                return Ok(false);
+            }
+            let md_dir = std::path::Path::new(storage_path).join("parsed_documents");
+            let _ = std::fs::create_dir_all(&md_dir);
+            let md_filename = format!("{}.md", &file.md5);
+            let md_path = md_dir.join(&md_filename);
+            std::fs::write(&md_path, &content)
+                .map_err(|e| format!("write {}: {}", md_path.display(), e))?;
+            let relative_path = format!("parsed_documents/{}", md_filename);
+            file_info_repo::update_content_only(file.id, &relative_path)
+                .map_err(|e| e.to_string())?;
+            Ok(true)
+        }
+
+        // Fallback: detect actual state from content field and migrate accordingly
+        _ => {
+            // Handle cross-direction cases (e.g., old was "none" but content exists from prior migration)
+            let actual_old = if is_file_mode { "file" } else if file.content.is_empty() { "none" } else { "database" };
+            if actual_old == new_mode {
+                return Ok(false);
+            }
+            do_migrate_one(file, actual_old, new_mode, storage_path, category).await
+        }
+    }
+}
+
+/// Re-parse a file to recover its content (used for none → database/file migration).
+/// Only supports documents. Images and audio would require expensive model inference.
+async fn reparse_file(
+    file: &crate::entities::FileInfo,
+    category: &FileCategory,
+) -> Result<String, String> {
+    let path = std::path::Path::new(&file.path);
+    if !path.exists() {
+        return Err(format!("File no longer exists: {}", file.path));
+    }
+
+    match category {
+        FileCategory::Document => {
+            use crate::global::{EXT_TO_DOC_LOADER, MAX_DOCUMENT_LOAD_CHARS};
+            let loader_map = EXT_TO_DOC_LOADER.read().await;
+            let loader = loader_map.get(&file.file_ext).cloned();
+            drop(loader_map);
+
+            match loader {
+                Some(doc_loader) => {
+                    tokio::task::spawn_blocking(move || {
+                        doc_loader.load_max(&path, MAX_DOCUMENT_LOAD_CHARS)
+                    })
+                    .await
+                    .map_err(|e| format!("Re-parse task panicked: {}", e))?
+                    .map_err(|e| format!("Re-parse failed: {}", e))
+                }
+                None => Ok(String::new()),
+            }
+        }
+        _ => {
+            // Image/audio re-parsing requires model inference, not supported in migration
+            log::warn!("Re-parsing not supported for {:?} files in migration", category);
+            Ok(String::new())
+        }
+    }
 }
 
 pub async fn is_embedding_model_changed() -> Result<bool, String> {

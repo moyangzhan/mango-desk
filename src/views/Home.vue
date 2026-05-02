@@ -47,6 +47,14 @@ const showContentModal = ref(false)
 const showChunksModal = ref(false)
 const matchChunks = ref<string[]>([])
 
+function getStorageMode(category: number): string {
+  const cs = indexerStore.indexerSetting.content_storage
+  if (category === 1) return cs.document || 'database'
+  if (category === 2) return cs.image || 'database'
+  if (category === 3) return cs.audio || 'database'
+  return 'database'
+}
+
 // Similar results modal ref
 const similarModalRef = ref<InstanceType<typeof SimilarResultsModal> | null>(null)
 
@@ -386,16 +394,10 @@ onDeactivated(() => {
                     {{ t('common.findSimilar') }}
                   </NButton>
                   <NButton
-                    v-if="indexerStore.indexerSetting.save_parsed_content.document && item.file_info.category === 1"
+                    v-if="getStorageMode(item.file_info.category) !== 'none'"
                     size="tiny" ghost @click="loadFileDetail(item.file_info.id, item.source_device?.device_id)"
                   >
-                    {{ t('indexer.parsedContent') }}
-                  </NButton>
-                  <NButton
-                    v-if="(indexerStore.indexerSetting.save_parsed_content.image && item.file_info.category === 2) || (indexerStore.indexerSetting.save_parsed_content.audio && item.file_info.category === 3)"
-                    size="tiny" ghost @click="loadFileDetail(item.file_info.id, item.source_device?.device_id)"
-                  >
-                    {{ t('indexer.recognitionText') }}
+                    {{ item.file_info.category === 1 ? t('indexer.parsedContent') : t('indexer.recognitionText') }}
                   </NButton>
                   <NButton
                     v-if="item.matched_chunk_ids && item.matched_chunk_ids.length > 0" size="tiny" ghost

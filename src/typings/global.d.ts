@@ -59,11 +59,10 @@ interface ProxyInfo {
   port: number;
 }
 
-interface SaveParsedContent {
-  document: boolean;
-  image: boolean;
-  audio: boolean;
-  video: boolean;
+interface ContentStorage {
+  document: string; // "database" | "file" | "none"
+  image: string;
+  audio: string;
 }
 
 interface IndexerSetting {
@@ -76,8 +75,7 @@ interface IndexerSetting {
   ignore_path_prefixes: string[];
   ignore_exts: string[];
   ignore_files: string[];
-  save_parsed_content: SaveParsedContent;
-  document_output_format: string; // "text" | "markdown"
+  content_storage: ContentStorage;
 }
 
 interface DownloadState {

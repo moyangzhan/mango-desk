@@ -1,12 +1,10 @@
 use crate::global::{
-    ANYTOMD_EXTRA_EXTS, DOCX_EXTS, EXCEL_EXTS, EXTRACTED_IMAGES_PATH, INDEXER_SETTING,
-    MAX_DOCUMENT_LOAD_CHARS, PLAIN_TEXT_EXTS, PPTX_EXTS,
+    ANYTOMD_EXTRA_EXTS, DOCX_EXTS, EXCEL_EXTS, MAX_DOCUMENT_LOAD_CHARS, PLAIN_TEXT_EXTS, PPTX_EXTS,
 };
 use crate::ocr_service;
 use crate::traits::document_loader::DocumentLoader;
-use std::collections::hash_map::DefaultHasher;
+use super::get_images_dir;
 use std::fs;
-use std::hash::{Hash, Hasher};
 use std::io;
 use std::path::Path;
 
@@ -47,10 +45,16 @@ impl DocumentLoader for AnyToMdLoader {
     }
 
     fn load_max(&self, path: &Path, max_load_chars: usize) -> io::Result<String> {
-        let output_format = INDEXER_SETTING
-            .read()
-            .map(|s| s.document_output_format.clone())
-            .unwrap_or_else(|_| "text".to_string());
+        let ext = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("")
+            .to_lowercase();
+
+        // Short-circuit for plain text files: read directly without anytomd parsing
+        if PLAIN_TEXT_EXTS.contains(&ext.as_str()) {
+            return load_plain_text(path, max_load_chars);
+        }
 
         let options = anytomd::ConversionOptions {
             extract_images: true,
@@ -65,11 +69,7 @@ impl DocumentLoader for AnyToMdLoader {
             )
         })?;
 
-        let mut content = if output_format == "markdown" {
-            result.markdown
-        } else {
-            result.plain_text
-        };
+        let mut content = result.markdown;
 
         if !result.images.is_empty() {
             let images_dir = get_images_dir(path);
@@ -104,9 +104,7 @@ impl DocumentLoader for AnyToMdLoader {
             MAX_DOCUMENT_LOAD_CHARS
         };
 
-        if content.chars().count() > limit {
-            content = content.chars().take(limit).collect();
-        }
+        super::truncate_to_char_limit(&mut content, limit);
 
         Ok(content)
     }
@@ -119,16 +117,24 @@ impl DocumentLoader for AnyToMdLoader {
     }
 }
 
-fn get_images_dir(source_path: &Path) -> std::path::PathBuf {
-    let extracted_path = EXTRACTED_IMAGES_PATH
-        .get()
-        .cloned()
-        .unwrap_or_default();
-    let canonical = source_path
-        .canonicalize()
-        .unwrap_or_else(|_| source_path.to_path_buf());
-    let mut hasher = DefaultHasher::new();
-    canonical.to_string_lossy().hash(&mut hasher);
-    let hash = format!("{:016x}", hasher.finish());
-    std::path::PathBuf::from(extracted_path).join(hash)
+fn load_plain_text(path: &Path, max_load_chars: usize) -> io::Result<String> {
+    use std::io::Read;
+
+    let limit = if max_load_chars > 0 {
+        max_load_chars
+    } else {
+        MAX_DOCUMENT_LOAD_CHARS
+    };
+
+    let file = std::fs::File::open(path)?;
+    let mut reader = std::io::BufReader::new(file);
+    let mut content = String::new();
+
+    // Read up to limit * 4 bytes (UTF-8 worst case), then truncate to char limit
+    reader
+        .take((limit as u64) * 4)
+        .read_to_string(&mut content)?;
+    super::truncate_to_char_limit(&mut content, limit);
+
+    Ok(content)
 }

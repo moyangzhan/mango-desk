@@ -75,6 +75,28 @@ pub fn update_content_meta(
     Ok(affected)
 }
 
+pub fn update_content_only(
+    file_id: i64,
+    content: &str,
+) -> Result<(), RepositoryError> {
+    let conn = Connection::open(get_db_path())?;
+    conn.execute(
+        "update file_info set content = :content where id = :id",
+        named_params! { ":id": &file_id, ":content": &content },
+    )?;
+    Ok(())
+}
+
+pub fn count_indexed_by_category(category: i64) -> Result<i64, RepositoryError> {
+    let conn = Connection::open(get_db_path())?;
+    let count = conn.query_row(
+        "select count(*) from file_info where content_index_status = 3 and category = :category",
+        named_params! { ":category": category },
+        |row| row.get(0),
+    )?;
+    Ok(count)
+}
+
 pub fn update_invalid(
     file_id: i64,
     is_invalid: bool,

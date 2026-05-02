@@ -343,6 +343,19 @@ pub enum IndexingEvent {
     Finish { task_id: i64, msg: String },
 }
 
+#[derive(Clone, Serialize)]
+#[serde(
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase",
+    tag = "event",
+    content = "data"
+)]
+pub enum MigrationEvent {
+    Start { category: String, total: i64 },
+    Progress { category: String, current: i64, total: i64 },
+    Complete { category: String, migrated: i64, failed: i64 },
+}
+
 #[derive(Debug, PartialEq, Deserialize, Serialize, Clone)]
 pub enum CommandResultCode {
     ERROR,

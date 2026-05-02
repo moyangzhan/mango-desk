@@ -31,7 +31,7 @@ mod utils;
 
 use crate::commands::{
     add_device_manually, add_watch_path, check_devices, check_devices_status, check_model_platform, check_path_type, check_self_hosted_platform, clear_index,
-    clear_pairing_requests, count_files, count_indexing_tasks, count_pending_pairing_requests,
+    clear_pairing_requests, count_files, count_indexed_files, count_indexing_tasks, count_pending_pairing_requests,
     delete_index_item, delete_index_items, delete_indexing_task, delete_pairing_request,
     delete_pairing_requests, download_multilingual_model, fetch_remote_file,
     find_similars_by_file_id, get_client_id, get_data_path, get_local_ip, get_test_mode, indexing_watch_paths,
@@ -39,7 +39,7 @@ use crate::commands::{
     load_active_self_hosted_platform, load_chunks, load_cluster_setting, load_config_value,
     load_devices, load_file_detail, load_files, load_indexer_setting, load_indexing_tasks,
     load_model_by_type, load_model_platforms, load_pairing_requests, load_pending_pairing_requests,
-    load_proxy_info, load_self_hosted_platforms, local_device_search, open_directory,
+    load_proxy_info, load_self_hosted_platforms, local_device_search, migrate_content_storage, open_directory,
     read_file_data, reject_device, remote_device_search, remove_watch_path, reset_data_path,
     reset_pairing_status, respond_pairing_request, send_pairing_request, set_active_locale,
     set_active_platform, set_active_self_hosted_platform, set_data_path, start_indexing,
@@ -177,6 +177,8 @@ pub fn run() {
             read_file_data,
             ui_mounted,
             is_embedding_model_changed,
+            migrate_content_storage,
+            count_indexed_files,
             get_data_path,
             set_data_path,
             reset_data_path,

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
 import { join } from '@tauri-apps/api/path'
 import type { DataTableColumns } from 'naive-ui'
 import ModelPlatformEdit from './ModelPlatformEdit.vue'
@@ -233,25 +234,68 @@ async function doActiveSelfHostedPlatformChanged(selectedName: string) {
   initStatusData()
 }
 
-async function doParsedContentChange1(value: boolean) {
-  indexerStore.setDocumentParsedContent(value)
-  updateIndexerSetting()
+// Migration state
+const migratingType = ref<'document' | 'image' | 'audio' | null>(null)
+const migratingProgress = ref({ current: 0, total: 0 })
+
+async function onContentStorageChanged(type: 'document' | 'image' | 'audio', value: string) {
+  const oldValue = indexerStore.indexerSetting.content_storage[type] || 'database'
+  if (oldValue === value) return
+
+  // Count affected files
+  let affectedCount = 0
+  try {
+    affectedCount = await invoke<number>('count_indexed_files', { category: type })
+  } catch { /* ignore */ }
+
+  if (affectedCount === 0) {
+    // No files to migrate, just save
+    indexerStore.indexerSetting.content_storage[type] = value
+    updateIndexerSetting()
+    return
+  }
+
+  // Build confirmation message
+  let confirmMsg = ''
+  if (value === 'none') {
+    confirmMsg = t('indexer.migrateConfirmNone', { count: affectedCount })
+  } else if (oldValue === 'none') {
+    confirmMsg = t('indexer.migrateConfirmReparse', { count: affectedCount })
+  } else if (value === 'file') {
+    confirmMsg = t('indexer.migrateConfirmFile', { count: affectedCount })
+  } else {
+    confirmMsg = t('indexer.migrateConfirmDatabase', { count: affectedCount })
+  }
+
+  // Show confirmation dialog
+  window.$dialog.warning({
+    title: t('common.tip'),
+    content: confirmMsg,
+    positiveText: t('common.confirm'),
+    negativeText: t('common.cancel'),
+    onPositiveClick: async () => {
+      try {
+        migratingType.value = type
+        migratingProgress.value = { current: 0, total: affectedCount }
+        await invoke('migrate_content_storage', { category: type, newMode: value })
+        // Update local state
+        indexerStore.indexerSetting.content_storage[type] = value
+      } catch (e) {
+        console.error('Migration failed:', e)
+        window.$message.error(t('common.operationFailed'))
+        // Revert UI on failure
+        indexerStore.indexerSetting.content_storage[type] = oldValue
+      }
+    },
+    onNegativeClick: () => {
+      // Revert radio value by re-triggering reactive update
+      indexerStore.indexerSetting.content_storage[type] = oldValue
+    },
+  })
 }
 
-async function doParsedContentChange2(value: boolean) {
-  indexerStore.setImageParsedContent(value)
-  updateIndexerSetting()
-}
-
-async function doParsedContentChange3(value: boolean) {
-  indexerStore.setAudioParsedContent(value)
-  updateIndexerSetting()
-}
-
-async function onDocOutputFormatChanged(value: string) {
-  indexerStore.indexerSetting.document_output_format = value
-  updateIndexerSetting()
-}
+// Listen for migration events
+let unlistenMigration: (() => void) | null = null
 
 async function doParserModeChanged(mode: ParserMode) {
   // Mixed mode cannot be set by user directly
@@ -399,9 +443,29 @@ onMounted(async () => {
     console.log('modelPath', modelPath.value)
     dbPath.value = await join(userDataPath, 'storage')
     initStatusData()
+
+    // Listen for migration events
+    unlistenMigration = await listen<string>('migration-event', async (event) => {
+      const parsed = JSON.parse(event.payload)
+      const { event: eventType, data } = parsed
+      if (eventType === 'progress' && data.current !== undefined && data.total !== undefined) {
+        migratingProgress.value = { current: data.current, total: data.total }
+      } else if (eventType === 'complete') {
+        migratingType.value = null
+        // Reload setting from backend to sync any revert on failure
+        try {
+          const setting = await invoke<IndexerSetting>('load_indexer_setting')
+          indexerStore.setIndexerSetting(setting)
+        } catch { /* ignore */ }
+      }
+    })
   } catch (e) {
     console.error('IndexerSetting onMounted error', e)
   }
+})
+
+onUnmounted(() => {
+  unlistenMigration?.()
 })
 </script>
 
@@ -593,43 +657,52 @@ onMounted(async () => {
             {{ t('indexer.saveParsedContentWarn') }}
           </div>
         </NAlert>
-        <div class="flex flex-col space-y-2 my-4">
+        <div class="flex flex-col space-y-3 my-4">
           <div>
-            <div>{{ t('indexer.documentOutputFormat') }}</div>
+            <div>{{ t('indexer.documentStorage') }}</div>
             <NRadioGroup
               size="small"
-              :value="indexerStore.indexerSetting.document_output_format || 'text'"
-              @update:value="onDocOutputFormatChanged"
+              :value="indexerStore.indexerSetting.content_storage.document || 'database'"
+              @update:value="(v: string) => onContentStorageChanged('document', v)"
             >
-              <NRadio value="text">
-                {{ t('indexer.plainTextToDb') }}
-              </NRadio>
-              <NRadio value="markdown">
-                {{ t('indexer.markdownToFile') }}
-              </NRadio>
+              <NSpace>
+                <NRadio value="database">{{ t('indexer.storageDatabase') }}</NRadio>
+                <NRadio value="file">{{ t('indexer.storageFile') }}</NRadio>
+                <NRadio value="none">{{ t('indexer.storageNone') }}</NRadio>
+              </NSpace>
             </NRadioGroup>
           </div>
           <div>
-            <div>{{ t('indexer.saveDocumentParsedContent') }}</div>
-            <NSwitch
-              size="small" :value="indexerStore.indexerSetting.save_parsed_content.document"
-              @update:value="doParsedContentChange1"
-            />
+            <div>{{ t('indexer.imageStorage') }}</div>
+            <NRadioGroup
+              size="small"
+              :value="indexerStore.indexerSetting.content_storage.image || 'database'"
+              @update:value="(v: string) => onContentStorageChanged('image', v)"
+            >
+              <NSpace>
+                <NRadio value="database">{{ t('indexer.storageDatabase') }}</NRadio>
+                <NRadio value="file">{{ t('indexer.storageFile') }}</NRadio>
+              </NSpace>
+            </NRadioGroup>
           </div>
           <div>
-            <div>{{ t('indexer.saveImageParsedContent') }}</div>
-            <NSwitch
-              size="small" :value="indexerStore.indexerSetting.save_parsed_content.image"
-              @update:value="doParsedContentChange2"
-            />
+            <div>{{ t('indexer.audioStorage') }}</div>
+            <NRadioGroup
+              size="small"
+              :value="indexerStore.indexerSetting.content_storage.audio || 'database'"
+              @update:value="(v: string) => onContentStorageChanged('audio', v)"
+            >
+              <NSpace>
+                <NRadio value="database">{{ t('indexer.storageDatabase') }}</NRadio>
+                <NRadio value="file">{{ t('indexer.storageFile') }}</NRadio>
+              </NSpace>
+            </NRadioGroup>
           </div>
-          <div>
-            <div>{{ t('indexer.saveAudioParsedContent') }}</div>
-            <NSwitch
-              size="small" :value="indexerStore.indexerSetting.save_parsed_content.audio"
-              @update:value="doParsedContentChange3"
-            />
-          </div>
+        </div>
+        <!-- Migration progress -->
+        <div v-if="migratingType" class="flex items-center gap-2 text-xs text-gray-500">
+          <NSpin size="small" />
+          <span>{{ t('indexer.migrating') }} ({{ migratingProgress.current }}/{{ migratingProgress.total }})</span>
         </div>
       </div>
     </NCard>

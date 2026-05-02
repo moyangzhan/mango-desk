@@ -164,6 +164,7 @@ pub const MAX_DOCUMENT_LOAD_CHARS: usize = 30000;
 pub static INDEXER_SETTING: LazyLock<AsyncRwLock<IndexerSetting>> =
     LazyLock::new(|| AsyncRwLock::new(IndexerSetting::default()));
 pub static INDEXING: AtomicBool = AtomicBool::new(false);
+pub static MIGRATING: AtomicBool = AtomicBool::new(false);
 pub static STOP_INDEX_SIGNAL: AtomicBool = AtomicBool::new(false);
 pub static FS_WATCHER_SETTING: LazyLock<AsyncRwLock<FsWatcherSetting>> =
     LazyLock::new(|| AsyncRwLock::new(FsWatcherSetting::default()));

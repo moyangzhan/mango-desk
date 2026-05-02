@@ -29,11 +29,10 @@ export function emptyIndexerSetting(): IndexerSetting {
     ignore_exts: [] as string[],
     ignore_files: [] as string[],
     ignore_path_prefixes: [] as string[],
-    save_parsed_content: {
-      document: false,
-      image: true,
-      video: true,
-      audio: true,
+    content_storage: {
+      document: 'database',
+      image: 'database',
+      audio: 'database',
     },
   }
 }

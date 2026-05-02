@@ -1,36 +1,40 @@
 use crate::enums::{FileCategory, FileParserMode};
 use serde::{Deserialize, Serialize};
 
-/// @see enums.rs FileCategory
+/// Per-content-type storage setting: "database" | "file" | "none"
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
-pub struct SaveParsedContent {
-    document: bool,
-    image: bool,
-    video: bool,
-    audio: bool,
+pub struct ContentStorage {
+    #[serde(default = "default_storage")]
+    pub document: String,
+    #[serde(default = "default_storage")]
+    pub image: String,
+    #[serde(default = "default_storage")]
+    pub audio: String,
 }
 
-impl Default for SaveParsedContent {
+impl Default for ContentStorage {
     fn default() -> Self {
         Self {
-            document: false,
-            image: true,
-            video: true,
-            audio: true,
+            document: default_storage(),
+            image: default_storage(),
+            audio: default_storage(),
         }
     }
 }
 
-impl SaveParsedContent {
-    pub fn need_store(&self, file_category: &FileCategory) -> bool {
-        match file_category {
-            FileCategory::Document => self.document,
-            FileCategory::Image => self.image,
-            FileCategory::Video => self.video,
-            FileCategory::Audio => self.audio,
-            _ => false,
+impl ContentStorage {
+    pub fn get_for_category(&self, category: &FileCategory) -> &str {
+        match category {
+            FileCategory::Document => &self.document,
+            FileCategory::Image => &self.image,
+            FileCategory::Audio => &self.audio,
+            _ => &self.document,
         }
     }
+}
+
+fn default_storage() -> String {
+    "database".to_string()
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -46,11 +50,9 @@ pub struct IndexerSetting {
     #[serde(default)]
     pub ignore_path_prefixes: Vec<String>, // Full path prefixes to ignore
     pub ignore_exts: Vec<String>,
-    pub ignore_files: Vec<String>, // File absolute path
+    pub ignore_files: Vec<String], // File absolute path
     #[serde(default)]
-    pub save_parsed_content: SaveParsedContent,
-    #[serde(default = "default_document_output_format")]
-    pub document_output_format: String, // "text" | "markdown"
+    pub content_storage: ContentStorage,
 }
 
 impl Default for IndexerSetting {
@@ -64,17 +66,7 @@ impl Default for IndexerSetting {
             ignore_files: vec![],
             ignore_dirs: vec![],
             ignore_path_prefixes: vec![],
-            save_parsed_content: SaveParsedContent {
-                document: false,
-                image: true,
-                video: true,
-                audio: true,
-            },
-            document_output_format: default_document_output_format(),
+            content_storage: ContentStorage::default(),
         }
     }
-}
-
-fn default_document_output_format() -> String {
-    "text".to_string()
 }
