@@ -5,7 +5,7 @@ use crate::utils::datetime_util;
 use chrono::{DateTime, Local};
 use rusqlite::{Connection, Result, Row, named_params};
 
-const ALL_COLUMNS_EXCEPT_CONTENT: &str = "id, name, category, path, file_ext, file_size, content, content_index_status, content_index_status_msg, meta_index_status, meta_index_status_msg, is_invalid, invalid_reason, md5, metadata, audio_type, image_hash, file_create_time, file_update_time, create_time, update_time";
+const ALL_COLUMNS: &str = "id, name, category, path, file_ext, file_size, content, content_index_status, content_index_status_msg, meta_index_status, meta_index_status_msg, is_invalid, invalid_reason, md5, metadata, audio_type, image_hash, file_create_time, file_update_time, create_time, update_time";
 
 pub fn insert(file_info: &FileInfo) -> Result<Option<FileInfo>, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
@@ -229,7 +229,7 @@ pub fn list_unindexed_files(
     let conn = Connection::open(get_db_path())?;
     let sql = format!(
         "select {} from file_info where id > :min_id and content_index_status = 1 and category = :category order by id asc limit :limit",
-        ALL_COLUMNS_EXCEPT_CONTENT
+        ALL_COLUMNS
     );
     // File content is not included in the result
     let mut stmt = conn.prepare(sql.as_str())?;
@@ -275,7 +275,7 @@ pub fn list_by_ids(ids: &Vec<i64>) -> Result<Vec<FileInfo>, RepositoryError> {
     let mut stmt = conn.prepare(
         format!(
             "select {} from file_info where id in ('{}')",
-            ALL_COLUMNS_EXCEPT_CONTENT, ids_str
+            ALL_COLUMNS, ids_str
         )
         .as_str(),
     )?;
@@ -424,7 +424,7 @@ pub fn list_by_category(category: i64) -> Result<Vec<FileInfo>, RepositoryError>
     let conn = Connection::open(get_db_path())?;
     let sql = format!(
         "select {} from file_info where category = :category and is_invalid = 0",
-        ALL_COLUMNS_EXCEPT_CONTENT
+        ALL_COLUMNS
     );
     let mut stmt = conn.prepare(sql.as_str())?;
     let rows = stmt.query_map(named_params! {":category": category}, |row| {
@@ -457,7 +457,7 @@ pub fn list_by_category_paged(
     let conn = Connection::open(get_db_path())?;
     let sql = format!(
         "select {} from file_info where category = :category and is_invalid = 0 order by id asc limit :limit offset :offset",
-        ALL_COLUMNS_EXCEPT_CONTENT
+        ALL_COLUMNS
     );
     let mut stmt = conn.prepare(sql.as_str())?;
     let rows = stmt.query_map(
@@ -488,7 +488,7 @@ pub fn list_by_categories(categories: &[i64]) -> Result<Vec<FileInfo>, Repositor
     let conn = Connection::open(get_db_path())?;
     let sql = format!(
         "select {} from file_info where category in ({}) and is_invalid = 0",
-        ALL_COLUMNS_EXCEPT_CONTENT, categories_str
+        ALL_COLUMNS, categories_str
     );
     let mut stmt = conn.prepare(sql.as_str())?;
     let rows = stmt.query_map([], |row| Ok(build_file_info(row)?))?;

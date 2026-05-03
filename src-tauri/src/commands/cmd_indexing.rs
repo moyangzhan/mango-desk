@@ -1,7 +1,7 @@
 use crate::entities::{FileInfo, IndexingTask};
 use crate::enums::{CommandResultCode, DownloadEvent};
 use crate::fs_watcher::watcher;
-use crate::global::{FS_WATCHER_SETTING, INDEXING, INDEXING_FROM_WATCHER, MIGRATING, SCANNING, STOP_INDEX_SIGNAL, STORAGE_PATH};
+use crate::global::{FS_WATCHER_SETTING, CONTENT_STORAGE_CHANGING, INDEXING, INDEXING_FROM_WATCHER, SCANNING, STOP_INDEX_SIGNAL, STORAGE_PATH};
 use crate::indexer_service;
 use crate::repositories::{
     file_content_embedding_repo, file_content_fts_repo, file_info_repo,
@@ -40,7 +40,7 @@ pub async fn start_indexing(paths: Vec<String>, from: &str) -> Result<CommandRes
         );
         return Ok(result);
     }
-    if MIGRATING.load(Ordering::SeqCst) {
+    if CONTENT_STORAGE_CHANGING.load(Ordering::SeqCst) {
         log::info!("Cannot start indexing while migration is in progress");
         let result = CommandResult::error(
             CommandResultCode::INDEXING,
@@ -59,6 +59,10 @@ pub async fn start_indexing(paths: Vec<String>, from: &str) -> Result<CommandRes
 #[command]
 pub async fn stop_indexing() {
     STOP_INDEX_SIGNAL.store(true, Ordering::SeqCst);
+    // Also cancel any in-progress migration
+    if CONTENT_STORAGE_CHANGING.load(Ordering::SeqCst) {
+        log::info!("Stop signal received during migration, cancelling migration");
+    }
 }
 
 #[command]
@@ -258,6 +262,10 @@ pub async fn remove_watch_path(path: &str) -> Result<(), String> {
 
 #[command]
 pub async fn indexing_watch_paths() -> Result<(), String> {
+    if CONTENT_STORAGE_CHANGING.load(Ordering::SeqCst) {
+        log::info!("Skipping watch path indexing while content storage change is in progress");
+        return Ok(());
+    }
     let mut paths = vec![];
     for path in FS_WATCHER_SETTING.read().await.directories.iter() {
         paths.push(path.clone());

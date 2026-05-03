@@ -90,6 +90,7 @@ export default {
     languageSetting: 'Language Setting',
     languageSettingWarning:
       'This setting determines the language for both the user interface and AI model prompts.',
+    tagline: 'Awake your data',
     english: 'English',
     chinese: 'Chinese',
     multilingual: 'Multilingual',
@@ -192,6 +193,19 @@ export default {
     visionModel: 'Current Vision Model',
     fileOpened: 'File opened',
     openFileFailed: 'Failed to open file',
+    taskRecovery: {
+      title: 'Unfinished Task',
+      desc: 'An unfinished task was detected: {task}. Please choose an action.',
+      resume: 'Resume',
+      skip: 'Skip',
+      retryCopy: 'Retry Copy',
+      revertPath: 'Revert to Old Path',
+      taskType: {
+        indexing: 'File Indexing',
+        contentStorageChange: 'Content Storage Location Change ({category})',
+        dataCopying: 'Data Directory Migration',
+      },
+    },
   },
   proxy: {
     enable: 'Proxy Enable',
@@ -326,6 +340,16 @@ export default {
     migrateConfirmReparse: '{count} files need to be re-parsed to recover content, this may take some time',
     migrating: 'Migrating...',
     migrateComplete: 'Migration complete',
+    contentStorageDesc:
+      'Choose where to store parsed content (document text, image OCR text, audio transcription). Used for content preview and AI Agent access. Selecting "Don\'t Save" saves disk space without affecting search.',
+    storageDatabaseDesc:
+      'Store parsed content in the database for quick preview and access',
+    storageFileDesc:
+      'Save parsed content as Markdown files, suitable for AI Agent to read directly',
+    storageNoneDesc:
+      "Don't save parsed content. Search still works, but preview will be unavailable",
+    dataPathDesc:
+      'Root directory for the index database (mango-finder.db), parsed Markdown files (parsed_documents/), and extracted images (extracted_images/)',
   },
   message: {
     downloadFailed: 'Download failed, retry or download manually',

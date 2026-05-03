@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { RouterLink, RouterView } from 'vue-router'
-import { NBadge, NConfigProvider, NIcon, darkTheme, dateEnUS, dateZhCN, enUS, zhCN } from 'naive-ui'
+import { NBadge, NButton, NConfigProvider, NIcon, NModal, darkTheme, dateEnUS, dateZhCN, enUS, zhCN } from 'naive-ui'
 import type { MenuOption } from 'naive-ui'
 import { FileTrayStackedOutline, GitNetworkOutline, HomeOutline, SettingsOutline } from '@vicons/ionicons5'
 import { DeviceHubOutlined } from '@vicons/material'
@@ -11,8 +11,17 @@ import router from '@/router'
 import { useAppStore } from '@/stores/app'
 import { setLocale, t } from '@/locales'
 
+interface ActiveTask {
+  task_type: string
+  category?: string
+  old_path?: string
+  started_at: number
+}
+
 const appStore = useAppStore()
 const activeMenu = ref<string>('menu-home')
+const showRecoveryDialog = ref(false)
+const recoveryTask = ref<ActiveTask | null>(null)
 
 // Pending pairing request count for badge
 const pendingPairingCount = ref(0)
@@ -159,7 +168,77 @@ onMounted(() => {
     if (clusterEnabled.value)
       loadPendingPairingCount()
   })
+
+  // Check for unfinished tasks after startup stabilizes
+  setTimeout(async () => {
+    try {
+      const task = await invoke<ActiveTask | null>('get_active_task')
+      if (task) {
+        recoveryTask.value = task
+        showRecoveryDialog.value = true
+      }
+    } catch (e) {
+      console.error('Failed to check active task:', e)
+    }
+  }, 3000)
 })
+
+function getTaskDescription(task: ActiveTask): string {
+  switch (task.task_type) {
+    case 'indexing':
+      return t('common.taskRecovery.taskType.indexing')
+    case 'content_storage_change':
+      return t('common.taskRecovery.taskType.contentStorageChange', { category: task.category || '' })
+    case 'data_copying':
+      return t('common.taskRecovery.taskType.dataCopying')
+    default:
+      return task.task_type
+  }
+}
+
+async function recoveryAction(action: 'resume' | 'skip' | 'retryCopy' | 'revertPath') {
+  showRecoveryDialog.value = false
+  if (!recoveryTask.value)
+    return
+
+  try {
+    switch (action) {
+      case 'skip':
+        await invoke('clear_active_task')
+        break
+      case 'resume':
+        if (recoveryTask.value.task_type === 'indexing') {
+          await invoke('clear_active_task')
+          window.$message.info(t('common.operationSuccess'))
+        } else if (recoveryTask.value.task_type === 'content_storage_change') {
+          // Re-trigger storage change with the same category
+          const setting = await invoke<any>('load_indexer_setting')
+          const category = recoveryTask.value.category || 'document'
+          const currentMode = setting?.content_storage?.[category] || 'database'
+          await invoke('clear_active_task')
+          await invoke('migrate_content_storage', { category, newMode: currentMode })
+        }
+        break
+      case 'retryCopy':
+        if (recoveryTask.value.old_path) {
+          await invoke('retry_data_copy', { oldPath: recoveryTask.value.old_path })
+          window.$message.success(t('common.operationSuccess'))
+        }
+        break
+      case 'revertPath':
+        if (recoveryTask.value.old_path) {
+          await invoke('revert_data_path', { oldPath: recoveryTask.value.old_path })
+          window.$message.success(t('common.restartAppForChange'))
+        }
+        break
+    }
+  } catch (e) {
+    console.error('Recovery action failed:', e)
+    window.$message.error(t('common.operationFailed'))
+  } finally {
+    recoveryTask.value = null
+  }
+}
 </script>
 
 <template>
@@ -194,6 +273,31 @@ onMounted(() => {
           </RouterView>
         </NLayout>
       </NLayout>
+
+      <!-- Task recovery dialog -->
+      <NModal v-model:show="showRecoveryDialog" preset="dialog" :title="t('common.taskRecovery.title')">
+        <div v-if="recoveryTask">
+          <p>{{ t('common.taskRecovery.desc', { task: getTaskDescription(recoveryTask) }) }}</p>
+        </div>
+        <template #action>
+          <template v-if="recoveryTask?.task_type === 'data_copying'">
+            <NButton @click="recoveryAction('retryCopy')">
+              {{ t('common.taskRecovery.retryCopy') }}
+            </NButton>
+            <NButton type="warning" @click="recoveryAction('revertPath')">
+              {{ t('common.taskRecovery.revertPath') }}
+            </NButton>
+          </template>
+          <template v-else>
+            <NButton type="primary" @click="recoveryAction('resume')">
+              {{ t('common.taskRecovery.resume') }}
+            </NButton>
+            <NButton @click="recoveryAction('skip')">
+              {{ t('common.taskRecovery.skip') }}
+            </NButton>
+          </template>
+        </template>
+      </NModal>
     </NaiveProvider>
   </NConfigProvider>
 </template>

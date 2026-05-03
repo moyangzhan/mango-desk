@@ -86,6 +86,7 @@ export default {
     languageSetting: '语言设置',
     languageSettingWarning:
       '本设置除了设置软件界面上显示的语言，同时也设置了模型提示词所使用的语言',
+    tagline: '唤醒你的数据',
     commonSetting: '通用设置',
     displaySetting: '显示设置',
     theme: '主题',
@@ -193,6 +194,19 @@ export default {
     visionModel: '当前使用的视觉模型',
     fileOpened: '文件已打开',
     openFileFailed: '打开文件失败',
+    taskRecovery: {
+      title: '未完成的任务',
+      desc: '检测到上次有未完成的任务：{task}，请选择操作。',
+      resume: '继续',
+      skip: '跳过',
+      retryCopy: '重新复制',
+      revertPath: '回退到旧路径',
+      taskType: {
+        indexing: '文件索引',
+        contentStorageChange: '存储位置切换（{category}）',
+        dataCopying: '数据目录迁移',
+      },
+    },
   },
   proxy: {
     enable: '启用代理',
@@ -317,6 +331,16 @@ export default {
     migrateConfirmReparse: '需要重新解析 {count} 个文件以恢复内容，可能需要一些时间',
     migrating: '迁移中...',
     migrateComplete: '迁移完成',
+    contentStorageDesc:
+      '选择解析后内容（文档文本、图片识别文字、音频转写文字）的存储位置，主要用于内容预览和 AI Agent 读取。选择"不保存"可节省磁盘空间，但不影响搜索功能。',
+    storageDatabaseDesc:
+      '将解析内容存入数据库，方便快速预览和访问',
+    storageFileDesc:
+      '将解析内容保存为 Markdown 文件，适合 AI Agent 直接读取',
+    storageNoneDesc:
+      '不保存解析内容。搜索功能不受影响，但无法预览内容',
+    dataPathDesc:
+      '存储索引数据库（mango-finder.db）、解析后的 Markdown 文件（parsed_documents/）和提取的图片（extracted_images/）的根目录',
   },
   message: {
     downloadFailed: '下载失败，可点击按钮重试',

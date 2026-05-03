@@ -59,3 +59,4 @@ message:
   abort-tasks-and-exit: 是否中止后台任务 [%{tasks}] 并退出 Mango Finder？
   file-not-found: 文件未找到
   internal-error: 服务器内部错误
+  migration-processing: 存储位置切换进行中，请稍候...

@@ -1,9 +1,10 @@
 use crate::embedding_service::EmbeddingService;
-use crate::enums::{FileCategory, IndexingEvent, MigrationEvent};
+use crate::enums::{ContentStorageChangeEvent, FileCategory, IndexingEvent};
+use chrono::Utc;
 use crate::errors::AppError;
 use crate::global::{
-    ACTIVE_MODEL_PLATFORM, CONFIG_NAME_INDEXER_SETTING, INDEXER_SETTING,
-    INDEXING, INDEXING_FROM_WATCHER, MIGRATING, SCANNING, SCANNING_TOTAL, STOP_INDEX_SIGNAL, STORAGE_PATH,
+    ACTIVE_MODEL_PLATFORM, CONFIG_NAME_INDEXER_SETTING, CONTENT_STORAGE_CHANGING, INDEXER_SETTING,
+    INDEXING, INDEXING_FROM_WATCHER, SCANNING, SCANNING_TOTAL, STOP_INDEX_SIGNAL, STORAGE_PATH,
 };
 use crate::indexers;
 use crate::initializer;
@@ -14,7 +15,7 @@ use crate::repositories::{
 use crate::scanner;
 use crate::structs::indexer_setting::IndexerSetting;
 use crate::traits::indexing_template::IndexingTemplate;
-use crate::utils::{frontend_util, indexing_task_util};
+use crate::utils::{frontend_util, indexing_task_util, task_util};
 use rust_i18n::t;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -43,16 +44,26 @@ pub async fn update_indexer_setting(indexer_setting: IndexerSetting) -> Result<u
 ///   none → file        : 重新解析原始文件（仅文档）→ 写入 .md → DB 存相对路径
 ///
 /// 注意：none → 其他方向仅支持文档类型，图片和音频不提供 none 选项
-pub async fn start_content_migration(category: &str, new_mode: &str) -> Result<(), String> {
-    if MIGRATING.load(Ordering::SeqCst) {
+pub async fn start_content_storage_change(category: &str, new_mode: &str) -> Result<(), String> {
+    if CONTENT_STORAGE_CHANGING.load(Ordering::SeqCst) {
         return Err("Migration already in progress".to_string());
     }
     if INDEXING.load(Ordering::SeqCst) {
         return Err("Cannot migrate while indexing is in progress".to_string());
     }
 
+    // DB persistent lock
+    task_util::lock_active_task(&task_util::ActiveTask {
+        task_type: "content_storage_change".to_string(),
+        category: Some(category.to_string()),
+        old_path: None,
+        started_at: Utc::now().timestamp(),
+    })
+    .map_err(|e| e.to_string())?;
+
     // Validate mode value
     if new_mode != "database" && new_mode != "file" && new_mode != "none" {
+        let _ = task_util::unlock_active_task();
         return Err(format!("Invalid storage mode: {}", new_mode));
     }
 
@@ -60,7 +71,10 @@ pub async fn start_content_migration(category: &str, new_mode: &str) -> Result<(
         "document" => FileCategory::Document,
         "image" => FileCategory::Image,
         "audio" => FileCategory::Audio,
-        _ => return Err(format!("Unknown category: {}", category)),
+        _ => {
+            let _ = task_util::unlock_active_task();
+            return Err(format!("Unknown category: {}", category));
+        }
     };
 
     let old_mode = {
@@ -69,18 +83,14 @@ pub async fn start_content_migration(category: &str, new_mode: &str) -> Result<(
     };
 
     if old_mode == new_mode {
+        let _ = task_util::unlock_active_task();
         return Ok(());
     }
 
     // Update in-memory setting only (persist to DB after migration succeeds)
     {
         let mut setting = INDEXER_SETTING.write().await;
-        match category {
-            "document" => setting.content_storage.document = new_mode.to_string(),
-            "image" => setting.content_storage.image = new_mode.to_string(),
-            "audio" => setting.content_storage.audio = new_mode.to_string(),
-            _ => {}
-        }
+        setting.content_storage.set_for_category(category, new_mode.to_string());
     }
 
     let category_str = category.to_string();
@@ -88,51 +98,67 @@ pub async fn start_content_migration(category: &str, new_mode: &str) -> Result<(
     let old_mode = old_mode;
 
     tokio::spawn(async move {
-        MIGRATING.store(true, Ordering::SeqCst);
+        CONTENT_STORAGE_CHANGING.store(true, Ordering::SeqCst);
 
-        let total = match file_info_repo::count_by_category(category_enum.value()) {
-            Ok(t) => t,
-            Err(e) => {
-                log::error!("Failed to count files for migration: {}", e);
-                MIGRATING.store(false, Ordering::SeqCst);
-                revert_and_persist(&category_str, &old_mode).await;
-                return;
+        let category_str_outer = category_str.clone();
+        let old_mode_outer = old_mode.clone();
+        let result = tokio::spawn(async move {
+            let total = match file_info_repo::count_by_category(category_enum.value()) {
+                Ok(t) => t,
+                Err(e) => {
+                    log::error!("Failed to count files for migration: {}", e);
+                    return Err(format!("Failed to count files: {}", e));
+                }
+            };
+
+            frontend_util::send_event(
+                "content-storage-change-event",
+                &ContentStorageChangeEvent::Start {
+                    category: category_str.clone(),
+                    total,
+                },
+            );
+
+            let inner = migrate_content_storage_inner(&category_str, &category_enum, &old_mode, &new_mode, total).await;
+            match inner {
+                Ok((migrated, failed)) => {
+                    frontend_util::send_event(
+                        "content-storage-change-event",
+                        &ContentStorageChangeEvent::Complete {
+                            category: category_str.clone(),
+                            migrated,
+                            failed,
+                        },
+                    );
+                    Ok(())
+                }
+                Err(e) => Err(e),
             }
-        };
-
-        frontend_util::send_event(
-            "migration-event",
-            &MigrationEvent::Start {
-                category: category_str.clone(),
-                total,
-            },
-        );
-
-        let result = migrate_content_storage_inner(&category_str, &category_enum, &old_mode, &new_mode, total).await;
-        MIGRATING.store(false, Ordering::SeqCst);
-
-        let (migrated, failed) = result.unwrap_or_else(|e| {
-            log::error!("Content storage migration failed: {}", e);
-            (0i64, 0i64)
+        })
+        .await
+        .unwrap_or_else(|e| {
+            log::error!("Content storage migration panicked: {}", e);
+            Err("Migration task panicked".to_string())
         });
 
-        // Always send Complete event so frontend can sync state
-        frontend_util::send_event(
-            "migration-event",
-            &MigrationEvent::Complete {
-                category: category_str.clone(),
-                migrated,
-                failed,
-            },
-        );
+        CONTENT_STORAGE_CHANGING.store(false, Ordering::SeqCst);
+        let _ = task_util::unlock_active_task();
 
-        if result.is_err() {
-            revert_and_persist(&category_str, &old_mode).await;
-            return;
+        match result {
+            Ok(()) => {
+                persist_indexer_setting().await;
+            }
+            Err(e) => {
+                frontend_util::send_event(
+                    "content-storage-change-event",
+                    &ContentStorageChangeEvent::Error {
+                        category: category_str_outer.clone(),
+                        message: e,
+                    },
+                );
+                revert_and_persist(&category_str_outer, &old_mode_outer).await;
+            }
         }
-
-        // Persist setting to DB on success
-        persist_indexer_setting().await;
     });
 
     Ok(())
@@ -140,12 +166,7 @@ pub async fn start_content_migration(category: &str, new_mode: &str) -> Result<(
 
 async fn revert_and_persist(category_str: &str, old_mode: &str) {
     let mut setting = INDEXER_SETTING.write().await;
-    match category_str {
-        "document" => setting.content_storage.document = old_mode.to_string(),
-        "image" => setting.content_storage.image = old_mode.to_string(),
-        "audio" => setting.content_storage.audio = old_mode.to_string(),
-        _ => {}
-    }
+    setting.content_storage.set_for_category(category_str, old_mode.to_string());
     drop(setting);
     persist_indexer_setting().await;
 }
@@ -171,6 +192,7 @@ async fn migrate_content_storage_inner(
     let mut failed = 0i64;
     let batch_size = 500i64;
     let mut offset = 0i64;
+    let mut last_progress = 0i64;
 
     while offset < total {
         let files = file_info_repo::list_by_category_paged(
@@ -184,7 +206,15 @@ async fn migrate_content_storage_inner(
         for file in &files {
             if STOP_INDEX_SIGNAL.load(Ordering::SeqCst) {
                 log::info!("Migration cancelled by stop signal");
-                return Ok((migrated, failed));
+                frontend_util::send_event(
+                    "content-storage-change-event",
+                    &ContentStorageChangeEvent::Cancelled {
+                        category: category_str.to_string(),
+                        migrated,
+                        failed,
+                    },
+                );
+                return Err("Migration cancelled".to_string());
             }
 
             match do_migrate_one(file, old_mode, new_mode, &storage_path, category).await {
@@ -196,14 +226,19 @@ async fn migrate_content_storage_inner(
                 }
             }
 
-            frontend_util::send_event(
-                "migration-event",
-                &MigrationEvent::Progress {
-                    category: category_str.to_string(),
-                    current: migrated + failed,
-                    total,
-                },
-            );
+            // Throttle progress events: emit at most every 50 files
+            let processed = migrated + failed;
+            if processed - last_progress >= 50 || processed == total {
+                last_progress = processed;
+                frontend_util::send_event(
+                    "content-storage-change-event",
+                    &ContentStorageChangeEvent::Progress {
+                        category: category_str.to_string(),
+                        current: processed,
+                        total,
+                    },
+                );
+            }
         }
 
         offset += files.len() as i64;
@@ -262,9 +297,12 @@ async fn do_migrate_one(
             let md_path = std::path::Path::new(storage_path).join(&file.content);
             let content = std::fs::read_to_string(&md_path)
                 .map_err(|e| format!("read {}: {}", md_path.display(), e))?;
+            // Write to DB first, then delete file to avoid data loss on crash
             file_info_repo::update_content_only(file.id, &content)
                 .map_err(|e| e.to_string())?;
-            let _ = std::fs::remove_file(&md_path);
+            if let Err(e) = std::fs::remove_file(&md_path) {
+                log::warn!("Failed to delete migrated .md file {}: {}", file.content, e);
+            }
             Ok(true)
         }
 
@@ -412,9 +450,25 @@ pub async fn start_indexing(paths: Vec<String>, from: &str) -> Result<bool, Stri
     if INDEXING.load(Ordering::SeqCst) {
         return Ok(false);
     }
+
+    // DB persistent lock
+    task_util::lock_active_task(&task_util::ActiveTask {
+        task_type: "indexing".to_string(),
+        category: None,
+        old_path: None,
+        started_at: Utc::now().timestamp(),
+    })
+    .map_err(|e| e.to_string())?;
+
     STOP_INDEX_SIGNAL.store(false, Ordering::SeqCst);
     let embedding_model = EmbeddingService::model_name().await;
-    let task = indexing_task_util::task_new(&paths, embedding_model).await?;
+    let task = match indexing_task_util::task_new(&paths, embedding_model).await {
+        Ok(t) => t,
+        Err(e) => {
+            let _ = task_util::unlock_active_task();
+            return Err(e);
+        }
+    };
 
     let task = Arc::new(task);
 
@@ -426,8 +480,26 @@ pub async fn start_indexing(paths: Vec<String>, from: &str) -> Result<bool, Stri
         },
     );
 
+    let result = run_indexing_pipeline(&paths, &task, from).await;
+
+    match result {
+        Ok(()) => indexing_finish(task.id, "done", from).await?,
+        Err(e) => {
+            log::error!("Indexing pipeline failed: {}", e);
+            indexing_finish(task.id, &format!("error: {}", e), from).await?;
+        }
+    }
+
+    return Ok(true);
+}
+
+async fn run_indexing_pipeline(
+    paths: &[String],
+    task: &Arc<IndexingTask>,
+    from: &str,
+) -> Result<(), String> {
     // Scan specified paths and store file metadata in database
-    scanner::start(&paths, task.clone(), from).await;
+    scanner::start(paths, task.clone(), from).await;
 
     // Scanned files
     indexing_task_util::set_total(SCANNING_TOTAL.load(Ordering::SeqCst) as i64).await;
@@ -448,7 +520,8 @@ pub async fn start_indexing(paths: Vec<String>, from: &str) -> Result<bool, Stri
     );
     indexing_task_util::summary_to_db().await;
 
-    let unindex_images_cnt = file_info_repo::count_unindexed_files(FileCategory::Image.value())?;
+    let unindex_images_cnt = file_info_repo::count_unindexed_files(FileCategory::Image.value())
+        .map_err(|e| e.to_string())?;
     log::info!("Total images to index: {}", unindex_images_cnt);
     if unindex_images_cnt > 0 {
         if let Ok(mut image_indexer) = indexers::image_indexer::ImageIndexer::new().await {
@@ -461,7 +534,8 @@ pub async fn start_indexing(paths: Vec<String>, from: &str) -> Result<bool, Stri
         }
     }
 
-    let unindex_audio_cnt = file_info_repo::count_unindexed_files(FileCategory::Audio.value())?;
+    let unindex_audio_cnt = file_info_repo::count_unindexed_files(FileCategory::Audio.value())
+        .map_err(|e| e.to_string())?;
     log::info!("Total audio files to index: {}", unindex_audio_cnt);
     if unindex_audio_cnt > 0 {
         if let Ok(mut audio_indexer) = indexers::audio_indexer::AudioIndexer::new().await {
@@ -474,12 +548,14 @@ pub async fn start_indexing(paths: Vec<String>, from: &str) -> Result<bool, Stri
         }
     }
 
-    indexing_finish(task.id, "done", from).await?;
-
-    return Ok(true);
+    Ok(())
 }
 
 pub async fn index_file(path: &str) -> Result<(), String> {
+    // Skip if a long-running task is in progress
+    if INDEXING.load(Ordering::SeqCst) || CONTENT_STORAGE_CHANGING.load(Ordering::SeqCst) {
+        return Ok(());
+    }
     let path_buf = PathBuf::from(path);
     let is_valid = scanner::is_valid_file_with(&path_buf).await;
     if !is_valid {
@@ -546,9 +622,9 @@ async fn indexing_finish(task_id: i64, msg: &str, from: &str) -> Result<(), Stri
     INDEXING.store(false, Ordering::SeqCst);
     SCANNING_TOTAL.store(0, Ordering::SeqCst);
     STOP_INDEX_SIGNAL.store(false, Ordering::SeqCst);
+    let _ = task_util::unlock_active_task();
 
-    indexing_task_util::task_done().await?;
-
+    // Notify frontend first so UI always unblocks
     frontend_util::send_event(
         get_event_from(from),
         &IndexingEvent::Finish {
@@ -556,6 +632,8 @@ async fn indexing_finish(task_id: i64, msg: &str, from: &str) -> Result<(), Stri
             msg: msg.to_string(),
         },
     );
+
+    let _ = indexing_task_util::task_done().await;
     Ok(())
 }
 

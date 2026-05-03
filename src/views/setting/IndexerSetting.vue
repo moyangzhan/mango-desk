@@ -242,11 +242,20 @@ async function onContentStorageChanged(type: 'document' | 'image' | 'audio', val
   const oldValue = indexerStore.indexerSetting.content_storage[type] || 'database'
   if (oldValue === value) return
 
+  // Block if another migration is already running
+  if (migratingType.value) {
+    window.$message.warning(t('indexer.migrating'))
+    return
+  }
+
   // Count affected files
   let affectedCount = 0
   try {
     affectedCount = await invoke<number>('count_indexed_files', { category: type })
-  } catch { /* ignore */ }
+  } catch (e) {
+    console.error('Failed to count indexed files:', e)
+    // On error, show dialog anyway so user can decide
+  }
 
   if (affectedCount === 0) {
     // No files to migrate, just save
@@ -278,18 +287,18 @@ async function onContentStorageChanged(type: 'document' | 'image' | 'audio', val
         migratingType.value = type
         migratingProgress.value = { current: 0, total: affectedCount }
         await invoke('migrate_content_storage', { category: type, newMode: value })
-        // Update local state
+        // Update local state (backend has spawned the task)
         indexerStore.indexerSetting.content_storage[type] = value
       } catch (e) {
         console.error('Migration failed:', e)
         window.$message.error(t('common.operationFailed'))
         // Revert UI on failure
+        migratingType.value = null
         indexerStore.indexerSetting.content_storage[type] = oldValue
       }
     },
     onNegativeClick: () => {
-      // Revert radio value by re-triggering reactive update
-      indexerStore.indexerSetting.content_storage[type] = oldValue
+      // Value was never changed, no revert needed (controlled component)
     },
   })
 }
@@ -445,14 +454,25 @@ onMounted(async () => {
     initStatusData()
 
     // Listen for migration events
-    unlistenMigration = await listen<string>('migration-event', async (event) => {
-      const parsed = JSON.parse(event.payload)
+    unlistenMigration = await listen<string>('content-storage-change-event', async (event) => {
+      let parsed: any
+      try {
+        parsed = JSON.parse(event.payload)
+      } catch {
+        console.error('Failed to parse migration event:', event.payload)
+        return
+      }
       const { event: eventType, data } = parsed
       if (eventType === 'progress' && data.current !== undefined && data.total !== undefined) {
         migratingProgress.value = { current: data.current, total: data.total }
-      } else if (eventType === 'complete') {
+      } else if (eventType === 'complete' || eventType === 'error' || eventType === 'cancelled') {
         migratingType.value = null
-        // Reload setting from backend to sync any revert on failure
+        if (eventType === 'error') {
+          window.$message.error(t('common.operationFailed'))
+        } else if (eventType === 'cancelled') {
+          window.$message.info(t('common.operationFailed'))
+        }
+        // Reload setting from backend to sync any revert on failure/cancel
         try {
           const setting = await invoke<IndexerSetting>('load_indexer_setting')
           indexerStore.setIndexerSetting(setting)
@@ -657,6 +677,9 @@ onUnmounted(() => {
             {{ t('indexer.saveParsedContentWarn') }}
           </div>
         </NAlert>
+        <div class="text-xs text-gray-400 mt-2 mb-2 text-left">
+          {{ t('indexer.contentStorageDesc') }}
+        </div>
         <div class="flex flex-col space-y-3 my-4">
           <div>
             <div>{{ t('indexer.documentStorage') }}</div>
@@ -671,6 +694,9 @@ onUnmounted(() => {
                 <NRadio value="none">{{ t('indexer.storageNone') }}</NRadio>
               </NSpace>
             </NRadioGroup>
+            <div class="text-xs text-gray-400 mt-1">
+              {{ indexerStore.indexerSetting.content_storage.document === 'database' ? t('indexer.storageDatabaseDesc') : indexerStore.indexerSetting.content_storage.document === 'file' ? t('indexer.storageFileDesc') : indexerStore.indexerSetting.content_storage.document === 'none' ? t('indexer.storageNoneDesc') : '' }}
+            </div>
           </div>
           <div>
             <div>{{ t('indexer.imageStorage') }}</div>
@@ -684,6 +710,9 @@ onUnmounted(() => {
                 <NRadio value="file">{{ t('indexer.storageFile') }}</NRadio>
               </NSpace>
             </NRadioGroup>
+            <div class="text-xs text-gray-400 mt-1">
+              {{ indexerStore.indexerSetting.content_storage.image === 'database' ? t('indexer.storageDatabaseDesc') : t('indexer.storageFileDesc') }}
+            </div>
           </div>
           <div>
             <div>{{ t('indexer.audioStorage') }}</div>
@@ -697,6 +726,9 @@ onUnmounted(() => {
                 <NRadio value="file">{{ t('indexer.storageFile') }}</NRadio>
               </NSpace>
             </NRadioGroup>
+            <div class="text-xs text-gray-400 mt-1">
+              {{ indexerStore.indexerSetting.content_storage.audio === 'database' ? t('indexer.storageDatabaseDesc') : t('indexer.storageFileDesc') }}
+            </div>
           </div>
         </div>
         <!-- Migration progress -->

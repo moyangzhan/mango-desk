@@ -308,7 +308,7 @@ pub async fn is_embedding_model_changed() -> Result<bool, String> {
 
 #[command]
 pub async fn migrate_content_storage(category: &str, new_mode: &str) -> Result<(), String> {
-    indexer_service::start_content_migration(category, new_mode).await
+    indexer_service::start_content_storage_change(category, new_mode).await
 }
 
 #[command]

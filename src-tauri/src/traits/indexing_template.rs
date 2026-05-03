@@ -151,17 +151,17 @@ pub trait IndexingTemplate {
                         log::warn!("Failed to write markdown file {}: {}", md_path.display(), e);
                     }
                     let relative_path = format!("parsed_documents/{}", md_filename);
-                    let _ = file_info_repo::update_content_meta(
+                    file_info_repo::update_content_meta(
                         file_id,
                         &relative_path,
                         &file_meta.to_json(),
                     )?;
                 } else {
-                    let _ = file_info_repo::update_content_meta(file_id, "", &file_meta.to_json())?;
+                    file_info_repo::update_content_meta(file_id, "", &file_meta.to_json())?;
                 }
             }
             "database" => {
-                let _ = file_info_repo::update_content_meta(
+                file_info_repo::update_content_meta(
                     file_id,
                     &filtered_content,
                     &file_meta.to_json(),
@@ -169,7 +169,7 @@ pub trait IndexingTemplate {
             }
             _ => {
                 // "none" or unknown: only store metadata
-                let _ = file_info_repo::update_content_meta(file_id, "", &file_meta.to_json())?;
+                file_info_repo::update_content_meta(file_id, "", &file_meta.to_json())?;
             }
         }
 
@@ -180,11 +180,11 @@ pub trait IndexingTemplate {
 
         embedding_metadata(file_id, &file_meta).await?;
         if filtered_content.is_empty() {
-            let _ = file_info_repo::update_content_index_status(
+            file_info_repo::update_content_index_status(
                 file_id,
                 FileIndexStatus::Indexed.value(),
                 t!("message.indexing-skip-empty-content").as_ref(),
-            );
+            )?;
             log::debug!("Skip empty content: {}", path_str);
             indexing_task_util::skipped_incr(self.category(), 1).await;
         } else {

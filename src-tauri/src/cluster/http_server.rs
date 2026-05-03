@@ -6,7 +6,7 @@ use crate::cluster::api_types::{
 use crate::entities::{Device, PairingRequest};
 use crate::enums::FileCategory;
 use crate::enums::{OnlineStatus, PairingRequestStatus, PairingResponseStatus, PairingStatus};
-use crate::global::{APP_HANDLE, CLIENT_ID};
+use crate::global::{APP_HANDLE, CLIENT_ID, STORAGE_PATH};
 use crate::repositories::{
     device_repo, file_content_embedding_repo, file_info_repo, pairing_request_repo,
 };
@@ -615,12 +615,25 @@ async fn handle_file_content(
     let requester_id = verify_paired_device_status(&headers)?;
 
     // Get file info from database
-    let file_info = file_info_repo::get_by_id(file_id)
+    let mut file_info = file_info_repo::get_by_id(file_id)
         .map_err(|e| {
             log::error!("Failed to get file info: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?
         .ok_or(StatusCode::NOT_FOUND)?;
+
+    // In "file" storage mode, content field stores a relative path — resolve to actual content
+    if file_info.content.starts_with("parsed_documents/") {
+        if let Some(storage) = STORAGE_PATH.get() {
+            let md_path = std::path::Path::new(storage).join(&file_info.content);
+            file_info.content = std::fs::read_to_string(&md_path).unwrap_or_else(|e| {
+                log::warn!("Failed to read parsed document {}: {}", md_path.display(), e);
+                String::new()
+            });
+        } else {
+            file_info.content = String::new();
+        }
+    }
 
     Ok(Json(json!({
         "code": 0,

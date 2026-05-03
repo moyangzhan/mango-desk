@@ -47,6 +47,7 @@ const showContentModal = ref(false)
 const showChunksModal = ref(false)
 const matchChunks = ref<string[]>([])
 
+// Category values match Rust FileCategory enum: 1=Document, 2=Image, 3=Audio
 function getStorageMode(category: number): string {
   const cs = indexerStore.indexerSetting.content_storage
   if (category === 1) return cs.document || 'database'
@@ -154,6 +155,10 @@ const keyDown = (e: any) => {
   }
 }
 
+// Device event listener cleanup
+let unlistenOnline: (() => void) | null = null
+let unlistenOffline: (() => void) | null = null
+
 onMounted(async () => {
   const indexerSetting = await invoke<IndexerSetting>('load_indexer_setting')
   indexerStore.setIndexerSetting(indexerSetting)
@@ -162,14 +167,14 @@ onMounted(async () => {
   await loadClusterSetting()
 
   // Listen for device online/offline events
-  listen<string>('device-online', (event) => {
+  unlistenOnline = await listen<string>('device-online', (event) => {
     const deviceId = event.payload
     const device = searchDevices.value.find(d => d.device_id === deviceId)
     if (device)
       device.online_status = 'online'
   })
 
-  listen<string>('device-offline', (event) => {
+  unlistenOffline = await listen<string>('device-offline', (event) => {
     const deviceId = event.payload
     const device = searchDevices.value.find(d => d.device_id === deviceId)
     if (device)
@@ -184,6 +189,8 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  unlistenOnline?.()
+  unlistenOffline?.()
   cleanupSearch()
 })
 
@@ -205,7 +212,7 @@ onDeactivated(() => {
         preview-disabled
       />
       <div class="text-sm text-gray-400 mt-2">
-        Awake your data
+        {{ t('common.tagline') }}
       </div>
     </div>
     <div class="flex flex-col w-full justify-center space-x-2 max-w-[80%]">

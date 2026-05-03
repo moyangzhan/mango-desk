@@ -1,14 +1,16 @@
 use crate::enums::{FileContentLanguage, TrayMenuItem};
 use crate::global::{
     APP_DATA_PATH, AUDIO_DECODER_NAME, AUDIO_DECODER_PATH, AUDIO_ENCODER_NAME, AUDIO_ENCODER_PATH,
-    AUDIO_TOKENIZER_NAME, AUDIO_TOKENIZER_PATH, DB_PATH, DOWNLOADING, EMBEDDING_MODEL_NAME,
-    EMBEDDING_MODEL_PATH, EMBEDDING_TOKENIZER_NAME, EMBEDDING_TOKENIZER_PATH, EXIT_APP_SIGNAL,
-    EXTRACTED_IMAGES_PATH, HOME_PATH, INDEXING, OCR_DETECTION_MODEL_NAME, OCR_DETECTION_MODEL_PATH,
-    OCR_RECOGNITION_MODEL_NAME, OCR_RECOGNITION_MODEL_PATH, SCANNING, STOP_INDEX_SIGNAL,
-    STORAGE_PATH, TMP_PATH, TRAY_ID, VISION_MODEL_PATH, VISION_NAME, VISION_TOKENIZER_NAME,
-    VISION_TOKENIZER_PATH, WHISPER_MODEL_NAME, WHISPER_MODEL_PATH,
+    AUDIO_TOKENIZER_NAME, AUDIO_TOKENIZER_PATH, CONTENT_STORAGE_CHANGING, DB_PATH, DOWNLOADING,
+    EMBEDDING_MODEL_NAME, EMBEDDING_MODEL_PATH, EMBEDDING_TOKENIZER_NAME, EMBEDDING_TOKENIZER_PATH,
+    EXIT_APP_SIGNAL, EXTRACTED_IMAGES_PATH, HOME_PATH, INDEXING, OCR_DETECTION_MODEL_NAME,
+    OCR_DETECTION_MODEL_PATH, OCR_RECOGNITION_MODEL_NAME, OCR_RECOGNITION_MODEL_PATH, SCANNING,
+    STOP_INDEX_SIGNAL, STORAGE_PATH, TMP_PATH, TRAY_ID, VISION_MODEL_PATH, VISION_NAME,
+    VISION_TOKENIZER_NAME, VISION_TOKENIZER_PATH, WHISPER_MODEL_NAME, WHISPER_MODEL_PATH,
 };
 use crate::utils::file_util;
+use crate::utils::task_util;
+use chrono::Utc;
 use log::{error, info, warn};
 use rust_i18n::t;
 use std::env;
@@ -59,6 +61,9 @@ pub fn running_background_tasks() -> Vec<&'static str> {
     }
     if INDEXING.load(Ordering::SeqCst) {
         tasks.push("indexing");
+    }
+    if CONTENT_STORAGE_CHANGING.load(Ordering::SeqCst) {
+        tasks.push("content storage change");
     }
     tasks
 }
@@ -112,6 +117,22 @@ pub async fn set_data_path(
     if new_data_path == *APP_DATA_PATH.read().await {
         return Ok("same".to_string());
     }
+
+    // Guard: reject if indexing or content storage change is in progress
+    if INDEXING.load(Ordering::SeqCst) || CONTENT_STORAGE_CHANGING.load(Ordering::SeqCst) {
+        return Err("Cannot change data path while indexing or content storage change is in progress".to_string());
+    }
+
+    // DB persistent lock
+    let old_data_path_val = APP_DATA_PATH.read().await.clone();
+    task_util::lock_active_task(&task_util::ActiveTask {
+        task_type: "data_copying".to_string(),
+        category: None,
+        old_path: Some(old_data_path_val.clone()),
+        started_at: Utc::now().timestamp(),
+    })
+    .map_err(|e| e.to_string())?;
+
     let ndp = PathBuf::from(new_data_path);
     if !force {
         let mut exist_files = "".to_string();
@@ -119,6 +140,7 @@ pub async fn set_data_path(
             exist_files.push_str("mango-finder.db, ");
         }
         if !exist_files.is_empty() {
+            let _ = task_util::unlock_active_task();
             return Ok("exist:".to_string() + &exist_files);
         }
     }
@@ -143,8 +165,10 @@ pub async fn set_data_path(
         let old_db = old_storage.join("mango-finder.db");
         if old_db.exists() {
             let new_db = new_storage.join("mango-finder.db");
-            file_util::copy_file(&old_db, &new_db)
-                .map_err(|e| format!("Failed to copy db file: {}", e))?;
+            if let Err(e) = file_util::copy_file(&old_db, &new_db) {
+                let _ = task_util::unlock_active_task();
+                return Err(format!("Failed to copy db file: {}", e));
+            }
         }
         // Copy Markdown parsed documents and extracted images
         for dir_name in &["parsed_documents", "extracted_images"] {
@@ -160,6 +184,7 @@ pub async fn set_data_path(
     let mut guard = APP_DATA_PATH.write().await;
     *guard = new_data_path.to_string();
     drop(guard);
+    let _ = task_util::unlock_active_task();
     Ok("success".to_string())
 }
 

@@ -59,3 +59,4 @@ message:
   abort-tasks-and-exit: Abort running background tasks [%{tasks}] and exit Mango Finder?
   file-not-found: File not found
   internal-error: Internal server error
+  migration-processing: Content storage change is in progress. Please wait.
