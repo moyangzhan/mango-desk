@@ -3,7 +3,8 @@ use crate::enums::{ContentStorageChangeEvent, FileCategory, IndexingEvent};
 use chrono::Utc;
 use crate::errors::AppError;
 use crate::global::{
-    ACTIVE_MODEL_PLATFORM, CONFIG_NAME_INDEXER_SETTING, CONTENT_STORAGE_CHANGING, INDEXER_SETTING,
+    ACTIVE_MODEL_PLATFORM, CONFIG_NAME_INDEXER_SETTING, CONTENT_STORAGE_CHANGING,
+    FS_WATCHER_SETTING, IGNORE_HIDDEN_DIRS, INDEXER_SETTING,
     INDEXING, INDEXING_FROM_WATCHER, SCANNING, SCANNING_TOTAL, STOP_INDEX_SIGNAL, STORAGE_PATH,
 };
 use crate::indexers;
@@ -17,7 +18,8 @@ use crate::structs::indexer_setting::IndexerSetting;
 use crate::traits::indexing_template::IndexingTemplate;
 use crate::utils::{frontend_util, indexing_task_util, task_util};
 use rust_i18n::t;
-use std::path::PathBuf;
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
@@ -549,6 +551,126 @@ async fn run_indexing_pipeline(
     }
 
     Ok(())
+}
+
+/// Sync offline changes in watched directories.
+/// Detects files deleted while the app was offline, then runs the full indexing pipeline.
+pub async fn sync_offline_changes() -> Result<(), String> {
+    let watcher_setting = FS_WATCHER_SETTING.read().await;
+    let dir_paths: Vec<String> = watcher_setting.directories.clone();
+    let file_paths: Vec<String> = watcher_setting.files.clone();
+    drop(watcher_setting);
+
+    if dir_paths.is_empty() && file_paths.is_empty() {
+        return Ok(());
+    }
+
+    log::info!(
+        "Starting offline sync for {} directories, {} files",
+        dir_paths.len(),
+        file_paths.len()
+    );
+
+    frontend_util::send_event("offline-sync-status", "started");
+
+    // Collect existing file paths from watched directories
+    let existing_files = collect_existing_file_paths(&dir_paths).await;
+
+    // Detect deleted files: DB records whose paths no longer exist on disk
+    let mut deleted_count = 0u32;
+    for dir in &dir_paths {
+        let db_paths = file_info_repo::list_paths_by_prefix_path(dir).unwrap_or_default();
+        for db_path in db_paths {
+            if !existing_files.contains(&db_path) {
+                remove_file_index(&db_path)?;
+                deleted_count += 1;
+            }
+        }
+    }
+
+    // Handle watched individual files
+    for file_path in &file_paths {
+        if !Path::new(file_path).exists() {
+            remove_file_index(file_path)?;
+            deleted_count += 1;
+        }
+    }
+
+    log::info!("Offline sync: removed {} deleted file records", deleted_count);
+
+    // Scan + embed via existing pipeline
+    let mut all_paths = dir_paths;
+    all_paths.extend(file_paths);
+    if let Err(e) = start_indexing(all_paths, "offline_sync").await {
+        log::error!("Offline sync indexing failed: {}", e);
+        frontend_util::send_event("offline-sync-status", "error");
+        return Err(e);
+    }
+
+    frontend_util::send_event("offline-sync-status", "completed");
+
+    Ok(())
+}
+
+async fn collect_existing_file_paths(dirs: &[String]) -> HashSet<String> {
+    let mut existing = HashSet::new();
+    for dir in dirs {
+        collect_files_recursive(dir, &mut existing).await;
+    }
+    existing
+}
+
+async fn collect_files_recursive(dir: &str, result: &mut HashSet<String>) {
+    let indexer_setting = INDEXER_SETTING.read().await.clone();
+    collect_files_recursive_inner(dir, result, &indexer_setting).await;
+}
+
+async fn collect_files_recursive_inner(
+    dir: &str,
+    result: &mut HashSet<String>,
+    indexer_setting: &IndexerSetting,
+) {
+    let mut entries = match tokio::fs::read_dir(dir).await {
+        Ok(e) => e,
+        Err(e) => {
+            log::warn!("Failed to read directory {}: {}", dir, e);
+            return;
+        }
+    };
+    while let Ok(Some(entry)) = entries.next_entry().await {
+        let path_buf = entry.path();
+        let path_str = match path_buf.to_str() {
+            Some(s) => s.to_string(),
+            None => continue,
+        };
+        if path_buf.is_file() {
+            if scanner::is_valid_file_with(&path_buf).await {
+                result.insert(path_str);
+            }
+        } else if path_buf.is_dir() {
+            let dir_name = path_buf
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("");
+            if indexer_setting.ignore_dirs.contains(&dir_name.to_string()) {
+                continue;
+            }
+            if IGNORE_HIDDEN_DIRS && dir_name.starts_with('.') {
+                continue;
+            }
+            let mut skip = false;
+            for ignore_path in &indexer_setting.ignore_path_prefixes {
+                if path_str.starts_with(ignore_path) {
+                    skip = true;
+                    break;
+                }
+            }
+            if skip {
+                continue;
+            }
+            collect_files_recursive_inner(&path_str, result, indexer_setting).await;
+        }
+    }
 }
 
 pub async fn index_file(path: &str) -> Result<(), String> {

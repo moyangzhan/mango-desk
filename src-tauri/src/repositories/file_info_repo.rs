@@ -590,6 +590,25 @@ pub fn count_by_prefix_path(pre_path: &str) -> Result<i64, RepositoryError> {
     Ok(count)
 }
 
+pub fn list_paths_by_prefix_path(pre_path: &str) -> Result<Vec<String>, RepositoryError> {
+    if pre_path.is_empty() {
+        return Ok(vec![]);
+    }
+    let pattern = if pre_path.ends_with(std::path::MAIN_SEPARATOR) {
+        format!("{}%", pre_path)
+    } else {
+        format!("{}{}%", pre_path, std::path::MAIN_SEPARATOR)
+    };
+    let conn = Connection::open(get_db_path())?;
+    let mut stmt = conn.prepare(
+        "SELECT path FROM file_info WHERE path = ?1 OR path LIKE ?2",
+    )?;
+    let paths = stmt
+        .query_map((pre_path, pattern), |row| row.get(0))?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(paths)
+}
+
 pub fn replace_directory_prefix_path(
     old_pre_path: &str,
     new_pre_path: &str,

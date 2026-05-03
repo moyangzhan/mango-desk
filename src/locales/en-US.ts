@@ -350,6 +350,9 @@ export default {
       "Don't save parsed content. Search still works, but preview will be unavailable",
     dataPathDesc:
       'Root directory for the index database (mango-finder.db), parsed Markdown files (parsed_documents/), and extracted images (extracted_images/)',
+    offlineSyncStarted: 'Syncing changes in watched directories...',
+    offlineSyncCompleted: 'Offline sync completed',
+    offlineSyncFailed: 'Offline sync failed, you can try manual indexing',
   },
   message: {
     downloadFailed: 'Download failed, retry or download manually',

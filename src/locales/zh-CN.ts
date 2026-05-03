@@ -353,6 +353,9 @@ export default {
     indexingAlreadyStarted: '索引操作已经开始，请耐心等待',
     inputEmpty: '输入不能为空',
     migrationProcessing: '内容迁移中，请稍后',
+    offlineSyncStarted: '正在同步监控目录的变更...',
+    offlineSyncCompleted: '离线同步完成',
+    offlineSyncFailed: '离线同步失败，可尝试手动索引',
   },
   about: {
     description:

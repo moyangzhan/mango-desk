@@ -18,6 +18,12 @@ pub async fn ui_mounted(app: AppHandle) -> Result<(), String> {
     let _ = app_util::rebuild_tray_menu(&app);
     tokio::spawn(async move {
         crate::timers::start_after_ui_mounted(); // Timer start
+
+        // Offline sync must complete before watcher starts to avoid duplicate processing
+        if let Err(e) = crate::indexer_service::sync_offline_changes().await {
+            log::error!("Offline sync failed: {}", e);
+        }
+
         watcher::init_after_ui_mounted()
             .await
             .unwrap_or_else(|error| {

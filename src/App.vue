@@ -139,6 +139,16 @@ onMounted(() => {
       loadPendingPairingCount()
   })
 
+  listen<string>('offline-sync-status', (event) => {
+    const status = JSON.parse(event.payload) as string
+    if (status === 'started')
+      window.$message.info(t('indexer.offlineSyncStarted'), { duration: 3000 })
+    else if (status === 'completed')
+      window.$message.success(t('indexer.offlineSyncCompleted'), { duration: 3000 })
+    else if (status === 'error')
+      window.$message.error(t('indexer.offlineSyncFailed'), { duration: 5000 })
+  })
+
   listen<{ port: number }>('cluster-port-error', (event) => {
     console.log('Received cluster-port-error event:', event.payload)
     appStore.setClusterPortError(event.payload)
