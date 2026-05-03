@@ -117,7 +117,10 @@ fn verify_paired_device_status(headers: &HeaderMap) -> Result<&str, StatusCode> 
 
 /// Initialize the processed requests cache
 fn init_request_cache() {
-    let mut cache = PROCESSED_REQUESTS.write().unwrap();
+    let mut cache = PROCESSED_REQUESTS.write().unwrap_or_else(|e| {
+        log::error!("PROCESSED_REQUESTS lock poisoned, recovering: {}", e);
+        e.into_inner()
+    });
     if cache.is_none() {
         *cache = Some(HashMap::new());
     }
@@ -127,7 +130,10 @@ fn init_request_cache() {
 /// Returns true if the request was already processed (should be ignored)
 /// Returns false if this is a new request (should be processed)
 fn check_and_mark_request(request_id: &str) -> bool {
-    let mut cache_guard = PROCESSED_REQUESTS.write().unwrap();
+    let mut cache_guard = PROCESSED_REQUESTS.write().unwrap_or_else(|e| {
+        log::error!("PROCESSED_REQUESTS lock poisoned, recovering: {}", e);
+        e.into_inner()
+    });
     if let Some(ref mut cache) = *cache_guard {
         let now = Instant::now();
 
@@ -295,6 +301,8 @@ pub async fn start_http_server() -> Result<(), String> {
     }
 
     log::info!("HTTP server listening on {}", addr);
+
+    init_request_cache();
 
     let state = Arc::new(ServerState {
         device_id,
@@ -556,7 +564,16 @@ async fn handle_file_download(
         file_id
     );
 
-    // Read file data
+    // Read file data (limit to 200 MB to avoid OOM on large files)
+    const MAX_DOWNLOAD_SIZE: u64 = 200 * 1024 * 1024;
+    let file_meta = std::fs::metadata(file_path).map_err(|e| {
+        log::error!("Failed to stat file {}: {}", file_path, e);
+        StatusCode::NOT_FOUND
+    })?;
+    if file_meta.len() > MAX_DOWNLOAD_SIZE {
+        log::warn!("File too large for download ({} bytes): {}", file_meta.len(), file_path);
+        return Err(StatusCode::PAYLOAD_TOO_LARGE);
+    }
     let file_data = std::fs::read(file_path).map_err(|e| {
         log::error!("Failed to read file {}: {}", file_path, e);
         StatusCode::NOT_FOUND
@@ -588,13 +605,30 @@ async fn handle_file_download(
         .unwrap_or("application/octet-stream");
 
     // Build response with file data
+    // Sanitize filename and encode per RFC 5987 to handle special characters and prevent header injection
+    let safe_filename = file_info.name
+        .replace('\\', "")
+        .replace('"', "")
+        .replace('\r', "")
+        .replace('\n', "");
+    let encoded_filename: String = safe_filename.bytes()
+        .flat_map(|b| {
+            if b.is_ascii_alphanumeric() || b == b'-' || b == b'_' || b == b'.' || b == b'~' {
+                vec![b as char]
+            } else {
+                format!("%{:02X}", b).chars().collect()
+            }
+        })
+        .collect();
+    let disposition = format!(
+        "attachment; filename=\"{}\"; filename*=UTF-8''{}",
+        safe_filename, encoded_filename
+    );
+
     let response = Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, content_type)
-        .header(
-            header::CONTENT_DISPOSITION,
-            format!("attachment; filename=\"{}\"", file_info.name),
-        )
+        .header(header::CONTENT_DISPOSITION, disposition)
         .header("X-Device-Id", &state.device_id)
         .header("X-Device-Name", &state.device_name)
         .body(Body::from(file_data))
@@ -622,10 +656,10 @@ async fn handle_file_content(
         })?
         .ok_or(StatusCode::NOT_FOUND)?;
 
-    // In "file" storage mode, content field stores a relative path — resolve to actual content
-    if file_info.content.starts_with("parsed_documents/") {
+    // In "file" storage mode, content_ref_path points to a .md file — resolve to actual content
+    if let Some(ref relative_path) = file_info.content_ref_path {
         if let Some(storage) = STORAGE_PATH.get() {
-            let md_path = std::path::Path::new(storage).join(&file_info.content);
+            let md_path = std::path::Path::new(storage).join(relative_path);
             file_info.content = std::fs::read_to_string(&md_path).unwrap_or_else(|e| {
                 log::warn!("Failed to read parsed document {}: {}", md_path.display(), e);
                 String::new()

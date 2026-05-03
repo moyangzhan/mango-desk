@@ -9,6 +9,7 @@ use crate::global::{
 use crate::cluster;
 use crate::repositories::{config_repo, model_platform_repo, self_hosted_platform_repo};
 use crate::structs::fs_watcher_setting::FsWatcherSetting;
+use crate::utils::task_util;
 use crate::structs::indexer_setting::IndexerSetting;
 use crate::structs::proxy_setting::ProxyInfo;
 use anyhow::Context;
@@ -25,6 +26,10 @@ pub async fn process() {
     db_initializer::init()
         .context("Failed to initialize database")
         .unwrap_or_else(|e| error!("db init error: {e:?}"));
+
+
+    // Clean up orphaned task locks from a previous crash
+    task_util::cleanup_orphan_task();
 
     // Initialize the client_id
     init_string_setting(CONFIG_NAME_CLIENT_ID, &CLIENT_ID).await;

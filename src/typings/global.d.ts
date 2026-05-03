@@ -121,6 +121,7 @@ interface FileInfo {
   category: number; //1:document, 2:image, 3:audio, 4:video, 5:other
   path: string;
   content: string;
+  content_ref_path?: string;
   metadata: FileMetadata;
   file_ext: string;
   file_size: number;

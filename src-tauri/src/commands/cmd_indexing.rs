@@ -127,11 +127,11 @@ pub async fn load_file_detail(file_id: i64, device_id: Option<String>) -> Result
     // Local query
     let mut file = file_info_repo::get_by_id(file_id)?;
     if let Some(ref mut f) = file {
-        // In "file" storage mode, content field stores a relative path — read actual content from disk
-        if f.content.starts_with("parsed_documents/") {
+        // In "file" storage mode, content_ref_path points to a .md file — resolve to actual content
+        if let Some(ref relative_path) = f.content_ref_path {
             match STORAGE_PATH.get() {
                 Some(storage) => {
-                    let md_path = std::path::Path::new(storage).join(&f.content);
+                    let md_path = std::path::Path::new(storage).join(relative_path);
                     f.content = std::fs::read_to_string(&md_path).unwrap_or_else(|e| {
                         log::warn!("Failed to read parsed document {}: {}", md_path.display(), e);
                         String::new()
@@ -161,6 +161,13 @@ pub async fn delete_index_item(file_id: i64) -> Result<(), String> {
     if let Some(file) = file_info_repo::get_by_id(file_id)? {
         let file_path = file.path;
         searcher::path_search_engine::remove_from_index(file_path.as_str(), true).await;
+        // Clean up associated .md file if content was stored on disk
+        if let Some(ref relative_path) = file.content_ref_path {
+            if let Some(storage) = STORAGE_PATH.get() {
+                let md_path = std::path::Path::new(storage).join(relative_path);
+                let _ = std::fs::remove_file(&md_path);
+            }
+        }
     }
     file_info_repo::delete_by_id(file_id)?;
     Ok(())
@@ -168,15 +175,30 @@ pub async fn delete_index_item(file_id: i64) -> Result<(), String> {
 
 #[command]
 pub async fn delete_index_items(file_ids: Vec<i64>) -> Result<(), String> {
-    for file_id in file_ids {
-        file_content_fts_repo::delete_by_file_id(file_id)?;
-        file_content_embedding_repo::delete_by_file_id(file_id)?;
-        file_metadata_embedding_repo::delete_by_file_id(file_id)?;
-        if let Some(file) = file_info_repo::get_by_id(file_id)? {
-            let file_path = file.path;
-            searcher::path_search_engine::remove_from_index(file_path.as_str(), true).await;
+    for file_id in &file_ids {
+        // Best-effort deletion: log failures but continue with remaining files
+        if let Err(e) = file_content_fts_repo::delete_by_file_id(*file_id) {
+            log::warn!("Failed to delete FTS for file {}: {}", file_id, e);
         }
-        file_info_repo::delete_by_id(file_id)?;
+        if let Err(e) = file_content_embedding_repo::delete_by_file_id(*file_id) {
+            log::warn!("Failed to delete content embedding for file {}: {}", file_id, e);
+        }
+        if let Err(e) = file_metadata_embedding_repo::delete_by_file_id(*file_id) {
+            log::warn!("Failed to delete metadata embedding for file {}: {}", file_id, e);
+        }
+        if let Ok(Some(file)) = file_info_repo::get_by_id(*file_id) {
+            searcher::path_search_engine::remove_from_index(&file.path, true).await;
+            // Clean up associated .md file if content was stored on disk
+            if let Some(ref relative_path) = file.content_ref_path {
+                if let Some(storage) = STORAGE_PATH.get() {
+                    let md_path = std::path::Path::new(storage).join(relative_path);
+                    let _ = std::fs::remove_file(&md_path);
+                }
+            }
+        }
+        if let Err(e) = file_info_repo::delete_by_id(*file_id) {
+            log::warn!("Failed to delete file info for file {}: {}", file_id, e);
+        }
     }
     Ok(())
 }
@@ -188,6 +210,13 @@ pub async fn clear_index() -> Result<(), String> {
     file_metadata_embedding_repo::clear()?;
     file_info_repo::clear()?;
     searcher::path_search_engine::clear().await;
+    // Clean up all parsed_documents on disk
+    if let Some(storage) = STORAGE_PATH.get() {
+        let md_dir = std::path::Path::new(storage).join("parsed_documents");
+        if md_dir.exists() {
+            let _ = std::fs::remove_dir_all(&md_dir);
+        }
+    }
     Ok(())
 }
 

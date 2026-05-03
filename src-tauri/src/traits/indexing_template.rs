@@ -20,6 +20,17 @@ use std::sync::atomic::Ordering;
 pub trait IndexingTemplate {
     async fn process(&mut self, task: Arc<IndexingTask>, from: &str) -> Result<(), IndexingError> {
         let event_name = indexer_service::get_event_from(from);
+
+        // Read storage mode once for the entire batch to avoid per-file lock contention
+        let storage_mode = {
+            INDEXER_SETTING
+                .read()
+                .await
+                .content_storage
+                .get_for_category(self.category())
+                .to_string()
+        };
+
         let mut min_id = 0i64;
         let mut loop_count = 0;
         let limit = 1000;
@@ -73,6 +84,13 @@ pub trait IndexingTemplate {
                 if !Path::new(&file_info.path).exists() {
                     log::debug!("File not exist: {}", file_info.path);
                     indexing_task_util::failed_incr(self.category(), 1).await;
+                    // Clean up associated .md file if content was stored on disk
+                    if let Some(ref relative_path) = file_info.content_ref_path {
+                        if let Some(storage) = STORAGE_PATH.get() {
+                            let md_path = Path::new(storage).join(relative_path);
+                            let _ = std::fs::remove_file(&md_path);
+                        }
+                    }
                     file_info_repo::delete_by_id(file_info.id)?;
                     file_content_fts_repo::delete_by_file_id(file_info.id)?;
                     file_content_embedding_repo::delete_by_file_id(file_info.id)?;
@@ -86,7 +104,7 @@ pub trait IndexingTemplate {
                         msg: format!("Embedding path: {}", &file_info.path),
                     },
                 );
-                if let Err(error) = self.embedding_one_file(&file_info).await {
+                if let Err(error) = self.embedding_one_file(&file_info, &storage_mode).await {
                     log::warn!("Embedding failed: {}", error);
                     indexing_task_util::failed_incr(self.category(), 1).await;
                 }
@@ -95,7 +113,7 @@ pub trait IndexingTemplate {
         Ok(())
     }
 
-    async fn embedding_one_file(&self, file_info: &FileInfo) -> Result<(), IndexingError> {
+    async fn embedding_one_file(&self, file_info: &FileInfo, storage_mode: &str) -> Result<(), IndexingError> {
         let filtered_content = {
             let content = self.load_content(&file_info).await;
             text_util::collapse_newlines(&content)
@@ -130,18 +148,10 @@ pub trait IndexingTemplate {
             }
         }
 
-        // Per-category storage logic
-        let storage_mode = {
-            INDEXER_SETTING
-                .read()
-                .await
-                .content_storage
-                .get_for_category(self.category())
-                .to_string()
-        };
-        match storage_mode.as_str() {
+        // Per-category storage logic (storage_mode passed from outer loop to avoid per-file lock)
+        match storage_mode {
             "file" => {
-                // Save as .md file, store relative path in DB
+                // Save as .md file, store relative path in content_ref_path column
                 if let Some(storage) = STORAGE_PATH.get() {
                     let md_dir = Path::new(storage).join("parsed_documents");
                     let _ = std::fs::create_dir_all(&md_dir);
@@ -153,23 +163,25 @@ pub trait IndexingTemplate {
                     let relative_path = format!("parsed_documents/{}", md_filename);
                     file_info_repo::update_content_meta(
                         file_id,
-                        &relative_path,
+                        "",
+                        Some(&relative_path),
                         &file_meta.to_json(),
                     )?;
                 } else {
-                    file_info_repo::update_content_meta(file_id, "", &file_meta.to_json())?;
+                    file_info_repo::update_content_meta(file_id, "", None, &file_meta.to_json())?;
                 }
             }
             "database" => {
                 file_info_repo::update_content_meta(
                     file_id,
                     &filtered_content,
+                    None,
                     &file_meta.to_json(),
                 )?;
             }
             _ => {
                 // "none" or unknown: only store metadata
-                file_info_repo::update_content_meta(file_id, "", &file_meta.to_json())?;
+                file_info_repo::update_content_meta(file_id, "", None, &file_meta.to_json())?;
             }
         }
 

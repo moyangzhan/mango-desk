@@ -58,6 +58,7 @@ pub async fn start_content_storage_change(category: &str, new_mode: &str) -> Res
     task_util::lock_active_task(&task_util::ActiveTask {
         task_type: "content_storage_change".to_string(),
         category: Some(category.to_string()),
+        new_mode: Some(new_mode.to_string()),
         old_path: None,
         started_at: Utc::now().timestamp(),
     })
@@ -89,11 +90,13 @@ pub async fn start_content_storage_change(category: &str, new_mode: &str) -> Res
         return Ok(());
     }
 
-    // Update in-memory setting only (persist to DB after migration succeeds)
+    // Persist new setting to DB first so a crash won't leave data inconsistent.
+    // If migration fails later, revert_and_persist will restore the old value.
     {
         let mut setting = INDEXER_SETTING.write().await;
         setting.content_storage.set_for_category(category, new_mode.to_string());
     }
+    persist_indexer_setting().await;
 
     let category_str = category.to_string();
     let new_mode = new_mode.to_string();
@@ -189,7 +192,12 @@ async fn migrate_content_storage_inner(
     new_mode: &str,
     total: i64,
 ) -> Result<(i64, i64), String> {
-    let storage_path = STORAGE_PATH.get().cloned().unwrap_or_default();
+    let storage_path = STORAGE_PATH.get()
+        .cloned()
+        .ok_or_else(|| "Storage path not initialized".to_string())?;
+    if storage_path.is_empty() {
+        return Err("Storage path is empty".to_string());
+    }
     let mut migrated = 0i64;
     let mut failed = 0i64;
     let batch_size = 500i64;
@@ -219,7 +227,7 @@ async fn migrate_content_storage_inner(
                 return Err("Migration cancelled".to_string());
             }
 
-            match do_migrate_one(file, old_mode, new_mode, &storage_path, category).await {
+            match do_migrate_one(file, old_mode, new_mode, &storage_path, category, 0).await {
                 Ok(true) => migrated += 1,
                 Ok(false) => {} // no change needed
                 Err(e) => {
@@ -254,20 +262,28 @@ async fn migrate_content_storage_inner(
 }
 
 /// Migrate a single file's content storage. Returns Ok(true) if migrated, Ok(false) if skipped.
+/// `depth` limits recursive fallback calls to prevent infinite recursion.
 async fn do_migrate_one(
     file: &crate::entities::FileInfo,
     old_mode: &str,
     new_mode: &str,
     storage_path: &str,
     category: &FileCategory,
+    depth: u32,
 ) -> Result<bool, String> {
-    let is_file_mode = file.content.starts_with("parsed_documents/");
+    let is_file_mode = file.content_ref_path.is_some();
 
     match (old_mode, new_mode) {
         // database → file: DB has content, write to .md
         ("database", "file") => {
             if is_file_mode || file.content.is_empty() {
                 return Ok(false); // already in file mode or no content
+            }
+            // Skip overly large content to avoid memory spike
+            const MAX_MIGRATE_CONTENT_SIZE: usize = 50 * 1024 * 1024; // 50 MB
+            if file.content.len() > MAX_MIGRATE_CONTENT_SIZE {
+                log::warn!("Skipping migration for file {}: content too large ({} bytes)", file.id, file.content.len());
+                return Ok(false);
             }
             let md_dir = std::path::Path::new(storage_path).join("parsed_documents");
             let _ = std::fs::create_dir_all(&md_dir);
@@ -276,7 +292,7 @@ async fn do_migrate_one(
             std::fs::write(&md_path, &file.content)
                 .map_err(|e| format!("write {}: {}", md_path.display(), e))?;
             let relative_path = format!("parsed_documents/{}", md_filename);
-            file_info_repo::update_content_only(file.id, &relative_path)
+            file_info_repo::update_content_only(file.id, "", Some(&relative_path))
                 .map_err(|e| e.to_string())?;
             Ok(true)
         }
@@ -286,7 +302,7 @@ async fn do_migrate_one(
             if file.content.is_empty() || is_file_mode {
                 return Ok(false);
             }
-            file_info_repo::update_content_only(file.id, "")
+            file_info_repo::update_content_only(file.id, "", None)
                 .map_err(|e| e.to_string())?;
             Ok(true)
         }
@@ -296,28 +312,28 @@ async fn do_migrate_one(
             if !is_file_mode {
                 return Ok(false); // not in file mode
             }
-            let md_path = std::path::Path::new(storage_path).join(&file.content);
+            let relative_path = file.content_ref_path.as_deref()
+                .ok_or_else(|| format!("Missing content_ref_path for file {}", file.id))?;
+            let md_path = std::path::Path::new(storage_path).join(relative_path);
             let content = std::fs::read_to_string(&md_path)
                 .map_err(|e| format!("read {}: {}", md_path.display(), e))?;
             // Write to DB first, then delete file to avoid data loss on crash
-            file_info_repo::update_content_only(file.id, &content)
+            file_info_repo::update_content_only(file.id, &content, None)
                 .map_err(|e| e.to_string())?;
             if let Err(e) = std::fs::remove_file(&md_path) {
-                log::warn!("Failed to delete migrated .md file {}: {}", file.content, e);
+                log::warn!("Failed to delete migrated .md file {}: {}", relative_path, e);
             }
             Ok(true)
         }
 
         // file → none: delete .md + clear DB (document only)
         ("file", "none") => {
-            if is_file_mode {
-                let md_path = std::path::Path::new(storage_path).join(&file.content);
+            if let Some(ref relative_path) = file.content_ref_path {
+                let md_path = std::path::Path::new(storage_path).join(relative_path);
                 let _ = std::fs::remove_file(&md_path);
             }
-            if !file.content.is_empty() {
-                file_info_repo::update_content_only(file.id, "")
-                    .map_err(|e| e.to_string())?;
-            }
+            file_info_repo::update_content_only(file.id, "", None)
+                .map_err(|e| e.to_string())?;
             Ok(true)
         }
 
@@ -327,7 +343,7 @@ async fn do_migrate_one(
             if content.is_empty() {
                 return Ok(false);
             }
-            file_info_repo::update_content_only(file.id, &content)
+            file_info_repo::update_content_only(file.id, &content, None)
                 .map_err(|e| e.to_string())?;
             Ok(true)
         }
@@ -345,19 +361,25 @@ async fn do_migrate_one(
             std::fs::write(&md_path, &content)
                 .map_err(|e| format!("write {}: {}", md_path.display(), e))?;
             let relative_path = format!("parsed_documents/{}", md_filename);
-            file_info_repo::update_content_only(file.id, &relative_path)
+            file_info_repo::update_content_only(file.id, "", Some(&relative_path))
                 .map_err(|e| e.to_string())?;
             Ok(true)
         }
 
         // Fallback: detect actual state from content field and migrate accordingly
         _ => {
+            if depth >= 1 {
+                return Err(format!(
+                    "Migration recursion limit reached for file {} (old={}, new={})",
+                    file.id, old_mode, new_mode
+                ));
+            }
             // Handle cross-direction cases (e.g., old was "none" but content exists from prior migration)
             let actual_old = if is_file_mode { "file" } else if file.content.is_empty() { "none" } else { "database" };
             if actual_old == new_mode {
                 return Ok(false);
             }
-            do_migrate_one(file, actual_old, new_mode, storage_path, category).await
+            do_migrate_one(file, actual_old, new_mode, storage_path, category, depth + 1).await
         }
     }
 }
@@ -457,6 +479,7 @@ pub async fn start_indexing(paths: Vec<String>, from: &str) -> Result<bool, Stri
     task_util::lock_active_task(&task_util::ActiveTask {
         task_type: "indexing".to_string(),
         category: None,
+        new_mode: None,
         old_path: None,
         started_at: Utc::now().timestamp(),
     })
@@ -622,14 +645,21 @@ async fn collect_existing_file_paths(dirs: &[String]) -> HashSet<String> {
 
 async fn collect_files_recursive(dir: &str, result: &mut HashSet<String>) {
     let indexer_setting = INDEXER_SETTING.read().await.clone();
-    collect_files_recursive_inner(dir, result, &indexer_setting).await;
+    collect_files_recursive_inner(dir, result, &indexer_setting, 0).await;
 }
+
+const MAX_DIR_DEPTH: u32 = 50;
 
 async fn collect_files_recursive_inner(
     dir: &str,
     result: &mut HashSet<String>,
     indexer_setting: &IndexerSetting,
+    depth: u32,
 ) {
+    if depth > MAX_DIR_DEPTH {
+        log::warn!("Directory traversal depth limit reached: {}", dir);
+        return;
+    }
     let mut entries = match tokio::fs::read_dir(dir).await {
         Ok(e) => e,
         Err(e) => {
@@ -668,7 +698,11 @@ async fn collect_files_recursive_inner(
             if skip {
                 continue;
             }
-            collect_files_recursive_inner(&path_str, result, indexer_setting).await;
+            // Skip symlinks to avoid infinite loops from circular links
+            if path_buf.is_symlink() {
+                continue;
+            }
+            collect_files_recursive_inner(&path_str, result, indexer_setting, depth + 1).await;
         }
     }
 }
@@ -687,6 +721,12 @@ pub async fn index_file(path: &str) -> Result<(), String> {
         log::error!("add_or_update_file_info error: {:?}", add_info_result);
         return Ok(());
     }
+
+    // Double-check before heavy embedding work
+    if INDEXING.load(Ordering::SeqCst) || CONTENT_STORAGE_CHANGING.load(Ordering::SeqCst) {
+        return Ok(());
+    }
+
     let ext = path_buf
         .extension()
         .and_then(|ext| ext.to_str())
@@ -696,18 +736,28 @@ pub async fn index_file(path: &str) -> Result<(), String> {
         return Ok(());
     };
     let category = FileCategory::from_ext(&ext);
+
+    let storage_mode = {
+        INDEXER_SETTING
+            .read()
+            .await
+            .content_storage
+            .get_for_category(&category)
+            .to_string()
+    };
+
     match category {
         FileCategory::Document => {
             let document_indexer = indexers::document_indexer::DocumentIndexer::new();
-            document_indexer.embedding_one_file(&file_info).await?;
+            document_indexer.embedding_one_file(&file_info, &storage_mode).await?;
         }
         FileCategory::Image => {
             let image_indexer = indexers::image_indexer::ImageIndexer::new().await?;
-            image_indexer.embedding_one_file(&file_info).await?;
+            image_indexer.embedding_one_file(&file_info, &storage_mode).await?;
         }
         FileCategory::Audio => {
             let audio_indexer = indexers::audio_indexer::AudioIndexer::new().await?;
-            audio_indexer.embedding_one_file(&file_info).await?;
+            audio_indexer.embedding_one_file(&file_info, &storage_mode).await?;
         }
         _ => {}
     }
@@ -720,6 +770,13 @@ pub fn remove_file_index(path: &str) -> Result<(), String> {
     }
     let file_info = file_info_repo::get_by_path(path)?;
     if let Some(file_info) = file_info {
+        // Clean up associated .md file if content was stored on disk
+        if let Some(ref relative_path) = file_info.content_ref_path {
+            if let Some(storage) = STORAGE_PATH.get() {
+                let md_path = std::path::Path::new(storage).join(relative_path);
+                let _ = std::fs::remove_file(&md_path);
+            }
+        }
         file_info_repo::delete_by_id(file_info.id)?;
         file_content_fts_repo::delete_by_file_id(file_info.id)?;
         file_content_embedding_repo::delete_by_file_id(file_info.id)?;

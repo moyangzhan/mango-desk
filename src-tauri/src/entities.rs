@@ -114,6 +114,11 @@ pub struct FileInfo {
     pub category: i64,
     pub path: String,
     pub content: String,
+    /// Relative path to the parsed content file (e.g. `parsed_documents/{md5}.md`).
+    /// When `Some`, content is stored on disk and `content` is empty.
+    /// When `None`, content (if any) is in the `content` field.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content_ref_path: Option<String>,
     pub metadata: FileMetadata,
     pub file_ext: String,
     pub file_size: i64,
@@ -154,6 +159,7 @@ impl Default for FileInfo {
             category: 0,
             path: "".to_string(),
             content: "".to_string(),
+            content_ref_path: None,
             metadata: FileMetadata::default(),
             file_ext: "".to_string(),
             file_size: 0,

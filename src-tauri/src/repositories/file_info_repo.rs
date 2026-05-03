@@ -5,12 +5,12 @@ use crate::utils::datetime_util;
 use chrono::{DateTime, Local};
 use rusqlite::{Connection, Result, Row, named_params};
 
-const ALL_COLUMNS: &str = "id, name, category, path, file_ext, file_size, content, content_index_status, content_index_status_msg, meta_index_status, meta_index_status_msg, is_invalid, invalid_reason, md5, metadata, audio_type, image_hash, file_create_time, file_update_time, create_time, update_time";
+const ALL_COLUMNS: &str = "id, name, category, path, file_ext, file_size, content, content_ref_path, content_index_status, content_index_status_msg, meta_index_status, meta_index_status_msg, is_invalid, invalid_reason, md5, metadata, audio_type, image_hash, audio_fingerprint, file_create_time, file_update_time, create_time, update_time";
 
 pub fn insert(file_info: &FileInfo) -> Result<Option<FileInfo>, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
     let mut stmt = conn.prepare(
-        "insert into file_info(name,category,path,file_ext,file_size,content,metadata,md5,is_invalid,invalid_reason,file_create_time,file_update_time) values (:name,:category,:path,:file_ext,:file_size,:content,:metadata,:md5,:is_invalid,:invalid_reason,:file_create_time,:file_update_time)"
+        "insert into file_info(name,category,path,file_ext,file_size,content,content_ref_path,metadata,md5,is_invalid,invalid_reason,file_create_time,file_update_time) values (:name,:category,:path,:file_ext,:file_size,:content,:content_ref_path,:metadata,:md5,:is_invalid,:invalid_reason,:file_create_time,:file_update_time)"
     )?;
     let last_insert_rowid = stmt.insert(named_params! {
         ":name": &file_info.name,
@@ -19,6 +19,7 @@ pub fn insert(file_info: &FileInfo) -> Result<Option<FileInfo>, RepositoryError>
         ":file_ext": &file_info.file_ext,
         ":file_size": file_info.file_size,
         ":content": &file_info.content,
+        ":content_ref_path": &file_info.content_ref_path,
         ":metadata": &file_info.metadata.to_json(),
         ":md5": &file_info.md5,
         ":is_invalid": file_info.is_invalid,
@@ -40,7 +41,7 @@ pub fn insert(file_info: &FileInfo) -> Result<Option<FileInfo>, RepositoryError>
 pub fn update(file_info: &FileInfo) -> Result<usize, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
     let mut stmt = conn.prepare(
-        "update file_info set name =:name,path=:path,file_ext=:file_ext,file_size=:file_size,content=:content,md5=:md5,is_invalid=:is_invalid,invalid_reason=:invalid_reason,metadata=:metadata,file_update_time=:file_update_time where id = :id",
+        "update file_info set name =:name,path=:path,file_ext=:file_ext,file_size=:file_size,content=:content,content_ref_path=:content_ref_path,md5=:md5,is_invalid=:is_invalid,invalid_reason=:invalid_reason,metadata=:metadata,file_update_time=:file_update_time where id = :id",
     )?;
     let affected = stmt.execute(named_params! {
         ":id": &file_info.id,
@@ -49,6 +50,7 @@ pub fn update(file_info: &FileInfo) -> Result<usize, RepositoryError> {
         ":file_ext": &file_info.file_ext,
         ":file_size": &file_info.file_size,
         ":content": &file_info.content,
+        ":content_ref_path": &file_info.content_ref_path,
         ":metadata": &file_info.metadata.to_json(),
         ":md5": &file_info.md5,
         ":is_invalid": &file_info.is_invalid,
@@ -62,14 +64,16 @@ pub fn update(file_info: &FileInfo) -> Result<usize, RepositoryError> {
 pub fn update_content_meta(
     file_id: i64,
     content: &str,
+    content_ref_path: Option<&str>,
     meta: &str,
 ) -> Result<usize, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
     let mut stmt =
-        conn.prepare("update file_info set content = :content, metadata = :meta where id = :id")?;
+        conn.prepare("update file_info set content = :content, content_ref_path = :content_ref_path, metadata = :meta where id = :id")?;
     let affected = stmt.execute(named_params! {
         ":id": &file_id,
         ":content": &content,
+        ":content_ref_path": &content_ref_path,
         ":meta": &meta,
     })?;
     Ok(affected)
@@ -78,14 +82,16 @@ pub fn update_content_meta(
 pub fn update_content_only(
     file_id: i64,
     content: &str,
+    content_ref_path: Option<&str>,
 ) -> Result<(), RepositoryError> {
     let conn = Connection::open(get_db_path())?;
     conn.execute(
-        "update file_info set content = :content where id = :id",
-        named_params! { ":id": &file_id, ":content": &content },
+        "update file_info set content = :content, content_ref_path = :content_ref_path where id = :id",
+        named_params! { ":id": &file_id, ":content": &content, ":content_ref_path": &content_ref_path },
     )?;
     Ok(())
 }
+
 
 pub fn count_indexed_by_category(category: i64) -> Result<i64, RepositoryError> {
     let conn = Connection::open(get_db_path())?;
@@ -265,25 +271,38 @@ pub fn count_unindexed_files(category: i64) -> Result<i64, RepositoryError> {
 }
 
 pub fn list_by_ids(ids: &Vec<i64>) -> Result<Vec<FileInfo>, RepositoryError> {
-    let ids_str = ids
-        .iter()
-        .map(|id| id.to_string())
-        .collect::<Vec<_>>()
-        .join("','");
+    if ids.is_empty() {
+        return Ok(Vec::new());
+    }
 
     let conn = Connection::open(get_db_path())?;
-    let mut stmt = conn.prepare(
-        format!(
-            "select {} from file_info where id in ('{}')",
-            ALL_COLUMNS, ids_str
-        )
-        .as_str(),
-    )?;
-    let rows = stmt.query_map([], |row| Ok(build_file_info(row)?))?;
+
+    // Process in batches of 500 to avoid oversized SQL statements
+    let batch_size = 500;
     let mut result = Vec::new();
-    for item in rows {
-        result.push(item?);
+
+    for chunk in ids.chunks(batch_size) {
+        let placeholders: Vec<String> = chunk.iter().enumerate()
+            .map(|(i, _)| format!(":id{}", i))
+            .collect();
+        let sql = format!(
+            "select {} from file_info where id in ({})",
+            ALL_COLUMNS,
+            placeholders.join(",")
+        );
+        let mut stmt = conn.prepare(&sql)?;
+        let params: Vec<(String, i64)> = chunk.iter().enumerate()
+            .map(|(i, id)| (format!(":id{}", i), *id))
+            .collect();
+        let param_refs: Vec<(&str, &i64)> = params.iter().map(|(k, v)| (k.as_str(), v)).collect();
+        let rows = stmt.query_map(&param_refs[..], |row| {
+            Ok(build_file_info(row)?)
+        })?;
+        for item in rows {
+            result.push(item?);
+        }
     }
+
     Ok(result)
 }
 
@@ -644,6 +663,7 @@ fn build_file_info(row: &Row<'_>) -> Result<FileInfo, RepositoryError> {
     let update_time_str: String = row.get("update_time").unwrap_or_default();
     let meta: String = row.get("metadata")?;
     let content = row.get("content").unwrap_or_default();
+    let content_ref_path: Option<String> = row.get("content_ref_path").ok();
     let image_hash: Option<Vec<u8>> = row.get("image_hash").ok();
     return Ok(FileInfo {
         id: row.get("id")?,
@@ -653,6 +673,7 @@ fn build_file_info(row: &Row<'_>) -> Result<FileInfo, RepositoryError> {
         file_ext: row.get("file_ext").unwrap_or_default(),
         file_size: row.get("file_size").unwrap_or_default(),
         content: content,
+        content_ref_path,
         content_index_status: row.get("content_index_status").unwrap_or_default(),
         content_index_status_msg: row.get("content_index_status_msg").unwrap_or_default(),
         meta_index_status: row.get("meta_index_status").unwrap_or_default(),
