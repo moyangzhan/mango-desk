@@ -191,6 +191,8 @@ export default {
     checkConnectionSuccess: '连接成功',
     checkConnectionFailed: '连接失败',
     visionModel: '当前使用的视觉模型',
+    fileOpened: '文件已打开',
+    openFileFailed: '打开文件失败',
   },
   proxy: {
     enable: '启用代理',
@@ -326,6 +328,7 @@ export default {
     downloadTokenizerLink: 'tokenizer.json: {link}',
     indexingAlreadyStarted: '索引操作已经开始，请耐心等待',
     inputEmpty: '输入不能为空',
+    migrationProcessing: '内容迁移中，请稍后',
   },
   about: {
     description:

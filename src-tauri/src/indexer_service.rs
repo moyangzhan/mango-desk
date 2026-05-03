@@ -51,6 +51,11 @@ pub async fn start_content_migration(category: &str, new_mode: &str) -> Result<(
         return Err("Cannot migrate while indexing is in progress".to_string());
     }
 
+    // Validate mode value
+    if new_mode != "database" && new_mode != "file" && new_mode != "none" {
+        return Err(format!("Invalid storage mode: {}", new_mode));
+    }
+
     let category_enum = match category {
         "document" => FileCategory::Document,
         "image" => FileCategory::Image,
@@ -84,31 +89,74 @@ pub async fn start_content_migration(category: &str, new_mode: &str) -> Result<(
 
     tokio::spawn(async move {
         MIGRATING.store(true, Ordering::SeqCst);
-        let result = migrate_content_storage_inner(&category_str, &category_enum, &old_mode, &new_mode).await;
+
+        let total = match file_info_repo::count_by_category(category_enum.value()) {
+            Ok(t) => t,
+            Err(e) => {
+                log::error!("Failed to count files for migration: {}", e);
+                MIGRATING.store(false, Ordering::SeqCst);
+                revert_and_persist(&category_str, &old_mode).await;
+                return;
+            }
+        };
+
+        frontend_util::send_event(
+            "migration-event",
+            &MigrationEvent::Start {
+                category: category_str.clone(),
+                total,
+            },
+        );
+
+        let result = migrate_content_storage_inner(&category_str, &category_enum, &old_mode, &new_mode, total).await;
         MIGRATING.store(false, Ordering::SeqCst);
 
-        if let Err(e) = result {
+        let (migrated, failed) = result.unwrap_or_else(|e| {
             log::error!("Content storage migration failed: {}", e);
-            // Revert in-memory setting on failure
-            let mut setting = INDEXER_SETTING.write().await;
-            match category_str.as_str() {
-                "document" => setting.content_storage.document = old_mode.clone(),
-                "image" => setting.content_storage.image = old_mode.clone(),
-                "audio" => setting.content_storage.audio = old_mode.clone(),
-                _ => {}
-            }
+            (0i64, 0i64)
+        });
+
+        // Always send Complete event so frontend can sync state
+        frontend_util::send_event(
+            "migration-event",
+            &MigrationEvent::Complete {
+                category: category_str.clone(),
+                migrated,
+                failed,
+            },
+        );
+
+        if result.is_err() {
+            revert_and_persist(&category_str, &old_mode).await;
+            return;
         }
 
-        // Persist setting to DB (reflects either new mode on success or reverted mode on failure)
-        let setting = INDEXER_SETTING.read().await;
-        if let Ok(json) = serde_json::to_string(&*setting) {
-            if let Err(e) = config_repo::update_by_name(CONFIG_NAME_INDEXER_SETTING, &json) {
-                log::error!("Failed to persist indexer setting after migration: {}", e);
-            }
-        }
+        // Persist setting to DB on success
+        persist_indexer_setting().await;
     });
 
     Ok(())
+}
+
+async fn revert_and_persist(category_str: &str, old_mode: &str) {
+    let mut setting = INDEXER_SETTING.write().await;
+    match category_str {
+        "document" => setting.content_storage.document = old_mode.to_string(),
+        "image" => setting.content_storage.image = old_mode.to_string(),
+        "audio" => setting.content_storage.audio = old_mode.to_string(),
+        _ => {}
+    }
+    drop(setting);
+    persist_indexer_setting().await;
+}
+
+async fn persist_indexer_setting() {
+    let setting = INDEXER_SETTING.read().await;
+    if let Ok(json) = serde_json::to_string(&*setting) {
+        if let Err(e) = config_repo::update_by_name(CONFIG_NAME_INDEXER_SETTING, &json) {
+            log::error!("Failed to persist indexer setting after migration: {}", e);
+        }
+    }
 }
 
 async fn migrate_content_storage_inner(
@@ -116,57 +164,56 @@ async fn migrate_content_storage_inner(
     category: &FileCategory,
     old_mode: &str,
     new_mode: &str,
-) -> Result<(), String> {
-    let files = file_info_repo::list_by_category(category.value())
-        .map_err(|e| e.to_string())?;
-    let total = files.len() as i64;
-
-    frontend_util::send_event(
-        "migration-event",
-        &MigrationEvent::Start {
-            category: category_str.to_string(),
-            total,
-        },
-    );
-
+    total: i64,
+) -> Result<(i64, i64), String> {
     let storage_path = STORAGE_PATH.get().cloned().unwrap_or_default();
     let mut migrated = 0i64;
     let mut failed = 0i64;
+    let batch_size = 500i64;
+    let mut offset = 0i64;
 
-    for file in &files {
-        match do_migrate_one(file, old_mode, new_mode, &storage_path, category).await {
-            Ok(true) => migrated += 1,
-            Ok(false) => {} // no change needed
-            Err(e) => {
-                log::warn!("Migration failed for file {}: {}", file.path, e);
-                failed += 1;
-            }
+    while offset < total {
+        let files = file_info_repo::list_by_category_paged(
+            category.value(), batch_size, offset,
+        ).map_err(|e| e.to_string())?;
+
+        if files.is_empty() {
+            break;
         }
 
-        frontend_util::send_event(
-            "migration-event",
-            &MigrationEvent::Progress {
-                category: category_str.to_string(),
-                current: migrated + failed,
-                total,
-            },
-        );
-    }
+        for file in &files {
+            if STOP_INDEX_SIGNAL.load(Ordering::SeqCst) {
+                log::info!("Migration cancelled by stop signal");
+                return Ok((migrated, failed));
+            }
 
-    frontend_util::send_event(
-        "migration-event",
-        &MigrationEvent::Complete {
-            category: category_str.to_string(),
-            migrated,
-            failed,
-        },
-    );
+            match do_migrate_one(file, old_mode, new_mode, &storage_path, category).await {
+                Ok(true) => migrated += 1,
+                Ok(false) => {} // no change needed
+                Err(e) => {
+                    log::warn!("Migration failed for file {}: {}", file.path, e);
+                    failed += 1;
+                }
+            }
+
+            frontend_util::send_event(
+                "migration-event",
+                &MigrationEvent::Progress {
+                    category: category_str.to_string(),
+                    current: migrated + failed,
+                    total,
+                },
+            );
+        }
+
+        offset += files.len() as i64;
+    }
 
     log::info!(
         "Content storage migration complete: category={}, {}→{}, migrated={}, failed={}",
         category_str, old_mode, new_mode, migrated, failed
     );
-    Ok(())
+    Ok((migrated, failed))
 }
 
 /// Migrate a single file's content storage. Returns Ok(true) if migrated, Ok(false) if skipped.

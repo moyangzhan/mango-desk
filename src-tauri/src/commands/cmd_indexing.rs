@@ -44,7 +44,7 @@ pub async fn start_indexing(paths: Vec<String>, from: &str) -> Result<CommandRes
         log::info!("Cannot start indexing while migration is in progress");
         let result = CommandResult::error(
             CommandResultCode::INDEXING,
-            t!("message.indexing-processing").to_string(),
+            t!("message.migration-processing").to_string(),
         );
         return Ok(result);
     }
@@ -125,12 +125,18 @@ pub async fn load_file_detail(file_id: i64, device_id: Option<String>) -> Result
     if let Some(ref mut f) = file {
         // In "file" storage mode, content field stores a relative path — read actual content from disk
         if f.content.starts_with("parsed_documents/") {
-            if let Some(storage) = STORAGE_PATH.get() {
-                let md_path = std::path::Path::new(storage).join(&f.content);
-                f.content = std::fs::read_to_string(&md_path).unwrap_or_else(|e| {
-                    log::warn!("Failed to read parsed document {}: {}", md_path.display(), e);
-                    f.content.clone()
-                });
+            match STORAGE_PATH.get() {
+                Some(storage) => {
+                    let md_path = std::path::Path::new(storage).join(&f.content);
+                    f.content = std::fs::read_to_string(&md_path).unwrap_or_else(|e| {
+                        log::warn!("Failed to read parsed document {}: {}", md_path.display(), e);
+                        String::new()
+                    });
+                }
+                None => {
+                    log::warn!("Storage path not initialized, cannot read parsed document");
+                    f.content = String::new();
+                }
             }
         }
     }

@@ -437,6 +437,44 @@ pub fn list_by_category(category: i64) -> Result<Vec<FileInfo>, RepositoryError>
     Ok(result)
 }
 
+/// Count files by category (for migration progress)
+pub fn count_by_category(category: i64) -> Result<i64, RepositoryError> {
+    let conn = Connection::open(get_db_path())?;
+    let count = conn.query_row(
+        "select count(*) from file_info where category = :category and is_invalid = 0",
+        named_params! { ":category": category },
+        |row| row.get(0),
+    )?;
+    Ok(count)
+}
+
+/// Get files by category with pagination (for batched migration)
+pub fn list_by_category_paged(
+    category: i64,
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<FileInfo>, RepositoryError> {
+    let conn = Connection::open(get_db_path())?;
+    let sql = format!(
+        "select {} from file_info where category = :category and is_invalid = 0 order by id asc limit :limit offset :offset",
+        ALL_COLUMNS_EXCEPT_CONTENT
+    );
+    let mut stmt = conn.prepare(sql.as_str())?;
+    let rows = stmt.query_map(
+        named_params! {
+            ":category": category,
+            ":limit": limit,
+            ":offset": offset,
+        },
+        |row| Ok(build_file_info(row)?),
+    )?;
+    let mut result = Vec::new();
+    for item in rows {
+        result.push(item?);
+    }
+    Ok(result)
+}
+
 /// Get all files by multiple categories (for similarity search across document types)
 pub fn list_by_categories(categories: &[i64]) -> Result<Vec<FileInfo>, RepositoryError> {
     if categories.is_empty() {

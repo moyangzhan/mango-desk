@@ -161,8 +161,8 @@ export function useSearch() {
       if (item.source_device) {
         // Remote image: use fetch_remote_file
         invoke('fetch_remote_file', {
-          device_id: item.source_device.device_id,
-          file_id: item.file_info.id,
+          deviceId: item.source_device.device_id,
+          fileId: item.file_info.id,
         }).then((resp) => {
           if (!resp)
             throw new Error('No image data received')
@@ -186,6 +186,8 @@ export function useSearch() {
           const imageUrl = URL.createObjectURL(blob)
           createdBlobUrls.value.add(imageUrl)
           item.file_info.file_data = imageUrl
+        }).catch((e) => {
+          console.warn('Failed to load local image:', item.file_info.name, e)
         })
       }
     })

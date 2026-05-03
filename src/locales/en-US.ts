@@ -190,6 +190,8 @@ export default {
     checkConnectionSuccess: 'Connection successful',
     checkConnectionFailed: 'Connection failed',
     visionModel: 'Current Vision Model',
+    fileOpened: 'File opened',
+    openFileFailed: 'Failed to open file',
   },
   proxy: {
     enable: 'Proxy Enable',
@@ -336,6 +338,7 @@ export default {
     indexingAlreadyStarted:
       'An indexing task is already running. Please wait for it to complete.',
     inputEmpty: 'Input cannot be empty',
+    migrationProcessing: 'Content migration in progress, please wait',
   },
   about: {
     description:

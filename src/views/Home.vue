@@ -67,8 +67,9 @@ const blurInput = () => {
 }
 
 function openFile(path = '') {
-  openPath(path).then((res) => {
-    console.log('openfile', res)
+  openPath(path).catch((e) => {
+    console.error('Failed to open file:', e)
+    window.$message.error(t('common.openFileFailed'))
   })
 }
 
@@ -217,7 +218,7 @@ onDeactivated(() => {
           <template #prefix>
             <span
               class="text-link font-medium"
-              @click="searchType === SEMANTIC_SEARCH ? KEYWORD_SEARCH : SEMANTIC_SEARCH"
+              @click="searchType = searchType === SEMANTIC_SEARCH ? KEYWORD_SEARCH : SEMANTIC_SEARCH"
             >
               <span v-if="searchType === SEMANTIC_SEARCH" class="pr-2">
                 {{ t('common.semantic') }}
