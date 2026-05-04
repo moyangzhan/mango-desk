@@ -1,3 +1,4 @@
+use crate::image_parser;
 use crate::global::{MAX_DOCUMENT_LOAD_CHARS, PDF_EXTS};
 use crate::ocr_service;
 use crate::traits::document_loader::DocumentLoader;
@@ -41,7 +42,7 @@ impl DocumentLoader for PdfPlumberLoader {
         })?;
 
         let mut pages_content = Vec::new();
-        let mut ocr_texts = Vec::new();
+        let mut image_texts = Vec::new();
         let images_dir = get_images_dir(path);
 
         for page_idx in 0..pdf.page_count() {
@@ -70,7 +71,7 @@ impl DocumentLoader for PdfPlumberLoader {
                 pages_content.push(page_text);
             }
 
-            // Extract images and run OCR
+            // Extract images and run BLIP + OCR
             let images = page.images();
             if !images.is_empty() {
                 if let Err(e) = fs::create_dir_all(&images_dir) {
@@ -86,10 +87,20 @@ impl DocumentLoader for PdfPlumberLoader {
                         let img_filename = format!("p{}_img{}.{}", page_idx, img_idx, ext);
                         let img_path = images_dir.join(&img_filename);
                         if fs::write(&img_path, &img_content.data).is_ok() {
+                            let blip_caption = image_parser::generate_caption(&img_path);
                             let ocr_text = ocr_service::recognize_file(&img_path);
-                            if !ocr_text.is_empty() {
-                                ocr_texts.push(format!("[OCR]: {}", ocr_text));
+                            if blip_caption.is_empty() && ocr_text.is_empty() {
+                                continue;
                             }
+
+                            let mut parts = Vec::new();
+                            if !blip_caption.is_empty() {
+                                parts.push(format!("**Image Description:** {}", blip_caption));
+                            }
+                            if !ocr_text.is_empty() {
+                                parts.push(format!("**OCR Text:** {}", ocr_text));
+                            }
+                            image_texts.push(parts.join("\n\n"));
                         }
                     }
                 }
@@ -98,9 +109,9 @@ impl DocumentLoader for PdfPlumberLoader {
 
         let mut content = pages_content.join("\n\n---\n\n");
 
-        if !ocr_texts.is_empty() {
+        if !image_texts.is_empty() {
             content.push_str("\n\n");
-            content.push_str(&ocr_texts.join("\n"));
+            content.push_str(&image_texts.join("\n\n"));
         }
 
         let limit = if max_load_chars > 0 {

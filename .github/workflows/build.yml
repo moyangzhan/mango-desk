@@ -58,6 +58,10 @@ jobs:
           hf_hub_download(repo_id='moyangzhan/mango-finder', filename='vision.onnx', local_dir='./src-tauri/assets/model')
           hf_hub_download(repo_id='moyangzhan/mango-finder', filename='vision_tokenizer.json', local_dir='./src-tauri/assets/model')
           hf_hub_download(repo_id='moyangzhan/mango-finder', filename='whisper-small-q8_0.bin', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-finder', filename='ch_PP-OCRv4_det_infer.onnx', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-finder', filename='ch_ppocr_mobile_v2.0_cls_infer.onnx', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-finder', filename='ch_PP-OCRv4_rec_infer.onnx', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-finder', filename='ppocr_keys_v1.txt', local_dir='./src-tauri/assets/model')
           "
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
@@ -110,6 +114,10 @@ jobs:
           hf_hub_download(repo_id='moyangzhan/mango-finder', filename='vision.onnx', local_dir='./src-tauri/assets/model')
           hf_hub_download(repo_id='moyangzhan/mango-finder', filename='vision_tokenizer.json', local_dir='./src-tauri/assets/model')
           hf_hub_download(repo_id='moyangzhan/mango-finder', filename='whisper-small-q8_0.bin', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-finder', filename='ch_PP-OCRv4_det_infer.onnx', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-finder', filename='ch_ppocr_mobile_v2.0_cls_infer.onnx', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-finder', filename='ch_PP-OCRv4_rec_infer.onnx', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-finder', filename='ppocr_keys_v1.txt', local_dir='./src-tauri/assets/model')
           "
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
@@ -164,6 +172,10 @@ jobs:
           hf_hub_download(repo_id='moyangzhan/mango-finder', filename='vision.onnx', local_dir='./src-tauri/assets/model')
           hf_hub_download(repo_id='moyangzhan/mango-finder', filename='vision_tokenizer.json', local_dir='./src-tauri/assets/model')
           hf_hub_download(repo_id='moyangzhan/mango-finder', filename='whisper-small-q8_0.bin', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-finder', filename='ch_PP-OCRv4_det_infer.onnx', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-finder', filename='ch_ppocr_mobile_v2.0_cls_infer.onnx', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-finder', filename='ch_PP-OCRv4_rec_infer.onnx', local_dir='./src-tauri/assets/model')
+          hf_hub_download(repo_id='moyangzhan/mango-finder', filename='ppocr_keys_v1.txt', local_dir='./src-tauri/assets/model')
           "
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile

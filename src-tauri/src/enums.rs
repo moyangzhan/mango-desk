@@ -353,9 +353,9 @@ pub enum IndexingEvent {
 pub enum ContentStorageChangeEvent {
     Start { category: String, total: i64 },
     Progress { category: String, current: i64, total: i64 },
-    Complete { category: String, migrated: i64, failed: i64 },
+    Complete { category: String, changed: i64, failed: i64 },
     Error { category: String, message: String },
-    Cancelled { category: String, migrated: i64, failed: i64 },
+    Cancelled { category: String, changed: i64, failed: i64 },
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize, Clone)]

@@ -6,7 +6,7 @@ use crate::global::{
     CONFIG_NAME_ACTIVE_SELF_HOSTED_PLATFORM, CONFIG_NAME_INDEXER_SETTING, CONFIG_NAME_PROXY,
 };
 use crate::indexer_service;
-use crate::repositories::{ai_model_repo, config_repo, model_platform_repo, self_hosted_platform_repo};
+use crate::repositories::{ai_model_repo, config_repo, file_info_repo, model_platform_repo, self_hosted_platform_repo};
 use crate::structs::proxy_setting::ProxyInfo;
 use crate::utils::app_util;
 use rust_i18n::t;
@@ -307,7 +307,7 @@ pub async fn is_embedding_model_changed() -> Result<bool, String> {
 }
 
 #[command]
-pub async fn migrate_content_storage(category: &str, new_mode: &str) -> Result<(), String> {
+pub async fn change_content_storage(category: &str, new_mode: &str) -> Result<(), String> {
     indexer_service::start_content_storage_change(category, new_mode).await
 }
 
@@ -319,7 +319,7 @@ pub async fn count_indexed_files(category: &str) -> Result<i64, String> {
         "audio" => 3,
         _ => return Err(format!("Unknown category: {}", category)),
     };
-    file_info_repo::count_indexed_by_category(cat).map_err(|e| e.to_string())
+    file_info_repo::count_indexed_by_category(cat).map_err(|e: crate::repositories::RepositoryError| e.to_string())
 }
 
 // ========== Config commands ==========

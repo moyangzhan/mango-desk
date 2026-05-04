@@ -244,7 +244,7 @@ async function onContentStorageChanged(type: 'document' | 'image' | 'audio', val
 
   // Block if another migration is already running
   if (migratingType.value) {
-    window.$message.warning(t('indexer.migrating'))
+    window.$message.warning(t('indexer.changing'))
     return
   }
 
@@ -258,7 +258,7 @@ async function onContentStorageChanged(type: 'document' | 'image' | 'audio', val
   }
 
   if (affectedCount === 0) {
-    // No files to migrate, just save
+    // No files to change, just save
     indexerStore.indexerSetting.content_storage[type] = value
     updateIndexerSetting()
     return
@@ -267,13 +267,13 @@ async function onContentStorageChanged(type: 'document' | 'image' | 'audio', val
   // Build confirmation message
   let confirmMsg = ''
   if (value === 'none') {
-    confirmMsg = t('indexer.migrateConfirmNone', { count: affectedCount })
+    confirmMsg = t('indexer.changeConfirmNone', { count: affectedCount })
   } else if (oldValue === 'none') {
-    confirmMsg = t('indexer.migrateConfirmReparse', { count: affectedCount })
+    confirmMsg = t('indexer.changeConfirmReparse', { count: affectedCount })
   } else if (value === 'file') {
-    confirmMsg = t('indexer.migrateConfirmFile', { count: affectedCount })
+    confirmMsg = t('indexer.changeConfirmFile', { count: affectedCount })
   } else {
-    confirmMsg = t('indexer.migrateConfirmDatabase', { count: affectedCount })
+    confirmMsg = t('indexer.changeConfirmDatabase', { count: affectedCount })
   }
 
   // Show confirmation dialog
@@ -286,11 +286,11 @@ async function onContentStorageChanged(type: 'document' | 'image' | 'audio', val
       try {
         migratingType.value = type
         migratingProgress.value = { current: 0, total: affectedCount }
-        await invoke('migrate_content_storage', { category: type, newMode: value })
+        await invoke('change_content_storage', { category: type, newMode: value })
         // Update local state (backend has spawned the task)
         indexerStore.indexerSetting.content_storage[type] = value
       } catch (e) {
-        console.error('Migration failed:', e)
+        console.error('Storage change failed:', e)
         window.$message.error(t('common.operationFailed'))
         // Revert UI on failure
         migratingType.value = null
@@ -474,7 +474,7 @@ onMounted(async () => {
         if (eventType === 'error') {
           window.$message.error(t('common.operationFailed'))
         } else if (eventType === 'cancelled') {
-          window.$message.info(t('indexer.migrateCancelled'))
+          window.$message.info(t('indexer.changeCancelled'))
         }
         // Reload setting from backend to sync any revert on failure/cancel
         try {
@@ -738,7 +738,7 @@ onUnmounted(() => {
         <!-- Migration progress -->
         <div v-if="migratingType" class="flex items-center gap-2 text-xs text-gray-500">
           <NSpin size="small" />
-          <span>{{ t('indexer.migrating') }} ({{ migratingProgress.current }}/{{ migratingProgress.total }}<template v-if="migratingProgress.total > 0">, {{ Math.round(migratingProgress.current / migratingProgress.total * 100) }}%</template>)</span>
+          <span>{{ t('indexer.changing') }} ({{ migratingProgress.current }}/{{ migratingProgress.total }}<template v-if="migratingProgress.total > 0">, {{ Math.round(migratingProgress.current / migratingProgress.total * 100) }}%</template>)</span>
         </div>
       </div>
     </NCard>

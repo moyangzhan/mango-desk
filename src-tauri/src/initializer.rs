@@ -56,19 +56,14 @@ pub async fn process() {
 
     //Onnx Runtime initialization
     if ONNX_EXEC_PROVIDERS_INITIALIZED.get().is_none() {
-        let result = ort::init()
-            .with_execution_providers(vec![
+        let committed = ort::init()
+            .with_execution_providers([
                 TensorRTExecutionProvider::default().into(),
                 CUDAExecutionProvider::default().into(),
                 CPUExecutionProvider::default().into(),
             ])
             .commit();
-        if result.is_err() {
-            error!(
-                "Failed to initialize execution providers, falling back to CPU only: {}",
-                result.unwrap_err()
-            );
-        } else {
+        if committed {
             ONNX_EXEC_PROVIDERS_INITIALIZED
                 .set(true)
                 .unwrap_or_else(|e| error!("{e}"));

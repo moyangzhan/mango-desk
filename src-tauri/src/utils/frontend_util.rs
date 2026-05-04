@@ -11,7 +11,7 @@ pub fn send_to_frontend<T: IpcResponse>(on_event: &Channel<T>, data: T) {
     }
 }
 
-pub fn send_event<T: Serialize>(name: &str, data: &T) {
+pub fn send_event<T: Serialize + ?Sized>(name: &str, data: &T) {
     match APP_HANDLE.get() {
         Some(app_handle) => match serde_json::to_string(data) {
             Ok(json_string) => {

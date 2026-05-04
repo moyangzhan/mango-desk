@@ -1,4 +1,5 @@
 use crate::embedding_service::EmbeddingService;
+use crate::entities::IndexingTask;
 use crate::enums::{ContentStorageChangeEvent, FileCategory, IndexingEvent};
 use chrono::Utc;
 use crate::errors::AppError;
@@ -48,10 +49,10 @@ pub async fn update_indexer_setting(indexer_setting: IndexerSetting) -> Result<u
 /// 注意：none → 其他方向仅支持文档类型，图片和音频不提供 none 选项
 pub async fn start_content_storage_change(category: &str, new_mode: &str) -> Result<(), String> {
     if CONTENT_STORAGE_CHANGING.load(Ordering::SeqCst) {
-        return Err("Migration already in progress".to_string());
+        return Err("Content storage change already in progress".to_string());
     }
     if INDEXING.load(Ordering::SeqCst) {
-        return Err("Cannot migrate while indexing is in progress".to_string());
+        return Err("Cannot change storage while indexing is in progress".to_string());
     }
 
     // DB persistent lock
@@ -91,7 +92,7 @@ pub async fn start_content_storage_change(category: &str, new_mode: &str) -> Res
     }
 
     // Persist new setting to DB first so a crash won't leave data inconsistent.
-    // If migration fails later, revert_and_persist will restore the old value.
+    // If the change fails later, revert_and_persist will restore the old value.
     {
         let mut setting = INDEXER_SETTING.write().await;
         setting.content_storage.set_for_category(category, new_mode.to_string());
@@ -124,14 +125,14 @@ pub async fn start_content_storage_change(category: &str, new_mode: &str) -> Res
                 },
             );
 
-            let inner = migrate_content_storage_inner(&category_str, &category_enum, &old_mode, &new_mode, total).await;
+            let inner = change_content_storage_inner(&category_str, &category_enum, &old_mode, &new_mode, total).await;
             match inner {
-                Ok((migrated, failed)) => {
+                Ok((changed, failed)) => {
                     frontend_util::send_event(
                         "content-storage-change-event",
                         &ContentStorageChangeEvent::Complete {
                             category: category_str.clone(),
-                            migrated,
+                            changed,
                             failed,
                         },
                     );
@@ -143,7 +144,7 @@ pub async fn start_content_storage_change(category: &str, new_mode: &str) -> Res
         .await
         .unwrap_or_else(|e| {
             log::error!("Content storage migration panicked: {}", e);
-            Err("Migration task panicked".to_string())
+            Err("Storage change task panicked".to_string())
         });
 
         CONTENT_STORAGE_CHANGING.store(false, Ordering::SeqCst);
@@ -185,7 +186,7 @@ async fn persist_indexer_setting() {
     }
 }
 
-async fn migrate_content_storage_inner(
+async fn change_content_storage_inner(
     category_str: &str,
     category: &FileCategory,
     old_mode: &str,
@@ -198,7 +199,7 @@ async fn migrate_content_storage_inner(
     if storage_path.is_empty() {
         return Err("Storage path is empty".to_string());
     }
-    let mut migrated = 0i64;
+    let mut changed = 0i64;
     let mut failed = 0i64;
     let batch_size = 500i64;
     let mut offset = 0i64;
@@ -215,29 +216,29 @@ async fn migrate_content_storage_inner(
 
         for file in &files {
             if STOP_INDEX_SIGNAL.load(Ordering::SeqCst) {
-                log::info!("Migration cancelled by stop signal");
+                log::info!("Storage change cancelled by stop signal");
                 frontend_util::send_event(
                     "content-storage-change-event",
                     &ContentStorageChangeEvent::Cancelled {
                         category: category_str.to_string(),
-                        migrated,
+                        changed,
                         failed,
                     },
                 );
-                return Err("Migration cancelled".to_string());
+                return Err("Storage change cancelled".to_string());
             }
 
-            match do_migrate_one(file, old_mode, new_mode, &storage_path, category, 0).await {
-                Ok(true) => migrated += 1,
+            match change_content_storage_one(file, old_mode, new_mode, &storage_path, category, 0).await {
+                Ok(true) => changed += 1,
                 Ok(false) => {} // no change needed
                 Err(e) => {
-                    log::warn!("Migration failed for file {}: {}", file.path, e);
+                    log::warn!("Storage change failed for file {}: {}", file.path, e);
                     failed += 1;
                 }
             }
 
             // Throttle progress events: emit at most every 50 files
-            let processed = migrated + failed;
+            let processed = changed + failed;
             if processed - last_progress >= 50 || processed == total {
                 last_progress = processed;
                 frontend_util::send_event(
@@ -255,22 +256,23 @@ async fn migrate_content_storage_inner(
     }
 
     log::info!(
-        "Content storage migration complete: category={}, {}→{}, migrated={}, failed={}",
-        category_str, old_mode, new_mode, migrated, failed
+        "Content storage change complete: category={}, {}→{}, changed={}, failed={}",
+        category_str, old_mode, new_mode, changed, failed
     );
-    Ok((migrated, failed))
+    Ok((changed, failed))
 }
 
-/// Migrate a single file's content storage. Returns Ok(true) if migrated, Ok(false) if skipped.
+/// Change a single file's content storage mode. Returns Ok(true) if changed, Ok(false) if skipped.
 /// `depth` limits recursive fallback calls to prevent infinite recursion.
-async fn do_migrate_one(
-    file: &crate::entities::FileInfo,
-    old_mode: &str,
-    new_mode: &str,
-    storage_path: &str,
-    category: &FileCategory,
+fn change_content_storage_one<'a>(
+    file: &'a crate::entities::FileInfo,
+    old_mode: &'a str,
+    new_mode: &'a str,
+    storage_path: &'a str,
+    category: &'a FileCategory,
     depth: u32,
-) -> Result<bool, String> {
+) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<bool, String>> + Send + 'a>> {
+    Box::pin(async move {
     let is_file_mode = file.content_ref_path.is_some();
 
     match (old_mode, new_mode) {
@@ -321,7 +323,7 @@ async fn do_migrate_one(
             file_info_repo::update_content_only(file.id, &content, None)
                 .map_err(|e| e.to_string())?;
             if let Err(e) = std::fs::remove_file(&md_path) {
-                log::warn!("Failed to delete migrated .md file {}: {}", relative_path, e);
+                log::warn!("Failed to delete .md file after storage change {}: {}", relative_path, e);
             }
             Ok(true)
         }
@@ -366,11 +368,11 @@ async fn do_migrate_one(
             Ok(true)
         }
 
-        // Fallback: detect actual state from content field and migrate accordingly
+        // Fallback: detect actual state from content field and change accordingly
         _ => {
             if depth >= 1 {
                 return Err(format!(
-                    "Migration recursion limit reached for file {} (old={}, new={})",
+                    "Storage change recursion limit reached for file {} (old={}, new={})",
                     file.id, old_mode, new_mode
                 ));
             }
@@ -379,9 +381,10 @@ async fn do_migrate_one(
             if actual_old == new_mode {
                 return Ok(false);
             }
-            do_migrate_one(file, actual_old, new_mode, storage_path, category, depth + 1).await
+            change_content_storage_one(file, actual_old, new_mode, storage_path, category, depth + 1).await
         }
     }
+    })
 }
 
 /// Re-parse a file to recover its content (used for none → database/file migration).
@@ -404,8 +407,9 @@ async fn reparse_file(
 
             match loader {
                 Some(doc_loader) => {
+                    let file_path = file.path.clone();
                     tokio::task::spawn_blocking(move || {
-                        doc_loader.load_max(&path, MAX_DOCUMENT_LOAD_CHARS)
+                        doc_loader.load_max(std::path::Path::new(&file_path), MAX_DOCUMENT_LOAD_CHARS)
                     })
                     .await
                     .map_err(|e| format!("Re-parse task panicked: {}", e))?
@@ -487,11 +491,11 @@ pub async fn start_indexing(paths: Vec<String>, from: &str) -> Result<bool, Stri
 
     STOP_INDEX_SIGNAL.store(false, Ordering::SeqCst);
     let embedding_model = EmbeddingService::model_name().await;
-    let task = match indexing_task_util::task_new(&paths, embedding_model).await {
+    let task = match indexing_task_util::task_new(&paths.to_vec(), embedding_model).await {
         Ok(t) => t,
         Err(e) => {
             let _ = task_util::unlock_active_task();
-            return Err(e);
+            return Err(e.to_string());
         }
     };
 
@@ -524,7 +528,7 @@ async fn run_indexing_pipeline(
     from: &str,
 ) -> Result<(), String> {
     // Scan specified paths and store file metadata in database
-    scanner::start(paths, task.clone(), from).await;
+    scanner::start(&paths.to_vec(), task.clone(), from).await;
 
     // Scanned files
     indexing_task_util::set_total(SCANNING_TOTAL.load(Ordering::SeqCst) as i64).await;
@@ -645,22 +649,25 @@ async fn collect_existing_file_paths(dirs: &[String]) -> HashSet<String> {
 
 async fn collect_files_recursive(dir: &str, result: &mut HashSet<String>) {
     let indexer_setting = INDEXER_SETTING.read().await.clone();
-    collect_files_recursive_inner(dir, result, &indexer_setting, 0).await;
+    let shared_result = Arc::new(tokio::sync::Mutex::new(std::mem::take(result)));
+    collect_files_recursive_inner(dir.to_string(), shared_result.clone(), Arc::new(indexer_setting), 0).await;
+    *result = Arc::try_unwrap(shared_result).unwrap().into_inner();
 }
 
 const MAX_DIR_DEPTH: u32 = 50;
 
-async fn collect_files_recursive_inner(
-    dir: &str,
-    result: &mut HashSet<String>,
-    indexer_setting: &IndexerSetting,
+fn collect_files_recursive_inner(
+    dir: String,
+    result: Arc<tokio::sync::Mutex<HashSet<String>>>,
+    indexer_setting: Arc<IndexerSetting>,
     depth: u32,
-) {
+) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>> {
+    Box::pin(async move {
     if depth > MAX_DIR_DEPTH {
         log::warn!("Directory traversal depth limit reached: {}", dir);
         return;
     }
-    let mut entries = match tokio::fs::read_dir(dir).await {
+    let mut entries = match tokio::fs::read_dir(&dir).await {
         Ok(e) => e,
         Err(e) => {
             log::warn!("Failed to read directory {}: {}", dir, e);
@@ -675,7 +682,7 @@ async fn collect_files_recursive_inner(
         };
         if path_buf.is_file() {
             if scanner::is_valid_file_with(&path_buf).await {
-                result.insert(path_str);
+                result.lock().await.insert(path_str);
             }
         } else if path_buf.is_dir() {
             let dir_name = path_buf
@@ -702,9 +709,10 @@ async fn collect_files_recursive_inner(
             if path_buf.is_symlink() {
                 continue;
             }
-            collect_files_recursive_inner(&path_str, result, indexer_setting, depth + 1).await;
+            collect_files_recursive_inner(path_str, result.clone(), indexer_setting.clone(), depth + 1).await;
         }
     }
+    })
 }
 
 pub async fn index_file(path: &str) -> Result<(), String> {

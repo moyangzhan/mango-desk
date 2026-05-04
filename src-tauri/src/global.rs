@@ -39,9 +39,11 @@ pub const AUDIO_TOKENIZER_NAME: &str = "audio_tokenizer.json";
 // whisper.cpp model
 pub const WHISPER_MODEL_NAME: &str = "whisper-small-q8_0.bin";
 
-// OCR model
-pub const OCR_DETECTION_MODEL_NAME: &str = "text-detection-ssfbcj81.rten";
-pub const OCR_RECOGNITION_MODEL_NAME: &str = "text-rec-checkpoint-s52qdbqt.rten";
+// OCR models (PaddleOCR PP-OCRv4)
+pub const OCR_DET_MODEL_NAME: &str = "ch_PP-OCRv4_det_infer.onnx";
+pub const OCR_CLS_MODEL_NAME: &str = "ch_ppocr_mobile_v2.0_cls_infer.onnx";
+pub const OCR_REC_MODEL_NAME: &str = "ch_PP-OCRv4_rec_infer.onnx";
+pub const OCR_DICT_NAME: &str = "ppocr_keys_v1.txt";
 
 // assets/model/model.onnx
 pub static EMBEDDING_MODEL_PATH: OnceLock<String> = OnceLock::new();
@@ -58,9 +60,11 @@ pub static AUDIO_TOKENIZER_PATH: OnceLock<String> = OnceLock::new();
 // Whisper.cpp model path
 pub static WHISPER_MODEL_PATH: OnceLock<String> = OnceLock::new();
 
-// OCR model paths
-pub static OCR_DETECTION_MODEL_PATH: OnceLock<String> = OnceLock::new();
-pub static OCR_RECOGNITION_MODEL_PATH: OnceLock<String> = OnceLock::new();
+// OCR model paths (PaddleOCR)
+pub static OCR_DET_MODEL_PATH: OnceLock<String> = OnceLock::new();
+pub static OCR_CLS_MODEL_PATH: OnceLock<String> = OnceLock::new();
+pub static OCR_REC_MODEL_PATH: OnceLock<String> = OnceLock::new();
+pub static OCR_DICT_PATH: OnceLock<String> = OnceLock::new();
 
 // Extracted images storage path
 pub static EXTRACTED_IMAGES_PATH: OnceLock<String> = OnceLock::new();

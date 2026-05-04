@@ -1,3 +1,4 @@
+use crate::image_parser;
 use crate::global::{
     ANYTOMD_EXTRA_EXTS, DOCX_EXTS, EXCEL_EXTS, MAX_DOCUMENT_LOAD_CHARS, PLAIN_TEXT_EXTS, PPTX_EXTS,
 };
@@ -93,19 +94,30 @@ impl DocumentLoader for AnyToMdLoader {
                 })?;
             }
 
-            let mut ocr_texts = Vec::new();
+            let mut image_texts = Vec::new();
             for (filename, bytes) in &result.images {
                 let img_path = images_dir.join(filename);
                 fs::write(&img_path, bytes)?;
+
+                let blip_caption = image_parser::generate_caption(&img_path);
                 let ocr_text = ocr_service::recognize_file(&img_path);
-                if !ocr_text.is_empty() {
-                    ocr_texts.push(format!("[OCR]: {}", ocr_text));
+                if blip_caption.is_empty() && ocr_text.is_empty() {
+                    continue;
                 }
+
+                let mut parts = Vec::new();
+                if !blip_caption.is_empty() {
+                    parts.push(format!("**Image Description:** {}", blip_caption));
+                }
+                if !ocr_text.is_empty() {
+                    parts.push(format!("**OCR Text:** {}", ocr_text));
+                }
+                image_texts.push(parts.join("\n\n"));
             }
 
-            if !ocr_texts.is_empty() {
+            if !image_texts.is_empty() {
                 content.push_str("\n\n");
-                content.push_str(&ocr_texts.join("\n"));
+                content.push_str(&image_texts.join("\n\n"));
             }
         }
 

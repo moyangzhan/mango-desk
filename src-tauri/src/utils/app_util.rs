@@ -3,8 +3,9 @@ use crate::global::{
     APP_DATA_PATH, AUDIO_DECODER_NAME, AUDIO_DECODER_PATH, AUDIO_ENCODER_NAME, AUDIO_ENCODER_PATH,
     AUDIO_TOKENIZER_NAME, AUDIO_TOKENIZER_PATH, CONTENT_STORAGE_CHANGING, DB_PATH, DOWNLOADING,
     EMBEDDING_MODEL_NAME, EMBEDDING_MODEL_PATH, EMBEDDING_TOKENIZER_NAME, EMBEDDING_TOKENIZER_PATH,
-    EXIT_APP_SIGNAL, EXTRACTED_IMAGES_PATH, HOME_PATH, INDEXING, OCR_DETECTION_MODEL_NAME,
-    OCR_DETECTION_MODEL_PATH, OCR_RECOGNITION_MODEL_NAME, OCR_RECOGNITION_MODEL_PATH, SCANNING,
+    EXIT_APP_SIGNAL, EXTRACTED_IMAGES_PATH, HOME_PATH, INDEXING, OCR_DET_MODEL_NAME,
+    OCR_DET_MODEL_PATH, OCR_CLS_MODEL_NAME, OCR_CLS_MODEL_PATH, OCR_REC_MODEL_NAME, OCR_REC_MODEL_PATH,
+    OCR_DICT_NAME, OCR_DICT_PATH, SCANNING,
     STOP_INDEX_SIGNAL, STORAGE_PATH, TMP_PATH, TRAY_ID, VISION_MODEL_PATH, VISION_NAME,
     VISION_TOKENIZER_NAME, VISION_TOKENIZER_PATH, WHISPER_MODEL_NAME, WHISPER_MODEL_PATH,
 };
@@ -453,24 +454,42 @@ fn init_embedding_model_path(app_handle: &AppHandle) {
             error!("Failed to set WHISPER_MODEL_PATH: {}", e);
         });
 
-    // OCR models
-    let ocr_detection_path = build_in_model_path
-        .join(OCR_DETECTION_MODEL_NAME)
+    // OCR models (PaddleOCR)
+    let ocr_det_path = build_in_model_path
+        .join(OCR_DET_MODEL_NAME)
         .to_string_lossy()
         .into_owned();
-    OCR_DETECTION_MODEL_PATH
-        .set(ocr_detection_path)
+    OCR_DET_MODEL_PATH
+        .set(ocr_det_path)
         .unwrap_or_else(|e| {
-            error!("Failed to set OCR_DETECTION_MODEL_PATH: {}", e);
+            error!("Failed to set OCR_DET_MODEL_PATH: {}", e);
         });
-    let ocr_recognition_path = build_in_model_path
-        .join(OCR_RECOGNITION_MODEL_NAME)
+    let ocr_cls_path = build_in_model_path
+        .join(OCR_CLS_MODEL_NAME)
         .to_string_lossy()
         .into_owned();
-    OCR_RECOGNITION_MODEL_PATH
-        .set(ocr_recognition_path)
+    OCR_CLS_MODEL_PATH
+        .set(ocr_cls_path)
         .unwrap_or_else(|e| {
-            error!("Failed to set OCR_RECOGNITION_MODEL_PATH: {}", e);
+            error!("Failed to set OCR_CLS_MODEL_PATH: {}", e);
+        });
+    let ocr_rec_path = build_in_model_path
+        .join(OCR_REC_MODEL_NAME)
+        .to_string_lossy()
+        .into_owned();
+    OCR_REC_MODEL_PATH
+        .set(ocr_rec_path)
+        .unwrap_or_else(|e| {
+            error!("Failed to set OCR_REC_MODEL_PATH: {}", e);
+        });
+    let ocr_dict_path = build_in_model_path
+        .join(OCR_DICT_NAME)
+        .to_string_lossy()
+        .into_owned();
+    OCR_DICT_PATH
+        .set(ocr_dict_path)
+        .unwrap_or_else(|e| {
+            error!("Failed to set OCR_DICT_PATH: {}", e);
         });
 
     // Extracted images directory
@@ -554,15 +573,29 @@ pub fn get_whisper_model_path() -> String {
         .to_string()
 }
 
-pub fn get_ocr_detection_model_path() -> String {
-    OCR_DETECTION_MODEL_PATH
+pub fn get_ocr_det_model_path() -> String {
+    OCR_DET_MODEL_PATH
         .get()
         .unwrap_or(&String::new())
         .to_string()
 }
 
-pub fn get_ocr_recognition_model_path() -> String {
-    OCR_RECOGNITION_MODEL_PATH
+pub fn get_ocr_cls_model_path() -> String {
+    OCR_CLS_MODEL_PATH
+        .get()
+        .unwrap_or(&String::new())
+        .to_string()
+}
+
+pub fn get_ocr_rec_model_path() -> String {
+    OCR_REC_MODEL_PATH
+        .get()
+        .unwrap_or(&String::new())
+        .to_string()
+}
+
+pub fn get_ocr_dict_path() -> String {
+    OCR_DICT_PATH
         .get()
         .unwrap_or(&String::new())
         .to_string()

@@ -231,7 +231,7 @@ async function recoveryAction(action: 'resume' | 'skip' | 'retryCopy' | 'revertP
           const category = recoveryTask.value.category || 'document'
           const targetMode = recoveryTask.value.new_mode || 'database'
           await invoke('clear_active_task')
-          await invoke('migrate_content_storage', { category, newMode: targetMode })
+          await invoke('change_content_storage', { category, newMode: targetMode })
         }
         break
       case 'retryCopy':

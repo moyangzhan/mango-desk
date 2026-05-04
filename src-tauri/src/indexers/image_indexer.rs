@@ -2,11 +2,12 @@ use crate::entities::{AiModel, FileInfo};
 use crate::enums::{FileCategory, FileParserMode, ModelPlatformName, ModelType};
 use crate::errors::AppError;
 use crate::global::{ACTIVE_MODEL_PLATFORM, ACTIVE_SELF_HOSTED_PLATFORM, INDEXER_SETTING};
-use crate::image_parser::ImageParser;
+use crate::image_parser;
 use crate::model_platform_services::dashscope::DashScope;
 use crate::model_platform_services::openai::OpenAi;
 use crate::model_platform_services::openai_compatible_service::OpenAiCompatibleService;
 use crate::model_platform_services::siliconflow::SiliconFlow;
+use crate::ocr_service;
 use crate::repositories::ai_model_repo;
 use crate::self_hosted_services::ollama::Ollama;
 use crate::self_hosted_services::vllm::Vllm;
@@ -20,12 +21,12 @@ pub struct ImageIndexer {
     remote_service: Option<Box<dyn ImageAnalyzer>>,
     self_hosted_model: Option<AiModel>,
     self_hosted_service: Option<Box<dyn SelfHostedImageAnalyzer>>,
-    local_parser: Option<ImageParser>,
+    is_local_mode: bool,
 }
 
 impl ImageIndexer {
     pub async fn new() -> Result<ImageIndexer, AppError> {
-        let mut local_parser_option: Option<ImageParser> = None;
+        let mut is_local_mode = false;
         let mut remote_service_option: Option<Box<dyn ImageAnalyzer>> = None;
         let mut remote_model_option: Option<AiModel> = None;
         let mut self_hosted_service_option: Option<Box<dyn SelfHostedImageAnalyzer>> = None;
@@ -35,12 +36,7 @@ impl ImageIndexer {
 
         match image_parser_mode {
             FileParserMode::Local => {
-                local_parser_option = Some(ImageParser::new().map_err(|e| {
-                    AppError::ImageParserInitError(format!(
-                        "Failed to initialize local image parser: {:?}",
-                        e
-                    ))
-                })?);
+                is_local_mode = true;
             }
             FileParserMode::SelfHosted => {
                 // Get active self-hosted platform
@@ -100,9 +96,9 @@ impl ImageIndexer {
             }
         }
 
-        if remote_service_option.is_some()
+        if is_local_mode
+            || remote_service_option.is_some()
             || self_hosted_service_option.is_some()
-            || local_parser_option.is_some()
         {
             return Ok(Self {
                 category: FileCategory::Image,
@@ -110,7 +106,7 @@ impl ImageIndexer {
                 remote_service: remote_service_option,
                 self_hosted_model: self_hosted_model_option,
                 self_hosted_service: self_hosted_service_option,
-                local_parser: local_parser_option,
+                is_local_mode,
             });
         }
         let vision: &str = ModelType::Vision.into();
@@ -124,14 +120,22 @@ impl IndexingTemplate for ImageIndexer {
     }
     async fn load_content(&self, file_info: &FileInfo) -> String {
         // 1. Try local parser first
-        if let Some(parser) = &self.local_parser {
-            return match parser.generate_caption_from_path(&file_info.path).await {
-                Ok(content) => content,
-                Err(e) => {
-                    log::error!("Error parsing image locally: {}", e);
-                    String::new()
-                }
-            };
+        if self.is_local_mode {
+            let blip_caption = image_parser::generate_caption(std::path::Path::new(&file_info.path));
+
+            // Supplement BLIP with OCR for Chinese+English text recognition
+            let ocr_text = ocr_service::recognize_file(std::path::Path::new(&file_info.path));
+            if ocr_text.is_empty() {
+                return blip_caption;
+            }
+            if blip_caption.is_empty() {
+                return format!("## OCR Text\n\n{}", ocr_text);
+            }
+
+            return format!(
+                "## Image Description\n\n{}\n\n## OCR Text\n\n{}",
+                blip_caption, ocr_text
+            );
         }
 
         // 2. Try self-hosted service

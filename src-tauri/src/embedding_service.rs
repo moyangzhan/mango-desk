@@ -34,13 +34,16 @@ impl EmbeddingService {
             .map(|n| n.get().saturating_sub(2).max(2))
             .unwrap_or(2);
         info!("using {} threads", logical_cores);
-        let session = Session::builder()?
-            .with_optimization_level(GraphOptimizationLevel::Level1)?
-            .with_intra_threads(logical_cores)?
+        let session = Session::builder()
+            .map_err(|e| AppError::EmbeddingSizeMismatch(e.to_string()))?
+            .with_optimization_level(GraphOptimizationLevel::Level1)
+            .map_err(|e| AppError::EmbeddingSizeMismatch(e.to_string()))?
+            .with_intra_threads(logical_cores)
+            .map_err(|e| AppError::EmbeddingSizeMismatch(e.to_string()))?
             .commit_from_file(model_path)
             .map_err(|e| {
                 error!("Failed to load model: {:?}", e);
-                e
+                AppError::EmbeddingSizeMismatch(e.to_string())
             })?;
         let tokenizer = Tokenizer::from_file(tokenizer_path)?;
         info!("EmbeddingService::new succeeded");
@@ -78,21 +81,13 @@ impl EmbeddingService {
             error!("Failed to lock session: {}", err);
             AppError::EmbeddingSizeMismatch(err.to_string())
         })?;
-        // let input_names: Vec<String> = (*guard)
-        //     .inputs
-        //     .iter()
-        //     .map(|input| input.name.clone())
-        //     .collect();
-        // for name in input_names {
-        //     println!("Model input: {}", name);
-        // }
         let mut input_val = HashMap::new();
         input_val.insert("input_ids", input_tensor);
         input_val.insert("attention_mask", attention_tensor);
         let needs_token_type = (*guard)
-            .inputs
+            .inputs()
             .iter()
-            .any(|input| input.name == "token_type_ids");
+            .any(|input| input.name() == "token_type_ids");
         if needs_token_type {
             let token_type_ids = vec![0i64; input_ids_len];
             let token_type_tensor = Value::from_array(ndarray::Array::from_shape_vec(

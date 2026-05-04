@@ -1,50 +1,48 @@
-use crate::utils::app_util::{get_ocr_detection_model_path, get_ocr_recognition_model_path};
+use crate::utils::app_util::{get_ocr_cls_model_path, get_ocr_det_model_path, get_ocr_dict_path, get_ocr_rec_model_path};
+use kreuzberg_paddle_ocr::OcrLite;
 use log::{info, warn};
-use ocrs::{OcrEngine, OcrEngineParams};
-use rten::Model;
 use std::path::Path;
 use std::sync::OnceLock;
 
-static OCR_ENGINE: OnceLock<Option<OcrEngine>> = OnceLock::new();
+static OCR_ENGINE: OnceLock<Option<OcrLite>> = OnceLock::new();
 
-fn get_engine() -> Option<&'static OcrEngine> {
+fn get_engine() -> Option<&'static OcrLite> {
     OCR_ENGINE
         .get_or_init(|| {
-            let detection_path = get_ocr_detection_model_path();
-            let recognition_path = get_ocr_recognition_model_path();
+            let det_path = get_ocr_det_model_path();
+            let cls_path = get_ocr_cls_model_path();
+            let rec_path = get_ocr_rec_model_path();
+            let dict_path = get_ocr_dict_path();
 
-            if !Path::new(&detection_path).exists() || !Path::new(&recognition_path).exists() {
-                warn!("OCR model files not found, OCR disabled. Detection: {}, Recognition: {}", detection_path, recognition_path);
+            if !Path::new(&det_path).exists() {
+                warn!("OCR detection model not found: {}", det_path);
+                return None;
+            }
+            if !Path::new(&cls_path).exists() {
+                warn!("OCR classification model not found: {}", cls_path);
+                return None;
+            }
+            if !Path::new(&rec_path).exists() {
+                warn!("OCR recognition model not found: {}", rec_path);
+                return None;
+            }
+            if !Path::new(&dict_path).exists() {
+                warn!("OCR dictionary not found: {}", dict_path);
                 return None;
             }
 
-            info!("Loading OCR models...");
-            let detection_model = match Model::load_file(&detection_path) {
-                Ok(m) => m,
-                Err(e) => {
-                    warn!("Failed to load OCR detection model: {}", e);
-                    return None;
-                }
-            };
-            let recognition_model = match Model::load_file(&recognition_path) {
-                Ok(m) => m,
-                Err(e) => {
-                    warn!("Failed to load OCR recognition model: {}", e);
-                    return None;
-                }
-            };
-
-            match OcrEngine::new(OcrEngineParams {
-                detection_model: Some(detection_model),
-                recognition_model: Some(recognition_model),
-                ..Default::default()
-            }) {
-                Ok(engine) => {
-                    info!("OCR engine initialized successfully");
+            info!("Loading PaddleOCR models...");
+            let mut engine = OcrLite::new();
+            let num_threads = std::thread::available_parallelism()
+                .map(|n| n.get().saturating_sub(2).max(2))
+                .unwrap_or(2);
+            match engine.init_models_with_dict(&det_path, &cls_path, &rec_path, &dict_path, num_threads) {
+                Ok(()) => {
+                    info!("PaddleOCR engine initialized successfully");
                     Some(engine)
                 }
                 Err(e) => {
-                    warn!("Failed to create OCR engine: {}", e);
+                    warn!("Failed to initialize PaddleOCR engine: {}", e);
                     None
                 }
             }
@@ -72,26 +70,23 @@ pub fn recognize_file(image_path: &Path) -> String {
         }
     }
 
-    let img = match image::open(image_path) {
-        Ok(img) => img.to_rgb8(),
-        Err(e) => {
-            warn!("OCR failed to open image {}: {}", image_path.display(), e);
-            return String::new();
-        }
+    let path_str = match image_path.to_str() {
+        Some(s) => s,
+        None => return String::new(),
     };
 
-    let ocr_input = match engine.prepare_input(img) {
-        Ok(input) => input,
-        Err(e) => {
-            warn!("OCR prepare input failed for {}: {}", image_path.display(), e);
-            return String::new();
+    match engine.detect_from_path(path_str, 50, 1024, 0.5, 0.3, 2.0, true, false) {
+        Ok(result) => {
+            let text: String = result
+                .text_blocks
+                .iter()
+                .map(|b| b.text.as_str())
+                .collect::<Vec<&str>>()
+                .join("\n");
+            text.trim().to_string()
         }
-    };
-
-    match engine.get_text(&ocr_input) {
-        Ok(text) => text.trim().to_string(),
         Err(e) => {
-            warn!("OCR text extraction failed for {}: {}", image_path.display(), e);
+            warn!("OCR failed for {}: {}", image_path.display(), e);
             String::new()
         }
     }

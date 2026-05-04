@@ -1,5 +1,5 @@
 use crate::utils::app_util::{get_vision_0_path, get_vision_tokenizer_path};
-use anyhow::{Ok, Result};
+use anyhow::Result;
 use image::ImageReader;
 use log::info;
 use ndarray::{Array, Array2, Array4, IxDyn, s};
@@ -10,13 +10,15 @@ use ort::{
     value::Value,
 };
 use std::path::Path;
+use std::sync::{Mutex, OnceLock};
 use tokenizers::Tokenizer;
-use tokio::sync::Mutex as AsyncMutex;
 
 pub struct ImageParser {
-    vision_session: AsyncMutex<ort::session::Session>,
+    vision_session: Mutex<Session>,
     tokenizer: Tokenizer,
 }
+
+static PARSER: OnceLock<Option<ImageParser>> = OnceLock::new();
 
 impl ImageParser {
     pub fn new() -> Result<Self> {
@@ -24,21 +26,24 @@ impl ImageParser {
             .map(|n| n.get().saturating_sub(2).max(2))
             .unwrap_or(2);
         info!("vision model using {} threads", logical_cores);
-        let vision_session = Session::builder()?
-            .with_optimization_level(GraphOptimizationLevel::Level3)?
-            .with_intra_threads(logical_cores)?
+        let vision_session = Session::builder()
+            .map_err(|e| anyhow::anyhow!("Session builder init failed: {}", e))?
+            .with_optimization_level(GraphOptimizationLevel::Level3)
+            .map_err(|e| anyhow::anyhow!("Failed to set optimization level: {}", e))?
+            .with_intra_threads(logical_cores)
+            .map_err(|e| anyhow::anyhow!("Failed to set intra threads: {}", e))?
             .commit_from_file(get_vision_0_path())?;
         log::debug!("Successfully loaded vision and decoder models.");
         Ok(ImageParser {
-            vision_session: AsyncMutex::new(vision_session),
+            vision_session: Mutex::new(vision_session),
             tokenizer: Tokenizer::from_file(get_vision_tokenizer_path())
                 .map_err(|e| anyhow::anyhow!("Failed to load vision tokenizer: {}", e))?,
         })
     }
 
-    pub async fn generate_caption_from_path(
+    pub fn generate_caption_from_path(
         &self,
-        image_path: &str, // Changed from Array4 to &str
+        image_path: &str,
     ) -> Result<String> {
         if !Path::new(image_path).exists() {
             return Err(anyhow::anyhow!("Image file not found: {}", image_path));
@@ -106,7 +111,7 @@ impl ImageParser {
         let mut tokens = vec![101_i64]; // BOS/SOS token
         let eos_token_id = 102_i64;
         let max_length = 20;
-        let mut vision_session = self.vision_session.lock().await;
+        let mut vision_session = self.vision_session.lock().unwrap();
         let image_input: Value<TensorValueType<f32>> = Value::from_array(image_tensor)?;
 
         for _ in 0..max_length {
@@ -151,4 +156,39 @@ impl ImageParser {
 
         Ok(final_text)
     }
+}
+
+/// Generate a caption for the given image using the global BLIP engine.
+/// Lazily initializes the model on first call. Returns empty string on failure.
+pub fn generate_caption(image_path: &Path) -> String {
+    let parser = match PARSER.get_or_init(|| {
+        match ImageParser::new() {
+            Ok(p) => {
+                info!("BLIP engine initialized successfully");
+                Some(p)
+            }
+            Err(e) => {
+                log::warn!("Failed to initialize BLIP engine: {}", e);
+                None
+            }
+        }
+    }).as_ref() {
+        Some(p) => p,
+        None => return String::new(),
+    };
+
+    if !image_path.exists() {
+        log::warn!("BLIP image file not found: {}", image_path.display());
+        return String::new();
+    }
+
+    let path_str = match image_path.to_str() {
+        Some(s) => s,
+        None => return String::new(),
+    };
+
+    parser.generate_caption_from_path(path_str).unwrap_or_else(|e| {
+        log::warn!("BLIP failed for {}: {}", image_path.display(), e);
+        String::new()
+    })
 }
