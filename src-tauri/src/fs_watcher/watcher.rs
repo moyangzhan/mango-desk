@@ -1,7 +1,7 @@
 use crate::enums::FsEvent;
 use crate::fs_watcher::fs_event_normalizer::FsEventNormalizer;
 use crate::global::{
-    CONFIG_NAME_WATCHER_SETTING, EXIT_APP_SIGNAL, FS_WATCHER_SETTING, INCREMENT_WATCH_PATHS,
+    APP_DATA_PATH, CONFIG_NAME_WATCHER_SETTING, EXIT_APP_SIGNAL, FS_WATCHER_SETTING, INCREMENT_WATCH_PATHS,
     INDEXING_FROM_WATCHER,
 };
 use crate::indexer_service;
@@ -130,6 +130,11 @@ async fn fs_event_loop(mut rx: Receiver<Event>, fs_event_normalizer: &mut FsEven
             maybe_ev = rx.recv() => {
                 match maybe_ev {
                     Some(ev) => {
+                        // Skip events inside the app's own data directory to prevent
+                        // infinite loops (DB write → fs event → re-index → DB write → …)
+                        if is_app_data_event(&ev).await {
+                            continue;
+                        }
                         let fs_event = fs_event_normalizer.handle(ev);
                         aggregate_event(&mut pending, fs_event);
                     }
@@ -332,4 +337,18 @@ fn flush_pending(pending: &mut HashMap<PathBuf, FsEvent>) {
         }
     }
     log::debug!("--------------------------");
+}
+
+/// Check whether a file system event originated from inside the app's own data directory.
+/// Events from the data directory (database, parsed_documents, model files, etc.) must be
+/// ignored to prevent infinite feedback loops.
+async fn is_app_data_event(event: &Event) -> bool {
+    let app_data = APP_DATA_PATH.read().await.clone();
+    if app_data.is_empty() {
+        return false;
+    }
+    event.paths.iter().any(|p| {
+        let path_str = p.to_string_lossy();
+        path_str.starts_with(&app_data)
+    })
 }

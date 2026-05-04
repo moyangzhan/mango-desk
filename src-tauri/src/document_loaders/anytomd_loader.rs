@@ -45,6 +45,17 @@ impl DocumentLoader for AnyToMdLoader {
     }
 
     fn load_max(&self, path: &Path, max_load_chars: usize) -> io::Result<String> {
+        // Skip files over 100 MB — too large for in-memory conversion
+        const MAX_FILE_SIZE: u64 = 100 * 1024 * 1024;
+        if let Ok(meta) = fs::metadata(path) {
+            if meta.len() > MAX_FILE_SIZE {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("File too large for parsing ({} bytes): {}", meta.len(), path.display()),
+                ));
+            }
+        }
+
         let ext = path
             .extension()
             .and_then(|e| e.to_str())

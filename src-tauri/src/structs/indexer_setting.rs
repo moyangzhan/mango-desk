@@ -62,11 +62,12 @@ fn default_true() -> bool {
 }
 
 impl From<OldSaveParsedContent> for ContentStorage {
-    fn from(old: OldSaveParsedContent) -> Self {
+    fn from(_old: OldSaveParsedContent) -> Self {
+        // Old format only supported boolean for document; image/audio were always database
         Self {
-            document: if old.document { "database" } else { "none" }.to_string(),
-            image: if old.image { "database" } else { "database" }.to_string(),
-            audio: if old.audio { "database" } else { "database" }.to_string(),
+            document: if _old.document { "database" } else { "none" }.to_string(),
+            image: "database".to_string(),
+            audio: "database".to_string(),
         }
     }
 }

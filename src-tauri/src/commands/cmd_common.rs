@@ -76,6 +76,11 @@ pub async fn reset_data_path(force: bool, app: AppHandle) -> Result<String, Stri
 
 #[command]
 pub async fn read_file_data(path: String) -> Result<Vec<u8>, String> {
+    // Limit file size to 50 MB to prevent OOM
+    let meta = std::fs::metadata(&path).map_err(|e| e.to_string())?;
+    if meta.len() > 50 * 1024 * 1024 {
+        return Err("File too large to read".to_string());
+    }
     read(path).map_err(|e| e.to_string())
 }
 
@@ -132,14 +137,21 @@ pub async fn retry_data_copy(old_path: String, app: AppHandle) -> Result<String,
     task_util::lock_active_task(&task_util::ActiveTask {
         task_type: "data_copying".to_string(),
         category: None,
+        new_mode: None,
         old_path: Some(old_path.clone()),
         started_at: Utc::now().timestamp(),
     })
     .map_err(|e| e.to_string())?;
 
     let old_path_buf = Path::new(&old_path);
+    if !old_path_buf.exists() {
+        let _ = task_util::unlock_active_task();
+        return Err(format!("Old data path no longer exists: {}", old_path));
+    }
     let old_storage = old_path_buf.join("storage");
     let new_storage = Path::new(&new_data_path).join("storage");
+
+    let mut copy_errors = Vec::new();
 
     // Re-copy database
     if old_storage.exists() {
@@ -157,13 +169,18 @@ pub async fn retry_data_copy(old_path: String, app: AppHandle) -> Result<String,
                 let new_dir = new_storage.join(dir_name);
                 if let Err(e) = crate::utils::file_util::copy_dir(&old_dir, &new_dir) {
                     log::warn!("Failed to copy {} directory: {}", dir_name, e);
+                    copy_errors.push(format!("{}: {}", dir_name, e));
                 }
             }
         }
     }
 
     let _ = task_util::unlock_active_task();
-    Ok("success".to_string())
+    if copy_errors.is_empty() {
+        Ok("success".to_string())
+    } else {
+        Err(format!("Partial copy failure: {}", copy_errors.join(", ")))
+    }
 }
 
 /// Revert data path to old path after crash recovery

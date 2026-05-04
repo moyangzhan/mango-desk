@@ -371,8 +371,10 @@ async function updateIndexerSetting() {
       indexerSetting: indexerStore.indexerSetting,
     })
     console.log('update_indexer_setting result', res)
+    window.$message.success(t('common.updateSuccess'))
   } catch (error) {
     console.error('update indexer setting error', error)
+    window.$message.error(t('common.operationFailed'))
   }
   initStatusData()
 }
@@ -417,9 +419,11 @@ async function saveModel() {
     })
     selfHostedVisionModel.value = { ...editingModel.value }
     showModelEditModal.value = false
+    window.$message.success(t('common.saveSuccess'))
     initStatusData()
   } catch (error) {
     console.error('save model error', error)
+    window.$message.error(t('common.operationFailed'))
   }
 }
 
@@ -470,7 +474,7 @@ onMounted(async () => {
         if (eventType === 'error') {
           window.$message.error(t('common.operationFailed'))
         } else if (eventType === 'cancelled') {
-          window.$message.info(t('common.operationFailed'))
+          window.$message.info(t('indexer.migrateCancelled'))
         }
         // Reload setting from backend to sync any revert on failure/cancel
         try {
@@ -734,7 +738,7 @@ onUnmounted(() => {
         <!-- Migration progress -->
         <div v-if="migratingType" class="flex items-center gap-2 text-xs text-gray-500">
           <NSpin size="small" />
-          <span>{{ t('indexer.migrating') }} ({{ migratingProgress.current }}/{{ migratingProgress.total }})</span>
+          <span>{{ t('indexer.migrating') }} ({{ migratingProgress.current }}/{{ migratingProgress.total }}<template v-if="migratingProgress.total > 0">, {{ Math.round(migratingProgress.current / migratingProgress.total * 100) }}%</template>)</span>
         </div>
       </div>
     </NCard>

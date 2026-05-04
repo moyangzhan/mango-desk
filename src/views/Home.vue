@@ -83,6 +83,7 @@ async function loadFileDetail(id = 0, deviceId?: string) {
       parsedContent.value = fileInfo.content || ''
   } catch (e) {
     console.log(e)
+    window.$message.error(t('common.operationFailed'))
   }
 }
 
@@ -102,6 +103,7 @@ async function loadChunks(ids: number[], keywords: string[], deviceId?: string) 
     }
   } catch (e) {
     console.log(e)
+    window.$message.error(t('common.operationFailed'))
   }
 }
 
@@ -305,40 +307,45 @@ onDeactivated(() => {
       :class="searchResults.length > 0 ? 'border-t border-(--border-color)' : ''"
     >
       <div v-if="searchResults.length === 0" class="flex flex-col mt-8 h-full space-y-4">
+        <!-- Empty state when search returned no results -->
+        <div v-if="query.trim().length > 0 && !localSearching && !remoteDeviceSearching" class="flex flex-col items-center space-y-2">
+          <div class="text-base text-gray-400">{{ t('common.searchEmpty') }}</div>
+          <div class="text-xs text-gray-400">{{ t('common.searchEmptyTip') }}</div>
+        </div>
         <!-- Keyborad Shortcuts -->
-        <div class="text text-sm text-gray-400 text-left">
+        <div v-if="query.trim().length === 0" class="text text-sm text-gray-400 text-left">
           {{ t('common.searchKeyboradShortcuts') }}
         </div>
-        <div class="flex space-x-2 text-sm text-gray-500">
+        <div v-if="query.trim().length === 0" class="flex space-x-2 text-sm text-gray-500">
           <div class="w-[65px] text-left">
-            <kbd class="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-300 rounded">Ctrl+Tab</kbd>
+            <kbd class="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 dark:text-gray-200 rounded">Ctrl+Tab</kbd>
           </div>
           <span>{{ t('common.switchSearchMode') }}</span>
         </div>
-        <div class="flex space-x-2 text-sm text-gray-500">
+        <div v-if="query.trim().length === 0" class="flex space-x-2 text-sm text-gray-500">
           <div class="w-[65px] text-left">
-            <kbd class="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-300 rounded">Esc</kbd>
+            <kbd class="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 dark:text-gray-200 rounded">Esc</kbd>
           </div>
           <span>{{ t('common.searchClearTip') }}</span>
         </div>
-        <div class="text text-sm text-gray-400 text-left">
+        <div v-if="query.trim().length === 0" class="text text-sm text-gray-400 text-left">
           {{ t('common.resultKeyboradShortcuts') }}
         </div>
-        <div class="flex space-x-2 text-sm text-gray-500">
+        <div v-if="query.trim().length === 0" class="flex space-x-2 text-sm text-gray-500">
           <div class="w-[65px] text-left">
-            <kbd class="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-300 rounded">↑↓</kbd>
+            <kbd class="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 dark:text-gray-200 rounded">↑↓</kbd>
           </div>
           <span>{{ t('common.navigateTip') }}</span>
         </div>
-        <div class="flex space-x-2 text-sm text-gray-500">
+        <div v-if="query.trim().length === 0" class="flex space-x-2 text-sm text-gray-500">
           <div class="w-[65px] text-left">
-            <kbd class="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-300 rounded">Enter</kbd>
+            <kbd class="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 dark:text-gray-200 rounded">Enter</kbd>
           </div>
           <span>{{ t('common.openTip') }}</span>
         </div>
-        <div class="flex space-x-2 text-sm text-gray-500">
+        <div v-if="query.trim().length === 0" class="flex space-x-2 text-sm text-gray-500">
           <div class="w-[65px] text-left">
-            <kbd class="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-300 rounded">Esc</kbd>
+            <kbd class="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 dark:text-gray-200 rounded">Esc</kbd>
           </div>
           <span>{{ t('common.clearTip') }}</span>
         </div>
@@ -443,7 +450,7 @@ onDeactivated(() => {
         </div>
       </NImageGroup>
     </div>
-    <HowToUse v-if="searchResults.length === 0" />
+    <HowToUse v-if="searchResults.length === 0 && query.trim().length === 0" />
     <NModal
       v-model:show="showContentModal" preset="card" :title="t('indexer.parsedContent')"
       style="width: 80%; height:80%;"

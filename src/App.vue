@@ -14,6 +14,7 @@ import { setLocale, t } from '@/locales'
 interface ActiveTask {
   task_type: string
   category?: string
+  new_mode?: string
   old_path?: string
   started_at: number
 }
@@ -140,7 +141,7 @@ onMounted(() => {
   })
 
   listen<string>('offline-sync-status', (event) => {
-    const status = JSON.parse(event.payload) as string
+    const status = event.payload
     if (status === 'started')
       window.$message.info(t('indexer.offlineSyncStarted'), { duration: 3000 })
     else if (status === 'completed')
@@ -184,6 +185,11 @@ onMounted(() => {
     try {
       const task = await invoke<ActiveTask | null>('get_active_task')
       if (task) {
+        // Skip if task started very recently — likely the current session's offline sync
+        const ageSeconds = Math.floor(Date.now() / 1000) - task.started_at
+        if (ageSeconds < 30)
+          return
+
         recoveryTask.value = task
         showRecoveryDialog.value = true
       }
@@ -221,12 +227,11 @@ async function recoveryAction(action: 'resume' | 'skip' | 'retryCopy' | 'revertP
           await invoke('clear_active_task')
           window.$message.info(t('common.operationSuccess'))
         } else if (recoveryTask.value.task_type === 'content_storage_change') {
-          // Re-trigger storage change with the same category
-          const setting = await invoke<any>('load_indexer_setting')
+          // Re-trigger storage change using the target mode stored in the task
           const category = recoveryTask.value.category || 'document'
-          const currentMode = setting?.content_storage?.[category] || 'database'
+          const targetMode = recoveryTask.value.new_mode || 'database'
           await invoke('clear_active_task')
-          await invoke('migrate_content_storage', { category, newMode: currentMode })
+          await invoke('migrate_content_storage', { category, newMode: targetMode })
         }
         break
       case 'retryCopy':
@@ -285,7 +290,7 @@ async function recoveryAction(action: 'resume' | 'skip' | 'retryCopy' | 'revertP
       </NLayout>
 
       <!-- Task recovery dialog -->
-      <NModal v-model:show="showRecoveryDialog" preset="dialog" :title="t('common.taskRecovery.title')">
+      <NModal v-model:show="showRecoveryDialog" preset="dialog" :title="t('common.taskRecovery.title')" :mask-closable="false" :close-on-esc="false" :closable="false">
         <div v-if="recoveryTask">
           <p>{{ t('common.taskRecovery.desc', { task: getTaskDescription(recoveryTask) }) }}</p>
         </div>

@@ -158,8 +158,14 @@ async function handlePageChange(currentPage: number) {
 }
 
 async function clearIndex() {
-  await invoke('clear_index')
-  handlePageChange(1)
+  try {
+    await invoke('clear_index')
+    window.$message.success(t('common.operationSuccess'))
+    handlePageChange(1)
+  } catch (e) {
+    console.error('Failed to clear index:', e)
+    window.$message.error(t('common.operationFailed'))
+  }
 }
 
 async function loadFiles() {
@@ -171,7 +177,7 @@ async function loadFiles() {
   if (page.value === 1) {
     const totalResp = await invoke('count_files')
     const total = totalResp as number
-    paginationReactive.pageCount = total / pageSize.value
+    paginationReactive.pageCount = Math.max(1, Math.ceil(total / pageSize.value))
     paginationReactive.itemCount = total
   }
 }

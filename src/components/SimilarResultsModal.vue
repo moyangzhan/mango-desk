@@ -128,6 +128,7 @@ async function findSimilars(fileInfo: FileInfo, sourceDeviceId?: string) {
     results.value = searchResults
   } catch (e) {
     console.error('Failed to find similar files:', e)
+    window.$message.error(t('common.operationFailed'))
   } finally {
     loading.value = false
   }

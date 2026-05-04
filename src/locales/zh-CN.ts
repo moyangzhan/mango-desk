@@ -71,6 +71,7 @@ export default {
     searchSuccess: '搜索成功',
     searchFailed: '搜索失败',
     searchEmpty: '搜索结果为空',
+    searchEmptyTip: '尝试调整关键词或切换搜索模式',
     operationSuccess: '操作成功',
     operationFailed: '操作失败',
     just: '刚刚',
@@ -150,7 +151,6 @@ export default {
     openTip: '打开文件',
     clearTip: '取消选中',
     fileContent: '文件内容',
-    recognitionText: '识别文本',
     content: '内容',
     queryTooShort: '查询内容太短，至少需要2个字符',
     matchedSegments: '匹配的片段',
@@ -179,6 +179,7 @@ export default {
     change: '更换',
     clickToRestart: '点击重启',
     restartAppForChange: '重启应用以使更改生效',
+    resetDataPathConfirm: '确定要将数据存储路径重置为默认路径吗？',
     forceChange: '仍更换路径并覆盖文件？',
     existPath: '已存在的路径',
     existFile: '已存在的文件',
@@ -221,6 +222,7 @@ export default {
     activePlatform: '激活的模型平台',
     selectForActivePlatform: '选择要激活的模型平台',
     platofrmSelector: '模型平台选择',
+    platformSetting: '模型平台设置',
     embeddingModel: '嵌入模型',
     tokenizer: '分词器',
   },
@@ -331,6 +333,7 @@ export default {
     migrateConfirmReparse: '需要重新解析 {count} 个文件以恢复内容，可能需要一些时间',
     migrating: '迁移中...',
     migrateComplete: '迁移完成',
+    migrateCancelled: '迁移已取消',
     contentStorageDesc:
       '选择解析后内容（文档文本、图片识别文字、音频转写文字）的存储位置，主要用于内容预览和 AI Agent 读取。选择"不保存"可节省磁盘空间，但不影响搜索功能。',
     storageDatabaseDesc:
@@ -341,6 +344,9 @@ export default {
       '不保存解析内容。搜索功能不受影响，但无法预览内容',
     dataPathDesc:
       '存储索引数据库（mango-finder.db）、解析后的 Markdown 文件（parsed_documents/）和提取的图片（extracted_images/）的根目录',
+    offlineSyncStarted: '正在同步监控目录的变更...',
+    offlineSyncCompleted: '离线同步完成',
+    offlineSyncFailed: '离线同步失败，可尝试手动索引',
   },
   message: {
     downloadFailed: '下载失败，可点击按钮重试',
@@ -353,9 +359,6 @@ export default {
     indexingAlreadyStarted: '索引操作已经开始，请耐心等待',
     inputEmpty: '输入不能为空',
     migrationProcessing: '内容迁移中，请稍后',
-    offlineSyncStarted: '正在同步监控目录的变更...',
-    offlineSyncCompleted: '离线同步完成',
-    offlineSyncFailed: '离线同步失败，可尝试手动索引',
   },
   about: {
     description:
@@ -445,6 +448,7 @@ export default {
     noFilteredDevices: '没有符合条件的设备',
     deviceFilter: '设备筛选',
     selectAll: '全选',
+    selectDeviceRequired: '请至少选择一个设备',
     sourceDevice: '来源设备',
     localDevice: '本机',
     deviceFilterStatus: {

@@ -71,6 +71,7 @@ export default {
     searchSuccess: 'Search successful',
     searchFailed: 'Search failed',
     searchEmpty: 'No search results',
+    searchEmptyTip: 'Try adjusting keywords or switching search mode',
     operationSuccess: 'Operation successful',
     operationFailed: 'Operation failed',
     just: 'just now',
@@ -178,6 +179,7 @@ export default {
     change: 'Change',
     clickToRestart: 'Click to restart',
     restartAppForChange: 'Restart app for changes to take effect',
+    resetDataPathConfirm: 'Are you sure you want to reset the data storage path to the default?',
     forceChange: 'Force change data path and overwrite files?',
     existPath: 'Exist Path',
     existFile: 'Exist File',
@@ -340,6 +342,7 @@ export default {
     migrateConfirmReparse: '{count} files need to be re-parsed to recover content, this may take some time',
     migrating: 'Migrating...',
     migrateComplete: 'Migration complete',
+    migrateCancelled: 'Migration cancelled',
     contentStorageDesc:
       'Choose where to store parsed content (document text, image OCR text, audio transcription). Used for content preview and AI Agent access. Selecting "Don\'t Save" saves disk space without affecting search.',
     storageDatabaseDesc:
@@ -455,6 +458,7 @@ export default {
     noFilteredDevices: 'No devices match the filter',
     deviceFilter: 'Device Filter',
     selectAll: 'Select All',
+    selectDeviceRequired: 'Please select at least one device',
     sourceDevice: 'Source Device',
     localDevice: 'Local',
     deviceFilterStatus: {

@@ -3,6 +3,7 @@ import { AttachFileOutlined, DeleteOutlined, DoneOutlineRound, FileOpenOutlined,
 import { open } from '@tauri-apps/plugin-dialog'
 import { TauriEvent, listen } from '@tauri-apps/api/event'
 import type { Event, UnlistenFn } from '@tauri-apps/api/event'
+import { useDebounceFn } from '@vueuse/core'
 
 import { invoke } from '@tauri-apps/api/core'
 
@@ -150,7 +151,7 @@ onUnmounted(() => {
   unlistenFns.forEach(unlisten => unlisten())
 })
 
-async function startIndexing() {
+const doStartIndexing = async () => {
   if (selectedList.value.length === 0) {
     message.warning(t('indexer.noFileSelected'))
     return
@@ -161,9 +162,6 @@ async function startIndexing() {
     return
   }
   btnDisabled.value = true
-  setTimeout(() => {
-    btnDisabled.value = false
-  }, 3000)
   try {
     indexingTitle.value = 'START'
     indexingMsg.value = ''
@@ -180,8 +178,14 @@ async function startIndexing() {
   } catch (e: any) {
     console.log(e)
     window.$message.error(e)
+  } finally {
+    setTimeout(() => {
+      btnDisabled.value = false
+    }, 300)
   }
 }
+
+const startIndexing = useDebounceFn(doStartIndexing, 300)
 
 watch(indexingMsg, (newVal) => {
   if (newVal === 'done') {

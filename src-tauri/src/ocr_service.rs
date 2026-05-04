@@ -63,6 +63,15 @@ pub fn recognize_file(image_path: &Path) -> String {
         return String::new();
     }
 
+    // Skip images over 40 MB to avoid excessive memory usage
+    if let Ok(meta) = std::fs::metadata(image_path) {
+        const MAX_IMAGE_SIZE: u64 = 40 * 1024 * 1024;
+        if meta.len() > MAX_IMAGE_SIZE {
+            warn!("OCR skipped, image too large ({} bytes): {}", meta.len(), image_path.display());
+            return String::new();
+        }
+    }
+
     let img = match image::open(image_path) {
         Ok(img) => img.to_rgb8(),
         Err(e) => {

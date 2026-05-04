@@ -207,6 +207,9 @@ export function useSearch() {
       return
     }
 
+    // Revoke old blob URLs before replacing results to prevent memory leak
+    cleanupBlobUrls()
+
     const currentGen = searchGeneration.value
 
     localSearching.value = true
@@ -231,10 +234,13 @@ export function useSearch() {
 
       if (searchResults.value.length === 0 && !hasRemoteDevices.value)
         window.$message.warning(t('common.noData'))
-    } catch (e) {
+    } catch (e: any) {
       console.log('Local search error:', e)
-      if (currentGen === searchGeneration.value)
+      if (currentGen === searchGeneration.value) {
         localResults.value = []
+        if (typeof e === 'string' && e.length > 0)
+          window.$message.error(t('common.searchFailed'))
+      }
     } finally {
       // Always reset localSearching, but only update phase if this is the current search
       localSearching.value = false
@@ -281,11 +287,13 @@ export function useSearch() {
 
       if (searchResults.value.length === 0 && localResults.value.length === 0)
         window.$message.warning(t('common.noData'))
-    } catch (e) {
+    } catch (e: any) {
       console.log('Remote device search error:', e)
       if (currentGen === searchGeneration.value) {
         remoteResults.value = []
         filterResults()
+        if (typeof e === 'string' && e.length > 0)
+          window.$message.error(t('common.searchFailed'))
       }
     } finally {
       if (currentGen === searchGeneration.value) {
@@ -319,6 +327,12 @@ export function useSearch() {
   const triggerSearch = () => {
     // Bump generation so any in-flight local/remote results from previous queries are rejected
     searchGeneration.value++
+
+    // Check if all devices are deselected when cluster is enabled
+    if (clusterEnabled.value && searchDevices.value.length > 0 && selectedDeviceIds.value.length === 0) {
+      window.$message.warning(t('cluster.selectDeviceRequired'))
+      return
+    }
 
     // Refresh device list and check status (min 5s interval) before searching
     // 搜索前刷新设备列表并检查状态（最短间隔5秒）

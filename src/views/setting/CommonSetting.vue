@@ -34,20 +34,25 @@ function handleSaveProxy() {
   console.log('onSaveProxy', proxy.value)
   invoke('update_proxy_info', { proxyInfo: proxy.value }).then((res) => {
     console.log('update_proxy_info result', res)
+    window.$message.success(t('common.saveSuccess'))
   }).catch((err) => {
     console.error('update_proxy_info error', err)
+    window.$message.error(t('common.operationFailed'))
   })
 }
 
 async function openDirDialog() {
-  // Replace browser's native input with Tauri dialog
-  // This prevents the default file upload confirmation dialog such as ("Do you want to upload [number] files to this site?")
   const paths = await open({ directory: true, multiple: false })
-  if (Array.isArray(paths)) {
-    console.log('openDirDialog', paths)
+  if (!paths || Array.isArray(paths)) {
     return
   }
-  let res = await invoke<string>('set_data_path', { path: paths, force: false })
+  let res: string
+  try {
+    res = await invoke<string>('set_data_path', { path: paths, force: false })
+  } catch (err: any) {
+    window.$message.error(typeof err === 'string' ? err : t('common.operationFailed'))
+    return
+  }
   if (res.indexOf('exist') === 0) {
     const existPath = res.split(':')[1]
     window.$dialog.warning({
@@ -86,41 +91,58 @@ async function openDirDialog() {
 }
 
 async function resetDataPath() {
-  let res = await invoke<string>('reset_data_path', { force: false })
-  if (res.indexOf('exist') === 0) {
-    const existPath = res.split(':')[1]
-    window.$dialog.warning({
-      title: t('common.warning'),
-      content: `${t('common.existFile')}: ${existPath}${t('common.forceChange')}`,
-      positiveText: t('common.confirm'),
-      onPositiveClick: async () => {
-        dataCopying.value = true
-        try {
-          res = await invoke<string>('reset_data_path', { force: true })
-          if (res.indexOf('success') === 0) {
-            const userDataPath = await invoke<string>('get_data_path')
-            dataPath.value = userDataPath
-            window.$message.success(t('common.restartAppForChange'))
-            needRestart.value = true
-          } else {
-            window.$message.error(res)
+  window.$dialog.warning({
+    title: t('common.warning'),
+    content: t('common.resetDataPathConfirm'),
+    positiveText: t('common.confirm'),
+    negativeText: t('common.cancel'),
+    onPositiveClick: async () => {
+      await doResetDataPath()
+    },
+  })
+}
+
+async function doResetDataPath() {
+  try {
+    let res = await invoke<string>('reset_data_path', { force: false })
+    if (res.indexOf('exist') === 0) {
+      const existPath = res.split(':')[1]
+      window.$dialog.warning({
+        title: t('common.warning'),
+        content: `${t('common.existFile')}: ${existPath}${t('common.forceChange')}`,
+        positiveText: t('common.confirm'),
+        onPositiveClick: async () => {
+          dataCopying.value = true
+          try {
+            res = await invoke<string>('reset_data_path', { force: true })
+            if (res.indexOf('success') === 0) {
+              const userDataPath = await invoke<string>('get_data_path')
+              dataPath.value = userDataPath
+              window.$message.success(t('common.restartAppForChange'))
+              needRestart.value = true
+            } else {
+              window.$message.error(res)
+            }
+          } catch (err) {
+            console.log(err)
+          } finally {
+            dataCopying.value = false
           }
-        } catch (err) {
-          console.log(err)
-        } finally {
-          dataCopying.value = false
-        }
-      },
-    })
-    return
-  } else if (res.indexOf('same') === 0) {
-    window.$message.error(t('common.changeSamePathError'))
-    return
+        },
+      })
+      return
+    } else if (res.indexOf('same') === 0) {
+      window.$message.error(t('common.changeSamePathError'))
+      return
+    }
+    const userDataPath = await invoke<string>('get_data_path')
+    dataPath.value = userDataPath
+    window.$message.success(t('common.restartAppForChange'))
+    needRestart.value = true
+  } catch (err) {
+    console.error('reset_data_path error', err)
+    window.$message.error(t('common.operationFailed'))
   }
-  const userDataPath = await invoke<string>('get_data_path')
-  dataPath.value = userDataPath
-  window.$message.success(t('common.restartAppForChange'))
-  needRestart.value = true
 }
 
 async function openDataPath() {
@@ -128,6 +150,7 @@ async function openDataPath() {
     await invoke('open_directory', { path: dataPath.value })
   } catch (e) {
     console.error('open_directory failed', e)
+    window.$message.error(t('common.operationFailed'))
   }
 }
 
@@ -136,6 +159,7 @@ async function restart() {
     await relaunch()
   } catch (e) {
     console.error('relaunch failed', e)
+    window.$message.error(t('common.operationFailed'))
   }
 }
 

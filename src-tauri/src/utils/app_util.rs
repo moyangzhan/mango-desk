@@ -128,12 +128,36 @@ pub async fn set_data_path(
     task_util::lock_active_task(&task_util::ActiveTask {
         task_type: "data_copying".to_string(),
         category: None,
+        new_mode: None,
         old_path: Some(old_data_path_val.clone()),
         started_at: Utc::now().timestamp(),
     })
     .map_err(|e| e.to_string())?;
 
     let ndp = PathBuf::from(new_data_path);
+
+    // Check write permission before attempting to copy files
+    {
+        let storage_dir = ndp.join("storage");
+        if let Err(e) = std::fs::create_dir_all(&storage_dir) {
+            let _ = task_util::unlock_active_task();
+            return Err(format!(
+                "Cannot write to directory '{}': {}. The directory may require administrator privileges.",
+                ndp.display(), e
+            ));
+        }
+        // Probe write permission by creating and removing a temp file
+        let probe = storage_dir.join(".mango_write_probe");
+        if let Err(e) = std::fs::write(&probe, "probe") {
+            let _ = task_util::unlock_active_task();
+            return Err(format!(
+                "Cannot write to directory '{}': {}. The directory may require administrator privileges.",
+                ndp.display(), e
+            ));
+        }
+        let _ = std::fs::remove_file(&probe);
+    }
+
     if !force {
         let mut exist_files = "".to_string();
         if ndp.join("storage").join("mango-finder.db").exists() {
@@ -225,8 +249,13 @@ pub async fn init_paths(app: &AppHandle) {
                 let reader = BufReader::new(file);
                 if let Some(Ok(first_line)) = reader.lines().next() {
                     if !first_line.is_empty() {
-                        data_path = PathBuf::from(first_line);
-                        info!("read data_dir from config file: {}", data_path.display());
+                        let custom_path = PathBuf::from(&first_line);
+                        if custom_path.is_dir() {
+                            data_path = custom_path;
+                            info!("read data_dir from config file: {}", data_path.display());
+                        } else {
+                            warn!("Config path '{}' is not a valid directory, using default", first_line);
+                        }
                     } else {
                         warn!("Empty line in data path record, using default directory");
                     }
