@@ -67,6 +67,8 @@ pub async fn process() {
             ONNX_EXEC_PROVIDERS_INITIALIZED
                 .set(true)
                 .unwrap_or_else(|e| error!("{e}"));
+        } else {
+            log::warn!("ONNX Runtime execution providers failed to initialize; falling back to CPU");
         }
     }
 

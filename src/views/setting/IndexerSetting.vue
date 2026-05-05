@@ -234,16 +234,16 @@ async function doActiveSelfHostedPlatformChanged(selectedName: string) {
   initStatusData()
 }
 
-// Migration state
-const migratingType = ref<'document' | 'image' | 'audio' | null>(null)
-const migratingProgress = ref({ current: 0, total: 0 })
+// Storage change state
+const changingType = ref<'document' | 'image' | 'audio' | null>(null)
+const changingProgress = ref({ current: 0, total: 0 })
 
 async function onContentStorageChanged(type: 'document' | 'image' | 'audio', value: string) {
   const oldValue = indexerStore.indexerSetting.content_storage[type] || 'database'
   if (oldValue === value) return
 
-  // Block if another migration is already running
-  if (migratingType.value) {
+  // Block if another storage change is already running
+  if (changingType.value) {
     window.$message.warning(t('indexer.changing'))
     return
   }
@@ -284,8 +284,8 @@ async function onContentStorageChanged(type: 'document' | 'image' | 'audio', val
     negativeText: t('common.cancel'),
     onPositiveClick: async () => {
       try {
-        migratingType.value = type
-        migratingProgress.value = { current: 0, total: affectedCount }
+        changingType.value = type
+        changingProgress.value = { current: 0, total: affectedCount }
         await invoke('change_content_storage', { category: type, newMode: value })
         // Update local state (backend has spawned the task)
         indexerStore.indexerSetting.content_storage[type] = value
@@ -293,7 +293,7 @@ async function onContentStorageChanged(type: 'document' | 'image' | 'audio', val
         console.error('Storage change failed:', e)
         window.$message.error(t('common.operationFailed'))
         // Revert UI on failure
-        migratingType.value = null
+        changingType.value = null
         indexerStore.indexerSetting.content_storage[type] = oldValue
       }
     },
@@ -303,8 +303,8 @@ async function onContentStorageChanged(type: 'document' | 'image' | 'audio', val
   })
 }
 
-// Listen for migration events
-let unlistenMigration: (() => void) | null = null
+// Listen for storage change events
+let unlistenStorageChange: (() => void) | null = null
 
 async function doParserModeChanged(mode: ParserMode) {
   // Mixed mode cannot be set by user directly
@@ -457,21 +457,23 @@ onMounted(async () => {
     dbPath.value = await join(userDataPath, 'storage')
     initStatusData()
 
-    // Listen for migration events
-    unlistenMigration = await listen<string>('content-storage-change-event', async (event) => {
+    // Listen for storage change events
+    unlistenStorageChange = await listen<string>('content-storage-change-event', async (event) => {
       let parsed: any
       try {
         parsed = JSON.parse(event.payload)
       } catch {
-        console.error('Failed to parse migration event:', event.payload)
+        console.error('Failed to parse storage change event:', event.payload)
         return
       }
       const { event: eventType, data } = parsed
       if (eventType === 'progress' && data.current !== undefined && data.total !== undefined) {
-        migratingProgress.value = { current: data.current, total: data.total }
+        changingProgress.value = { current: data.current, total: data.total }
       } else if (eventType === 'complete' || eventType === 'error' || eventType === 'cancelled') {
-        migratingType.value = null
-        if (eventType === 'error') {
+        changingType.value = null
+        if (eventType === 'complete') {
+          window.$message.success(t('indexer.changeComplete'))
+        } else if (eventType === 'error') {
           window.$message.error(t('common.operationFailed'))
         } else if (eventType === 'cancelled') {
           window.$message.info(t('indexer.changeCancelled'))
@@ -489,7 +491,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  unlistenMigration?.()
+  unlistenStorageChange?.()
 })
 </script>
 
@@ -735,10 +737,10 @@ onUnmounted(() => {
             </div>
           </div>
         </div>
-        <!-- Migration progress -->
-        <div v-if="migratingType" class="flex items-center gap-2 text-xs text-gray-500">
+        <!-- Storage change progress -->
+        <div v-if="changingType" class="flex items-center gap-2 text-xs text-gray-500">
           <NSpin size="small" />
-          <span>{{ t('indexer.changing') }} ({{ migratingProgress.current }}/{{ migratingProgress.total }}<template v-if="migratingProgress.total > 0">, {{ Math.round(migratingProgress.current / migratingProgress.total * 100) }}%</template>)</span>
+          <span>{{ t('indexer.changing') }} ({{ changingProgress.current }}/{{ changingProgress.total }}<template v-if="changingProgress.total > 0">, {{ Math.round(changingProgress.current / changingProgress.total * 100) }}%</template>)</span>
         </div>
       </div>
     </NCard>

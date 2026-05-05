@@ -3,6 +3,7 @@ use crate::enums::{FileCategory, FileParserMode, ModelPlatformName, ModelType};
 use crate::errors::AppError;
 use crate::global::{ACTIVE_MODEL_PLATFORM, ACTIVE_SELF_HOSTED_PLATFORM, INDEXER_SETTING};
 use crate::image_parser;
+use crate::utils::app_util::get_vision_0_path;
 use crate::model_platform_services::dashscope::DashScope;
 use crate::model_platform_services::openai::OpenAi;
 use crate::model_platform_services::openai_compatible_service::OpenAiCompatibleService;
@@ -36,6 +37,12 @@ impl ImageIndexer {
 
         match image_parser_mode {
             FileParserMode::Local => {
+                let model_path = get_vision_0_path();
+                if !std::path::Path::new(&model_path).exists() {
+                    return Err(AppError::ImageParserInitError(format!(
+                        "BLIP vision model not found at: {}", model_path
+                    )));
+                }
                 is_local_mode = true;
             }
             FileParserMode::SelfHosted => {
@@ -121,21 +128,24 @@ impl IndexingTemplate for ImageIndexer {
     async fn load_content(&self, file_info: &FileInfo) -> String {
         // 1. Try local parser first
         if self.is_local_mode {
-            let blip_caption = image_parser::generate_caption(std::path::Path::new(&file_info.path));
+            let path = file_info.path.clone();
+            let (blip_caption, ocr_text) = tokio::task::spawn_blocking(move || {
+                let blip_caption = image_parser::generate_caption(std::path::Path::new(&path));
+                let ocr_text = ocr_service::recognize_file(std::path::Path::new(&path));
+                (blip_caption, ocr_text)
+            })
+            .await
+            .unwrap_or_default();
 
-            // Supplement BLIP with OCR for Chinese+English text recognition
-            let ocr_text = ocr_service::recognize_file(std::path::Path::new(&file_info.path));
-            if ocr_text.is_empty() {
-                return blip_caption;
+            match (blip_caption.is_empty(), ocr_text.is_empty()) {
+                (true, true) => return String::new(),
+                (true, false) => return format!("**OCR Text:** {}", ocr_text),
+                (false, true) => return format!("**Image Description:** {}", blip_caption),
+                (false, false) => return format!(
+                    "**Image Description:** {}\n\n**OCR Text:** {}",
+                    blip_caption, ocr_text
+                ),
             }
-            if blip_caption.is_empty() {
-                return format!("## OCR Text\n\n{}", ocr_text);
-            }
-
-            return format!(
-                "## Image Description\n\n{}\n\n## OCR Text\n\n{}",
-                blip_caption, ocr_text
-            );
         }
 
         // 2. Try self-hosted service

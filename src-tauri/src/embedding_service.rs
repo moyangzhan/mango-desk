@@ -35,17 +35,18 @@ impl EmbeddingService {
             .unwrap_or(2);
         info!("using {} threads", logical_cores);
         let session = Session::builder()
-            .map_err(|e| AppError::EmbeddingSizeMismatch(e.to_string()))?
+            .map_err(|e| AppError::ModelServiceInitError(e.to_string()))?
             .with_optimization_level(GraphOptimizationLevel::Level1)
-            .map_err(|e| AppError::EmbeddingSizeMismatch(e.to_string()))?
+            .map_err(|e| AppError::ModelServiceInitError(e.to_string()))?
             .with_intra_threads(logical_cores)
-            .map_err(|e| AppError::EmbeddingSizeMismatch(e.to_string()))?
+            .map_err(|e| AppError::ModelServiceInitError(e.to_string()))?
             .commit_from_file(model_path)
             .map_err(|e| {
                 error!("Failed to load model: {:?}", e);
-                AppError::EmbeddingSizeMismatch(e.to_string())
+                AppError::ModelServiceInitError(e.to_string())
             })?;
-        let tokenizer = Tokenizer::from_file(tokenizer_path)?;
+        let tokenizer = Tokenizer::from_file(tokenizer_path)
+            .map_err(|e| AppError::ModelServiceInitError(format!("Failed to load tokenizer: {}", e)))?;
         info!("EmbeddingService::new succeeded");
         Ok(EmbeddingService {
             session: ThreadSafeSession {
@@ -77,10 +78,10 @@ impl EmbeddingService {
             (1, attention_mask.len()),
             attention_mask,
         )?)?;
-        let mut guard = self.session.session.lock().map_err(|err| {
-            error!("Failed to lock session: {}", err);
-            AppError::EmbeddingSizeMismatch(err.to_string())
-        })?;
+        let mut guard = self.session.session.lock().unwrap_or_else(|e| {
+            error!("Session mutex poisoned, recovering: {}", e);
+            e.into_inner()
+        });
         let mut input_val = HashMap::new();
         input_val.insert("input_ids", input_tensor);
         input_val.insert("attention_mask", attention_tensor);

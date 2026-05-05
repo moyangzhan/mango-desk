@@ -10,7 +10,7 @@ use ort::{
     value::Value,
 };
 use std::path::Path;
-use std::sync::{Mutex, OnceLock};
+use std::sync::Mutex;
 use tokenizers::Tokenizer;
 
 pub struct ImageParser {
@@ -18,7 +18,7 @@ pub struct ImageParser {
     tokenizer: Tokenizer,
 }
 
-static PARSER: OnceLock<Option<ImageParser>> = OnceLock::new();
+static PARSER: Mutex<Option<ImageParser>> = Mutex::new(None);
 
 impl ImageParser {
     pub fn new() -> Result<Self> {
@@ -41,77 +41,12 @@ impl ImageParser {
         })
     }
 
-    pub fn generate_caption_from_path(
-        &self,
-        image_path: &str,
-    ) -> Result<String> {
-        if !Path::new(image_path).exists() {
-            return Err(anyhow::anyhow!("Image file not found: {}", image_path));
-        }
-
-        let ext = std::path::Path::new(image_path)
-            .extension()
-            .and_then(|s| s.to_str())
-            .ok_or_else(|| anyhow::anyhow!("Invalid file extension for: {}", image_path))?;
-
-        let img = ImageReader::open(image_path)
-            .map_err(|e| anyhow::anyhow!("Failed to open image file: {}", e))?
-            .with_guessed_format()
-            .map_err(|e| {
-                let ext = ext.to_lowercase();
-                match ext.as_str() {
-                    "png" => anyhow::anyhow!(
-                        "Invalid PNG file: {}. Please verify the file is not corrupted.",
-                        e
-                    ),
-                    "jpg" | "jpeg" => anyhow::anyhow!(
-                        "Invalid JPEG file: {}. Please verify the file is not corrupted.",
-                        e
-                    ),
-                    _ => anyhow::anyhow!("Invalid image file: {}. Supported formats: PNG, JPEG", e),
-                }
-            })?
-            .decode()
-            .map_err(|e| {
-                let ext = ext.to_lowercase();
-                match ext.as_str() {
-                    "png" => anyhow::anyhow!(
-                        "Invalid PNG file: {}. Please verify the file is not corrupted.",
-                        e
-                    ),
-                    "jpg" | "jpeg" => anyhow::anyhow!(
-                        "Invalid JPEG file: {}. Please verify the file is not corrupted.",
-                        e
-                    ),
-                    _ => anyhow::anyhow!("Invalid image file: {}. Supported formats: PNG, JPEG", e),
-                }
-            })?;
-
-        if img.width() == 0 || img.height() == 0 {
-            return Err(anyhow::anyhow!("Invalid image dimensions"));
-        }
-        // --- 1. Preprocess Image String ---
-        // BLIP Large expects 384x384. Use FilterType::Triangle (Biliniar) for speed
-        let resized = img.resize_exact(384, 384, image::imageops::FilterType::Triangle);
-        let rgb_img = resized.to_rgb8();
-
-        // Convert Image to (1, 3, 384, 384) Float Tensor
-        let mut image_tensor = Array4::<f32>::zeros((1, 3, 384, 384));
-        for (x, y, pixel) in rgb_img.enumerate_pixels() {
-            // Normalization (HuggingFace BlipProcessor standard: Mean [0.481, 0.457, 0.408], Std [0.268, 0.261, 0.275])
-            image_tensor[[0, 0, y as usize, x as usize]] =
-                (pixel[0] as f32 / 255.0 - 0.48145466) / 0.26862954;
-            image_tensor[[0, 1, y as usize, x as usize]] =
-                (pixel[1] as f32 / 255.0 - 0.4578275) / 0.26130258;
-            image_tensor[[0, 2, y as usize, x as usize]] =
-                (pixel[2] as f32 / 255.0 - 0.40821073) / 0.27577711;
-        }
-
-        // --- 2. Existing Loop Logic ---
+    /// Run inference on a pre-built image tensor. Only this phase needs the session lock.
+    fn infer(&self, image_tensor: Array4<f32>) -> Result<String> {
         let mut tokens = vec![101_i64]; // BOS/SOS token
         let eos_token_id = 102_i64;
         let max_length = 20;
-        let mut vision_session = self.vision_session.lock().unwrap();
+        let mut vision_session = self.vision_session.lock().unwrap_or_else(|e| e.into_inner());
         let image_input: Value<TensorValueType<f32>> = Value::from_array(image_tensor)?;
 
         for _ in 0..max_length {
@@ -158,25 +93,76 @@ impl ImageParser {
     }
 }
 
-/// Generate a caption for the given image using the global BLIP engine.
-/// Lazily initializes the model on first call. Returns empty string on failure.
-pub fn generate_caption(image_path: &Path) -> String {
-    let parser = match PARSER.get_or_init(|| {
-        match ImageParser::new() {
-            Ok(p) => {
-                info!("BLIP engine initialized successfully");
-                Some(p)
-            }
-            Err(e) => {
-                log::warn!("Failed to initialize BLIP engine: {}", e);
-                None
-            }
-        }
-    }).as_ref() {
-        Some(p) => p,
-        None => return String::new(),
-    };
+/// Preprocess an image file into a tensor. No locks needed — pure CPU + file I/O.
+fn preprocess(image_path: &str) -> Result<Array4<f32>> {
+    if !Path::new(image_path).exists() {
+        return Err(anyhow::anyhow!("Image file not found: {}", image_path));
+    }
 
+    let ext = std::path::Path::new(image_path)
+        .extension()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| anyhow::anyhow!("Invalid file extension for: {}", image_path))?;
+
+    let img = ImageReader::open(image_path)
+        .map_err(|e| anyhow::anyhow!("Failed to open image file: {}", e))?
+        .with_guessed_format()
+        .map_err(|e| {
+            let ext = ext.to_lowercase();
+            match ext.as_str() {
+                "png" => anyhow::anyhow!(
+                    "Invalid PNG file: {}. Please verify the file is not corrupted.",
+                    e
+                ),
+                "jpg" | "jpeg" => anyhow::anyhow!(
+                    "Invalid JPEG file: {}. Please verify the file is not corrupted.",
+                    e
+                ),
+                _ => anyhow::anyhow!("Invalid image file: {}. Supported formats: PNG, JPEG", e),
+            }
+        })?
+        .decode()
+        .map_err(|e| {
+            let ext = ext.to_lowercase();
+            match ext.as_str() {
+                "png" => anyhow::anyhow!(
+                    "Invalid PNG file: {}. Please verify the file is not corrupted.",
+                    e
+                ),
+                "jpg" | "jpeg" => anyhow::anyhow!(
+                    "Invalid JPEG file: {}. Please verify the file is not corrupted.",
+                    e
+                ),
+                _ => anyhow::anyhow!("Invalid image file: {}. Supported formats: PNG, JPEG", e),
+            }
+        })?;
+
+    if img.width() == 0 || img.height() == 0 {
+        return Err(anyhow::anyhow!("Invalid image dimensions"));
+    }
+    // BLIP Large expects 384x384. Use FilterType::Triangle (Bilinear) for speed
+    let resized = img.resize_exact(384, 384, image::imageops::FilterType::Triangle);
+    let rgb_img = resized.to_rgb8();
+
+    // Convert Image to (1, 3, 384, 384) Float Tensor
+    let mut image_tensor = Array4::<f32>::zeros((1, 3, 384, 384));
+    for (x, y, pixel) in rgb_img.enumerate_pixels() {
+        // Normalization (HuggingFace BlipProcessor standard)
+        image_tensor[[0, 0, y as usize, x as usize]] =
+            (pixel[0] as f32 / 255.0 - 0.48145466) / 0.26862954;
+        image_tensor[[0, 1, y as usize, x as usize]] =
+            (pixel[1] as f32 / 255.0 - 0.4578275) / 0.26130258;
+        image_tensor[[0, 2, y as usize, x as usize]] =
+            (pixel[2] as f32 / 255.0 - 0.40821073) / 0.27577711;
+    }
+
+    Ok(image_tensor)
+}
+
+/// Generate a caption for the given image using the global BLIP engine.
+/// Lazily initializes the model on first call. Retries on subsequent calls if init failed.
+/// Returns empty string on failure.
+pub fn generate_caption(image_path: &Path) -> String {
     if !image_path.exists() {
         log::warn!("BLIP image file not found: {}", image_path.display());
         return String::new();
@@ -187,7 +173,39 @@ pub fn generate_caption(image_path: &Path) -> String {
         None => return String::new(),
     };
 
-    parser.generate_caption_from_path(path_str).unwrap_or_else(|e| {
+    // Phase 1: Preprocessing outside any lock (file I/O + CPU-intensive resize)
+    let image_tensor = match preprocess(path_str) {
+        Ok(t) => t,
+        Err(e) => {
+            log::warn!("BLIP preprocessing failed for {}: {}", image_path.display(), e);
+            return String::new();
+        }
+    };
+
+    // Phase 2: Acquire lock only for ONNX inference
+    let guard = PARSER.lock().unwrap_or_else(|e| e.into_inner());
+    if guard.is_none() {
+        drop(guard);
+        let mut guard2 = PARSER.lock().unwrap_or_else(|e| e.into_inner());
+        if guard2.is_none() {
+            match ImageParser::new() {
+                Ok(p) => {
+                    info!("BLIP engine initialized successfully");
+                    *guard2 = Some(p);
+                }
+                Err(e) => {
+                    log::warn!("Failed to initialize BLIP engine: {}", e);
+                    return String::new();
+                }
+            }
+        }
+        return guard2.as_ref().unwrap().infer(image_tensor).unwrap_or_else(|e| {
+            log::warn!("BLIP failed for {}: {}", image_path.display(), e);
+            String::new()
+        });
+    }
+
+    guard.as_ref().unwrap().infer(image_tensor).unwrap_or_else(|e| {
         log::warn!("BLIP failed for {}: {}", image_path.display(), e);
         String::new()
     })

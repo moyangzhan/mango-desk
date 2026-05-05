@@ -649,16 +649,23 @@ async fn collect_existing_file_paths(dirs: &[String]) -> HashSet<String> {
 
 async fn collect_files_recursive(dir: &str, result: &mut HashSet<String>) {
     let indexer_setting = INDEXER_SETTING.read().await.clone();
-    let shared_result = Arc::new(tokio::sync::Mutex::new(std::mem::take(result)));
+    let shared_result = Arc::new(std::sync::Mutex::new(std::mem::take(result)));
     collect_files_recursive_inner(dir.to_string(), shared_result.clone(), Arc::new(indexer_setting), 0).await;
-    *result = Arc::try_unwrap(shared_result).unwrap().into_inner();
+    let extracted = match Arc::try_unwrap(shared_result) {
+        Ok(mutex) => mutex.into_inner().unwrap_or_else(|e| e.into_inner()),
+        Err(arc) => {
+            log::warn!("collect_files_recursive: Arc still had multiple references, falling back to lock");
+            arc.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        }
+    };
+    *result = extracted;
 }
 
 const MAX_DIR_DEPTH: u32 = 50;
 
 fn collect_files_recursive_inner(
     dir: String,
-    result: Arc<tokio::sync::Mutex<HashSet<String>>>,
+    result: Arc<std::sync::Mutex<HashSet<String>>>,
     indexer_setting: Arc<IndexerSetting>,
     depth: u32,
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>> {
@@ -682,7 +689,7 @@ fn collect_files_recursive_inner(
         };
         if path_buf.is_file() {
             if scanner::is_valid_file_with(&path_buf).await {
-                result.lock().await.insert(path_str);
+                result.lock().unwrap_or_else(|e| e.into_inner()).insert(path_str);
             }
         } else if path_buf.is_dir() {
             let dir_name = path_buf

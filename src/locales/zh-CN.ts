@@ -358,7 +358,6 @@ export default {
     downloadTokenizerLink: 'tokenizer.json: {link}',
     indexingAlreadyStarted: '索引操作已经开始，请耐心等待',
     inputEmpty: '输入不能为空',
-    migrationProcessing: '内容迁移中，请稍后',
   },
   about: {
     description:
