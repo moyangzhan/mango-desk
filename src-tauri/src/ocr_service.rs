@@ -4,6 +4,54 @@ use log::{info, warn};
 use std::path::Path;
 use std::sync::Mutex;
 
+/// Ensure the OCR dictionary has a CTC blank token (`#`) at index 0.
+///
+/// The `kreuzberg-paddle-ocr` crate expects the dictionary to start with `#` (CTC blank),
+/// which is the case for PP-OCRv5 dictionaries. PP-OCRv4 dictionaries (`ppocr_keys_v1.txt`)
+/// do NOT include this token. This function detects the difference and creates a temporary
+/// file with `#` prepended when needed, so the original dictionary file stays unmodified.
+fn ensure_dict_with_ctc_blank(dict_path: &str) -> String {
+    let content = match std::fs::read_to_string(dict_path) {
+        Ok(c) => c,
+        Err(_) => return dict_path.to_string(),
+    };
+
+    // First non-empty line is already `#` — no fix needed
+    if content.lines().next().is_some_and(|line| line == "#") {
+        return dict_path.to_string();
+    }
+
+    let fixed_content = format!("#\n{content}");
+    let fixed_path = std::env::temp_dir().join("mango_finder_ppocr_keys_v1_fixed.txt");
+    if let Err(e) = std::fs::write(&fixed_path, fixed_content) {
+        warn!("Failed to write fixed OCR dictionary: {}", e);
+        return dict_path.to_string();
+    }
+
+    info!("Prepended CTC blank token to OCR dictionary (PP-OCRv4 compatibility)");
+    fixed_path.to_string_lossy().to_string()
+}
+
+/// Remove OCR noise lines that contain no alphanumeric or CJK characters.
+fn clean_ocr_text(text: &str) -> String {
+    let cleaned: Vec<&str> = text
+        .lines()
+        .filter(|line| line.chars().any(|c| c.is_alphanumeric() || is_cjk(c)))
+        .collect();
+    cleaned.join("\n").trim().to_string()
+}
+
+fn is_cjk(c: char) -> bool {
+    matches!(c,
+        '\u{4E00}'..='\u{9FFF}'   // CJK Unified Ideographs
+        | '\u{3400}'..='\u{4DBF}' // CJK Unified Ideographs Extension A
+        | '\u{3000}'..='\u{303F}' // CJK Symbols and Punctuation
+        | '\u{3040}'..='\u{309F}' // Hiragana
+        | '\u{30A0}'..='\u{30FF}' // Katakana
+        | '\u{AC00}'..='\u{D7AF}' // Hangul Syllables
+    )
+}
+
 // PaddleOCR detection parameters (PP-OCRv4 defaults)
 const DET_PADDING: u32 = 50;
 const DET_MAX_SIDE_LEN: u32 = 1024;
@@ -43,6 +91,7 @@ fn try_init_engine() -> Option<OcrLite> {
     let num_threads = std::thread::available_parallelism()
         .map(|n| n.get().saturating_sub(2).max(2))
         .unwrap_or(2);
+    let dict_path = ensure_dict_with_ctc_blank(&dict_path);
     match engine.init_models_with_dict(&det_path, &cls_path, &rec_path, &dict_path, num_threads) {
         Ok(()) => {
             info!("PaddleOCR engine initialized successfully");
@@ -123,7 +172,7 @@ pub fn recognize_file(image_path: &Path) -> String {
                 .map(|b| b.text.as_str())
                 .collect::<Vec<&str>>()
                 .join("\n");
-            text.trim().to_string()
+            clean_ocr_text(&text)
         }
         Err(e) => {
             warn!("OCR failed for {}: {}", image_path.display(), e);

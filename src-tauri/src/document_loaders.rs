@@ -6,26 +6,84 @@ pub mod open_doc;
 pub mod pdfplumber_loader;
 
 use crate::global::EXTRACTED_IMAGES_PATH;
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-pub(crate) fn get_images_dir(source_path: &Path) -> PathBuf {
+pub(crate) const BUCKET_SIZE: i64 = 1000;
+
+/// Remove all extracted images for a file ID.
+/// Deletes files matching `{id}_*` in the appropriate bucket directory.
+pub(crate) fn cleanup_extracted_images(file_id: i64) {
+    let images_dir = get_images_dir(file_id);
+    if !images_dir.exists() {
+        return;
+    }
+    let prefix = format!("{}_", file_id);
+    if let Ok(entries) = std::fs::read_dir(&images_dir) {
+        for entry in entries.flatten() {
+            if let Some(name) = entry.file_name().to_str() {
+                if name.starts_with(&prefix) {
+                    let _ = std::fs::remove_file(entry.path());
+                }
+            }
+        }
+    }
+}
+
+/// Get the extracted_images bucket directory for a file ID.
+/// Structure: `extracted_images/{bucket}/` where bucket = (id - 1) / 1000
+pub(crate) fn get_images_dir(file_id: i64) -> PathBuf {
     let extracted_path = EXTRACTED_IMAGES_PATH
         .get()
         .cloned()
         .unwrap_or_default();
-    // Use to_path_buf() instead of canonicalize() to avoid Windows UNC path issues
-    let path_for_hash = source_path.to_path_buf();
-    let mut hasher = DefaultHasher::new();
-    path_for_hash.to_string_lossy().hash(&mut hasher);
-    let hash = format!("{:016x}", hasher.finish());
-    PathBuf::from(extracted_path).join(hash)
+    let bucket = if file_id > 0 {
+        (file_id - 1) / BUCKET_SIZE
+    } else {
+        0
+    };
+    PathBuf::from(extracted_path).join(format!("{:04}", bucket))
+}
+
+/// Generate an image filename with file ID prefix: `{id}_{suffix}`
+pub(crate) fn image_filename(file_id: i64, suffix: &str) -> String {
+    format!("{}_{}", file_id, suffix)
+}
+
+/// Generate a human-readable, filesystem-safe name: `{id}_{name_without_ext}`
+fn sanitize_fs_name(file_id: i64, file_name: &str) -> String {
+    const MAX_NAME_LEN: usize = 80;
+    // Strip extension (e.g. "report.pdf" → "report")
+    let stem = file_name.rsplit_once('.').map(|(stem, _)| stem).unwrap_or(file_name);
+    let sanitized: String = stem
+        .chars()
+        .filter(|c| !matches!(c, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|'))
+        .collect();
+    let truncated = if sanitized.len() > MAX_NAME_LEN {
+        let end = sanitized
+            .char_indices()
+            .take_while(|(i, _)| *i < MAX_NAME_LEN)
+            .last()
+            .map(|(i, c)| i + c.len_utf8())
+            .unwrap_or(MAX_NAME_LEN);
+        &sanitized[..end]
+    } else {
+        &sanitized
+    };
+    format!("{}_{}", file_id, truncated)
+}
+
+/// Generate a human-readable markdown relative path: `parsed_documents/{bucket}/{id}_{name}.md`
+pub(crate) fn md_relative_path(file_id: i64, file_name: &str) -> String {
+    let bucket = if file_id > 0 {
+        (file_id - 1) / BUCKET_SIZE
+    } else {
+        0
+    };
+    format!("parsed_documents/{:04}/{}.md", bucket, sanitize_fs_name(file_id, file_name))
 }
 
 /// Truncate content in-place to at most `limit` chars.
 pub(crate) fn truncate_to_char_limit(content: &mut String, limit: usize) {
-    // For long strings, use byte heuristic to skip char counting
     if content.len() > limit * 3 {
         if let Some((byte_pos, _)) = content.char_indices().nth(limit) {
             content.truncate(byte_pos);

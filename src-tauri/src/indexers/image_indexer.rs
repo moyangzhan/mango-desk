@@ -139,10 +139,10 @@ impl IndexingTemplate for ImageIndexer {
 
             match (blip_caption.is_empty(), ocr_text.is_empty()) {
                 (true, true) => return String::new(),
-                (true, false) => return format!("**OCR Text:** {}", ocr_text),
-                (false, true) => return format!("**Image Description:** {}", blip_caption),
+                (true, false) => return format!("## OCR Text\n\n{}", ocr_text),
+                (false, true) => return format!("## Image Description\n\n{}", blip_caption),
                 (false, false) => return format!(
-                    "**Image Description:** {}\n\n**OCR Text:** {}",
+                    "## Image Description\n\n{}\n\n## OCR Text\n\n{}",
                     blip_caption, ocr_text
                 ),
             }

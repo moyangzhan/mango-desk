@@ -10,6 +10,7 @@ use crate::global::{
 };
 use crate::indexers;
 use crate::initializer;
+use crate::document_loaders::cleanup_extracted_images;
 use crate::repositories::{
     config_repo, file_content_embedding_repo, file_content_fts_repo, file_info_repo,
     file_metadata_embedding_repo, indexing_task_repo,
@@ -39,7 +40,7 @@ pub async fn update_indexer_setting(indexer_setting: IndexerSetting) -> Result<u
 /// 启动内容存储迁移任务（后台执行）
 ///
 /// 切换方向：
-///   database → file    : 读取 DB 中的 content → 写入 parsed_documents/{md5}.md → 更新 DB 为相对路径
+///   database → file    : 读取 DB 中的 content → 写入 parsed_documents/{id}_{name}.md → 更新 DB 为相对路径
 ///   database → none    : 清空 DB 中的 content（仅文档）
 ///   file → database    : 读取 .md 文件 → 写入 DB content → 删除 .md 文件
 ///   file → none        : 删除 .md 文件 → 清空 DB content（仅文档）
@@ -287,13 +288,13 @@ fn change_content_storage_one<'a>(
                 log::warn!("Skipping migration for file {}: content too large ({} bytes)", file.id, file.content.len());
                 return Ok(false);
             }
-            let md_dir = std::path::Path::new(storage_path).join("parsed_documents");
-            let _ = std::fs::create_dir_all(&md_dir);
-            let md_filename = format!("{}.md", &file.md5);
-            let md_path = md_dir.join(&md_filename);
+            let relative_path = crate::document_loaders::md_relative_path(file.id, &file.name);
+            let md_path = std::path::Path::new(storage_path).join(&relative_path);
+            if let Some(parent) = md_path.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
             std::fs::write(&md_path, &file.content)
                 .map_err(|e| format!("write {}: {}", md_path.display(), e))?;
-            let relative_path = format!("parsed_documents/{}", md_filename);
             file_info_repo::update_content_only(file.id, "", Some(&relative_path))
                 .map_err(|e| e.to_string())?;
             Ok(true)
@@ -356,13 +357,13 @@ fn change_content_storage_one<'a>(
             if content.is_empty() {
                 return Ok(false);
             }
-            let md_dir = std::path::Path::new(storage_path).join("parsed_documents");
-            let _ = std::fs::create_dir_all(&md_dir);
-            let md_filename = format!("{}.md", &file.md5);
-            let md_path = md_dir.join(&md_filename);
+            let relative_path = crate::document_loaders::md_relative_path(file.id, &file.name);
+            let md_path = std::path::Path::new(storage_path).join(&relative_path);
+            if let Some(parent) = md_path.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
             std::fs::write(&md_path, &content)
                 .map_err(|e| format!("write {}: {}", md_path.display(), e))?;
-            let relative_path = format!("parsed_documents/{}", md_filename);
             file_info_repo::update_content_only(file.id, "", Some(&relative_path))
                 .map_err(|e| e.to_string())?;
             Ok(true)
@@ -408,8 +409,10 @@ async fn reparse_file(
             match loader {
                 Some(doc_loader) => {
                     let file_path = file.path.clone();
+                    let file_id = file.id;
+                    let file_name = file.name.clone();
                     tokio::task::spawn_blocking(move || {
-                        doc_loader.load_max(std::path::Path::new(&file_path), MAX_DOCUMENT_LOAD_CHARS)
+                        doc_loader.load_max_with_id(std::path::Path::new(&file_path), file_id, &file_name, MAX_DOCUMENT_LOAD_CHARS)
                     })
                     .await
                     .map_err(|e| format!("Re-parse task panicked: {}", e))?
@@ -792,6 +795,7 @@ pub fn remove_file_index(path: &str) -> Result<(), String> {
                 let _ = std::fs::remove_file(&md_path);
             }
         }
+        cleanup_extracted_images(file_info.id);
         file_info_repo::delete_by_id(file_info.id)?;
         file_content_fts_repo::delete_by_file_id(file_info.id)?;
         file_content_embedding_repo::delete_by_file_id(file_info.id)?;

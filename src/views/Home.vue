@@ -4,6 +4,7 @@ import { listen } from '@tauri-apps/api/event'
 import { openPath } from '@tauri-apps/plugin-opener'
 import HowToUse from './HowToUse.vue'
 import SimilarResultsModal from '@/components/SimilarResultsModal.vue'
+import MarkdownPreview from '@/components/MarkdownPreview.vue'
 import { t } from '@/locales'
 import SvgIcon from '@/components/SvgIcon.vue'
 import { useIndexerStore } from '@/stores/indexer'
@@ -456,12 +457,7 @@ onDeactivated(() => {
       style="width: 80%; height:80%;"
     >
       <div style="max-height: 600px;overflow-y: auto;" class="select-text">
-        <div v-if="parsedContent">
-          {{ parsedContent }}
-        </div>
-        <div v-else>
-          {{ t('common.noData') }}
-        </div>
+        <MarkdownPreview :content="parsedContent" />
       </div>
     </NModal>
     <NModal

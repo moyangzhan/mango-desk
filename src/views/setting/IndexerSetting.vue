@@ -676,16 +676,10 @@ onUnmounted(() => {
     <NCard :title="t('common.storage')" class="mb-4 px-0" size="small" :bordered="true" hoverable>
       <div class="flex flex-col">
         <NAlert :show-icon="false">
-          <div>
-            {{ t('indexer.saveParsedContentTip') }}
-          </div>
-          <div>
-            {{ t('indexer.saveParsedContentWarn') }}
+          <div class="whitespace-pre-line">
+            {{ t('indexer.contentStorageDesc') }}
           </div>
         </NAlert>
-        <div class="text-xs text-gray-400 mt-2 mb-2 text-left">
-          {{ t('indexer.contentStorageDesc') }}
-        </div>
         <div class="flex flex-col space-y-3 my-4">
           <div>
             <div>{{ t('indexer.documentStorage') }}</div>

@@ -318,7 +318,7 @@ export default {
     clearSelected: 'Clear Selected',
     deleteSelectedConfirmation: 'Are you sure you want to delete the selected index records? (Files on disk will not be deleted)',
     searchPathPlaceholder: 'Search path',
-    dataPath: 'Data storage path',
+    dataPath: 'Index & parsed data directory',
     allFilesIndexed: 'All files indexed',
     detailConfig: 'Configuration Settings',
     // Parser settings
@@ -344,7 +344,7 @@ export default {
     changeComplete: 'Change complete',
     changeCancelled: 'Change cancelled',
     contentStorageDesc:
-      'Choose where to store parsed content (document text, image OCR text, audio transcription). Used for content preview and AI Agent access. Selecting "Don\'t Save" saves disk space without affecting search.',
+      'Choose where to store parsed content. Used for content preview and AI Agent access.\nSelecting "Don\'t Save" saves disk space without affecting search.',
     storageDatabaseDesc:
       'Store parsed content in the database for quick preview and access',
     storageFileDesc:
@@ -352,7 +352,7 @@ export default {
     storageNoneDesc:
       "Don't save parsed content. Search still works, but preview will be unavailable",
     dataPathDesc:
-      'Root directory for the index database (mango-finder.db), parsed Markdown files (parsed_documents/), and extracted images (extracted_images/)',
+      'Migrate data to another disk to save system drive space',
     offlineSyncStarted: 'Syncing changes in watched directories...',
     offlineSyncCompleted: 'Offline sync completed',
     offlineSyncFailed: 'Offline sync failed, you can try manual indexing',

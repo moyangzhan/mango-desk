@@ -3,6 +3,7 @@ use crate::entities::{FileContentEmbedding, FileInfo, FileMetaEmbedding, Indexin
 use crate::enums::{FileCategory, FileIndexStatus, IndexingEvent};
 use crate::errors::{AppError, IndexingError};
 use crate::global::{INDEXER_SETTING, STOP_INDEX_SIGNAL, STORAGE_PATH};
+use crate::document_loaders::cleanup_extracted_images;
 use crate::indexer_service;
 use crate::repositories::{
     file_content_embedding_repo, file_content_fts_repo, file_info_repo,
@@ -91,6 +92,7 @@ pub trait IndexingTemplate {
                             let _ = std::fs::remove_file(&md_path);
                         }
                     }
+                    cleanup_extracted_images(file_info.id);
                     file_info_repo::delete_by_id(file_info.id)?;
                     file_content_fts_repo::delete_by_file_id(file_info.id)?;
                     file_content_embedding_repo::delete_by_file_id(file_info.id)?;
@@ -153,14 +155,14 @@ pub trait IndexingTemplate {
             "file" => {
                 // Save as .md file, store relative path in content_ref_path column
                 if let Some(storage) = STORAGE_PATH.get() {
-                    let md_dir = Path::new(storage).join("parsed_documents");
-                    let _ = std::fs::create_dir_all(&md_dir);
-                    let md_filename = format!("{}.md", &file_info.md5);
-                    let md_path = md_dir.join(&md_filename);
+                    let relative_path = crate::document_loaders::md_relative_path(file_info.id, &file_info.name);
+                    let md_path = Path::new(storage).join(&relative_path);
+                    if let Some(parent) = md_path.parent() {
+                        let _ = std::fs::create_dir_all(parent);
+                    }
                     if let Err(e) = std::fs::write(&md_path, &filtered_content) {
                         log::warn!("Failed to write markdown file {}: {}", md_path.display(), e);
                     }
-                    let relative_path = format!("parsed_documents/{}", md_filename);
                     file_info_repo::update_content_meta(
                         file_id,
                         "",

@@ -32,8 +32,10 @@ impl IndexingTemplate for DocumentIndexer {
         match loader {
             Some(doc_loader) => {
                 let path = PathBuf::from(&file_info.path);
+                let file_id = file_info.id;
+                let file_name = file_info.name.clone();
                 tokio::task::spawn_blocking(move || {
-                    doc_loader.load_max(&path, MAX_DOCUMENT_LOAD_CHARS)
+                    doc_loader.load_max_with_id(&path, file_id, &file_name, MAX_DOCUMENT_LOAD_CHARS)
                 })
                 .await
                 .unwrap_or_else(|e| {

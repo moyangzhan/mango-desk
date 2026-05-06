@@ -114,7 +114,7 @@ pub struct FileInfo {
     pub category: i64,
     pub path: String,
     pub content: String,
-    /// Relative path to the parsed content file (e.g. `parsed_documents/{md5}.md`).
+    /// Relative path to the parsed content file (e.g. `parsed_documents/{id}_{name}.md`).
     /// When `Some`, content is stored on disk and `content` is empty.
     /// When `None`, content (if any) is in the `content` field.
     #[serde(default, skip_serializing_if = "Option::is_none")]

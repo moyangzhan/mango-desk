@@ -3,6 +3,7 @@ use crate::enums::{CommandResultCode, DownloadEvent};
 use crate::fs_watcher::watcher;
 use crate::global::{FS_WATCHER_SETTING, CONTENT_STORAGE_CHANGING, INDEXING, INDEXING_FROM_WATCHER, SCANNING, STOP_INDEX_SIGNAL, STORAGE_PATH};
 use crate::indexer_service;
+use crate::document_loaders::cleanup_extracted_images;
 use crate::repositories::{
     file_content_embedding_repo, file_content_fts_repo, file_info_repo,
     file_metadata_embedding_repo, indexing_task_repo,
@@ -168,6 +169,7 @@ pub async fn delete_index_item(file_id: i64) -> Result<(), String> {
                 let _ = std::fs::remove_file(&md_path);
             }
         }
+        cleanup_extracted_images(file_id);
     }
     file_info_repo::delete_by_id(file_id)?;
     Ok(())
@@ -195,6 +197,7 @@ pub async fn delete_index_items(file_ids: Vec<i64>) -> Result<(), String> {
                     let _ = std::fs::remove_file(&md_path);
                 }
             }
+            cleanup_extracted_images(*file_id);
         }
         if let Err(e) = file_info_repo::delete_by_id(*file_id) {
             log::warn!("Failed to delete file info for file {}: {}", file_id, e);
@@ -210,11 +213,15 @@ pub async fn clear_index() -> Result<(), String> {
     file_metadata_embedding_repo::clear()?;
     file_info_repo::clear()?;
     searcher::path_search_engine::clear().await;
-    // Clean up all parsed_documents on disk
+    // Clean up all parsed_documents and extracted_images on disk
     if let Some(storage) = STORAGE_PATH.get() {
         let md_dir = std::path::Path::new(storage).join("parsed_documents");
         if md_dir.exists() {
             let _ = std::fs::remove_dir_all(&md_dir);
+        }
+        let img_dir = std::path::Path::new(storage).join("extracted_images");
+        if img_dir.exists() {
+            let _ = std::fs::remove_dir_all(&img_dir);
         }
     }
     Ok(())

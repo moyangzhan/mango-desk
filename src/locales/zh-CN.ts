@@ -309,7 +309,7 @@ export default {
     clearSelected: '清除选中',
     deleteSelectedConfirmation: '确定要删除选中的索引记录吗？（不会删除磁盘中的文件）',
     searchPathPlaceholder: '搜索路径',
-    dataPath: '数据存储路径',
+    dataPath: '索引及解析数据目录',
     allFilesIndexed: '所有文件已被索引',
     detailConfig: '详细配置',
     // Parser settings
@@ -335,7 +335,7 @@ export default {
     changeComplete: '切换完成',
     changeCancelled: '切换已取消',
     contentStorageDesc:
-      '选择解析后内容（文档文本、图片识别文字、音频转写文字）的存储位置，主要用于内容预览和 AI Agent 读取。选择"不保存"可节省磁盘空间，但不影响搜索功能。',
+      '选择解析后内容的存储位置，主要用于内容预览和 AI Agent 读取。\n选择"不保存"可节省磁盘空间，但不影响搜索功能。',
     storageDatabaseDesc:
       '将解析内容存入数据库，方便快速预览和访问',
     storageFileDesc:
@@ -343,7 +343,7 @@ export default {
     storageNoneDesc:
       '不保存解析内容。搜索功能不受影响，但无法预览内容',
     dataPathDesc:
-      '存储索引数据库（mango-finder.db）、解析后的 Markdown 文件（parsed_documents/）和提取的图片（extracted_images/）的根目录',
+      '可将数据迁移到其他磁盘以节省系统盘空间',
     offlineSyncStarted: '正在同步监控目录的变更...',
     offlineSyncCompleted: '离线同步完成',
     offlineSyncFailed: '离线同步失败，可尝试手动索引',

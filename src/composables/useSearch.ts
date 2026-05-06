@@ -350,7 +350,8 @@ export function useSearch() {
       }
     }
 
-    if (selectedLocalDevice.value)
+    // Always search locally unless cluster is enabled and local device is explicitly deselected
+    if (!clusterEnabled.value || selectedLocalDevice.value)
       debounceLocalSearch()
     if (hasRemoteDevices.value)
       debounceRemoteDeviceSearch()

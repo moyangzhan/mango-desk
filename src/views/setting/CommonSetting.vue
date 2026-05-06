@@ -203,9 +203,9 @@ onMounted(async () => {
         </NFormItem>
       </div>
     </NCard>
-    <NCard :title="t('common.storage')" class="mb-4" size="small" :bordered="true">
+    <NCard :title="t('indexer.dataPath')" class="mb-4" size="small" :bordered="true">
       <div class="flex flex-col space-y-2">
-        <div>{{ t('indexer.dataPath') }}: {{ dataPath }}</div>
+        <div>{{ dataPath }}</div>
         <div class="text-xs text-gray-400">{{ t('indexer.dataPathDesc') }}</div>
         <NAlert v-if="needRestart" type="warning">
           {{ t('common.restartAppForChange') }}

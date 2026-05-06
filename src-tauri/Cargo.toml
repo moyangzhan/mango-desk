@@ -66,6 +66,8 @@ bincode = "1.3.3"
 # Document parsing
 anytomd = { version = "1.2.2", default-features = false }
 pdfplumber = "0.2.0"
+lopdf = { version = "0.34", default-features = false, features = ["nom_parser"] }
+flate2 = "1"
 # OCR (PaddleOCR for Chinese+English text recognition)
 kreuzberg-paddle-ocr = "4.9.5"
 symphonia = { version = "0.5.5", features = ["all"] }

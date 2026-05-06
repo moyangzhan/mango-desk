@@ -4,7 +4,7 @@ use crate::global::{
 };
 use crate::ocr_service;
 use crate::traits::document_loader::DocumentLoader;
-use super::get_images_dir;
+use super::{get_images_dir, image_filename, BUCKET_SIZE};
 use std::fs;
 use std::io;
 use std::path::Path;
@@ -46,6 +46,25 @@ impl DocumentLoader for AnyToMdLoader {
     }
 
     fn load_max(&self, path: &Path, max_load_chars: usize) -> io::Result<String> {
+        let images_dir = get_images_dir(0);
+        self.load_doc(path, &images_dir, 0, max_load_chars)
+    }
+
+    fn load_max_with_id(&self, path: &Path, file_id: i64, _file_name: &str, max_load_chars: usize) -> io::Result<String> {
+        let images_dir = get_images_dir(file_id);
+        self.load_doc(path, &images_dir, file_id, max_load_chars)
+    }
+
+    fn load_file_max(&self, _file: &std::fs::File, _max_load_chars: usize) -> io::Result<String> {
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "load_file_max is not supported for AnyToMdLoader, use load_max with Path instead",
+        ))
+    }
+}
+
+impl AnyToMdLoader {
+    fn load_doc(&self, path: &Path, images_dir: &Path, file_id: i64, max_load_chars: usize) -> io::Result<String> {
         // Skip files over 100 MB — too large for in-memory conversion
         const MAX_FILE_SIZE: u64 = 100 * 1024 * 1024;
         if let Ok(meta) = fs::metadata(path) {
@@ -84,9 +103,15 @@ impl DocumentLoader for AnyToMdLoader {
         let mut content = result.markdown;
 
         if !result.images.is_empty() {
-            let images_dir = get_images_dir(path);
+            let bucket = if file_id > 0 {
+                format!("{:04}", (file_id - 1) / BUCKET_SIZE)
+            } else {
+                "0000".to_string()
+            };
+            let img_rel_prefix = format!("../../extracted_images/{}/", bucket);
+
             if !images_dir.exists() {
-                fs::create_dir_all(&images_dir).map_err(|e| {
+                fs::create_dir_all(images_dir).map_err(|e| {
                     io::Error::new(
                         io::ErrorKind::Other,
                         format!("Failed to create images dir: {}", e),
@@ -94,18 +119,31 @@ impl DocumentLoader for AnyToMdLoader {
                 })?;
             }
 
+            // Fix image references: replace original filenames with id-prefixed names
+            for (filename, _) in &result.images {
+                let img_name = if file_id > 0 {
+                    image_filename(file_id, filename)
+                } else {
+                    filename.to_string()
+                };
+                let old_ref = format!("]({})", filename);
+                let new_ref = format!("]({}{})", img_rel_prefix, img_name);
+                content = content.replace(&old_ref, &new_ref);
+            }
+
             let mut image_texts = Vec::new();
             for (filename, bytes) in &result.images {
-                let img_path = images_dir.join(filename);
+                let img_name = if file_id > 0 {
+                    image_filename(file_id, filename)
+                } else {
+                    filename.to_string()
+                };
+                let img_path = images_dir.join(&img_name);
                 fs::write(&img_path, bytes)?;
 
+                let mut parts = Vec::new();
                 let blip_caption = image_parser::generate_caption(&img_path);
                 let ocr_text = ocr_service::recognize_file(&img_path);
-                if blip_caption.is_empty() && ocr_text.is_empty() {
-                    continue;
-                }
-
-                let mut parts = Vec::new();
                 if !blip_caption.is_empty() {
                     parts.push(format!("**Image Description:** {}", blip_caption));
                 }
@@ -131,13 +169,6 @@ impl DocumentLoader for AnyToMdLoader {
 
         Ok(content)
     }
-
-    fn load_file_max(&self, _file: &std::fs::File, _max_load_chars: usize) -> io::Result<String> {
-        Err(io::Error::new(
-            io::ErrorKind::Unsupported,
-            "load_file_max is not supported for AnyToMdLoader, use load_max with Path instead",
-        ))
-    }
 }
 
 fn load_plain_text(path: &Path, max_load_chars: usize) -> io::Result<String> {
@@ -153,7 +184,6 @@ fn load_plain_text(path: &Path, max_load_chars: usize) -> io::Result<String> {
     let mut reader = std::io::BufReader::new(file);
     let mut content = String::new();
 
-    // Read up to limit * 4 bytes (UTF-8 worst case), then truncate to char limit
     reader
         .take((limit as u64) * 4)
         .read_to_string(&mut content)?;
