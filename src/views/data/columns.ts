@@ -1,8 +1,9 @@
 import type { DataTableColumns } from 'naive-ui'
+import { NTooltip } from 'naive-ui'
 import { t } from '@/locales'
 
 export const getFileColumns = (
-  openFn: (path: string) => void,
+  previewFn: (row: FileInfo) => void,
 ): DataTableColumns<FileInfo> => {
   return [
     {
@@ -23,14 +24,17 @@ export const getFileColumns = (
       fixed: 'left' as const,
       sorter: true,
       render(row: FileInfo) {
-        return h(
-          'span',
-          {
-            class: 'text-link truncate block',
-            onClick: () => openFn(row.path),
-          },
-          { default: () => row.name },
-        )
+        return h(NTooltip, { showDelay: 0, placement: 'top' }, {
+          trigger: () => h(
+            'span',
+            {
+              class: 'text-link truncate block',
+              onClick: () => previewFn(row),
+            },
+            { default: () => row.name },
+          ),
+          default: () => t('common.view'),
+        })
       },
     },
     {
@@ -83,7 +87,7 @@ export const getFileColumns = (
         else if (row.file_size > 1024 * 1024)
           return `${Math.floor(row.file_size / (1024 * 1024))}M`
         else if (row.file_size > 1024)
-          return `${Math.floor(row.file_size / 1024)}K`
+          return `${Math.floor(row.file_size / (1024 * 1024))}K`
         else
           return `${row.file_size}B`
       },

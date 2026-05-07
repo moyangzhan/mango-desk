@@ -47,6 +47,9 @@ export default {
     switchSearchMode: '切换：语义搜索 ↔ 关键词搜索',
     reset: '重置',
     operation: '操作',
+    view: '查看',
+    selectColumns: '选择列',
+    openWithDefaultApp: '使用系统默认工具打开文件',
     enable: '启用',
     disable: '禁用',
     status: '状态',
@@ -195,6 +198,7 @@ export default {
     visionModel: '当前使用的视觉模型',
     fileOpened: '文件已打开',
     openFileFailed: '打开文件失败',
+    fileNotFound: '文件不存在或已被移动',
     taskRecovery: {
       title: '未完成的任务',
       desc: '检测到上次有未完成的任务：{task}，请选择操作。',

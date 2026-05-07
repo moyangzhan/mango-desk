@@ -47,6 +47,9 @@ export default {
     switchSearchMode: 'Toggle: Semantic Search ↔ Keyword Search',
     reset: 'Reset',
     operation: 'Operation',
+    view: 'View',
+    selectColumns: 'Columns',
+    openWithDefaultApp: 'Open file with system default app',
     enable: 'Enable',
     disable: 'Disable',
     status: 'Status',
@@ -195,6 +198,7 @@ export default {
     visionModel: 'Current Vision Model',
     fileOpened: 'File opened',
     openFileFailed: 'Failed to open file',
+    fileNotFound: 'File not found or has been moved',
     taskRecovery: {
       title: 'Unfinished Task',
       desc: 'An unfinished task was detected: {task}. Please choose an action.',

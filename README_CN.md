@@ -69,6 +69,11 @@ Mango Finder（原名 MangoDesk）是一款用自然语言搜索本地文件的�
 
   - 无需重新整理文件夹或重命名文件 — Mango Finder 直接使用您已有的文件
 
+- 🤖 **AI Agent 友好**
+
+  - 文档自动解析为结构化 Markdown 格式，可直接供 Claude Code、Cursor、OpenClaw 等 AI Agent 工具使用
+  - 命令行工具 *（即将推出）*
+  
 ### 🏗️ 架构
 
 **索引**

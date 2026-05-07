@@ -69,6 +69,11 @@ Intelligent search for documents, images, and audio files across multi-device en
 
   - No need to reorganize folders or rename files — Mango Finder works with what you already have
 
+- 🤖 **AI Agent Friendly**
+
+  - Documents are automatically parsed into structured Markdown — ready for tools like Claude Code, Cursor, and OpenClaw
+  - CLI *(coming soon)*
+  
 ### 🏗️ Architecture
 
 **Indexing**

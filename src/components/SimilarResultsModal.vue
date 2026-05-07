@@ -7,6 +7,7 @@ import SvgIcon from './SvgIcon.vue'
 
 const emit = defineEmits<{
   'openFile': [path: string]
+  'previewFile': [fileId: number, deviceId?: string]
 }>()
 
 const { t } = useI18n()
@@ -142,9 +143,15 @@ function openFile(path: string) {
   emit('openFile', path)
 }
 
+function previewFile(fileId: number, deviceId?: string) {
+  showModal.value = false
+  emit('previewFile', fileId, deviceId)
+}
+
 // Expose findSimilars for parent component
 defineExpose({
   findSimilars,
+  showModal,
 })
 </script>
 
@@ -163,7 +170,7 @@ defineExpose({
               <NImage width="100" :src="sourceFile.file_data" />
             </div>
             <div class="flex-1 min-w-0">
-              <div class="text-link truncate" @click="openFile(sourceFile.path)">
+              <div class="text-link truncate" @click="previewFile(sourceFile.id)">
                 {{ sourceFile.name }}
               </div>
               <div class="text-xs text-gray-400 truncate">
@@ -210,7 +217,7 @@ defineExpose({
                 <div>
                   <!-- First row: File name + Source device -->
                   <div class="flex justify-between items-center gap-2">
-                    <div class="text-link truncate" @click="openFile(item.file_info.path)">
+                    <div class="text-link truncate" @click="previewFile(item.file_info.id, item.source_device?.device_id)">
                       {{ item.file_info.name }}
                     </div>
                     <NTooltip v-if="item.source_device">

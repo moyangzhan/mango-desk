@@ -45,17 +45,10 @@ const isFocused = ref(false)
 const indexerStore = useIndexerStore()
 const parsedContent = ref('')
 const showContentModal = ref(false)
+const currentFilePath = ref('')
 const showChunksModal = ref(false)
 const matchChunks = ref<string[]>([])
-
-// Category values match Rust FileCategory enum: 1=Document, 2=Image, 3=Audio
-function getStorageMode(category: number): string {
-  const cs = indexerStore.indexerSetting.content_storage
-  if (category === 1) return cs.document || 'database'
-  if (category === 2) return cs.image || 'database'
-  if (category === 3) return cs.audio || 'database'
-  return 'database'
-}
+const showSimilarOnPreviewClose = ref(false)
 
 // Similar results modal ref
 const similarModalRef = ref<InstanceType<typeof SimilarResultsModal> | null>(null)
@@ -69,19 +62,33 @@ const blurInput = () => {
 }
 
 function openFile(path = '') {
-  openPath(path).catch((e) => {
+  openPath(path).catch((e: any) => {
     console.error('Failed to open file:', e)
-    window.$message.error(t('common.openFileFailed'))
+    const msg = String(e).toLowerCase()
+    if (msg.includes('not found') || msg.includes('does not exist') || msg.includes('找不到') || msg.includes('ENOENT'))
+      window.$message.error(t('common.fileNotFound'))
+    else
+      window.$message.error(t('common.openFileFailed'))
   })
 }
 
-async function loadFileDetail(id = 0, deviceId?: string) {
+function handleContentModalClose() {
+  if (showSimilarOnPreviewClose.value && similarModalRef.value) {
+    similarModalRef.value.showModal = true
+    showSimilarOnPreviewClose.value = false
+  }
+}
+
+async function loadFileDetail(id = 0, deviceId?: string, restoreSimilar = false) {
   showContentModal.value = true
+  showSimilarOnPreviewClose.value = restoreSimilar
   parsedContent.value = ''
   try {
     const fileInfo = await invoke<FileInfo>('load_file_detail', { fileId: id, deviceId })
-    if (fileInfo)
+    if (fileInfo) {
       parsedContent.value = fileInfo.content || ''
+      currentFilePath.value = fileInfo.path
+    }
   } catch (e) {
     console.log(e)
     window.$message.error(t('common.operationFailed'))
@@ -121,8 +128,10 @@ const keyDown = (e: any) => {
     focusInput()
     triggerSearch()
   } else if (e.key === 'Enter') {
-    if (!isFocused.value && selectedIndex.value > -1)
-      openFile(searchResults.value[selectedIndex.value].file_info.path)
+    if (!isFocused.value && selectedIndex.value > -1) {
+      const result = searchResults.value[selectedIndex.value]
+      loadFileDetail(result.file_info.id, result.source_device?.device_id)
+    }
     else
       triggerSearch()
   } else if (e.key === 'ArrowUp') {
@@ -386,7 +395,7 @@ onDeactivated(() => {
               <div class="min-h-11">
                 <!-- First row: File name + Source device -->
                 <div class="flex justify-between items-center gap-2">
-                  <div class="text-link truncate" @click="openFile(item.file_info.path)">
+                  <div class="text-link truncate" @click="loadFileDetail(item.file_info.id, item.source_device?.device_id)">
                     {{ item.file_info.name }}
                   </div>
                   <NTooltip v-if="item.source_device">
@@ -408,12 +417,6 @@ onDeactivated(() => {
                 <div class="flex items-center gap-2">
                   <NButton size="tiny" ghost @click="similarModalRef?.findSimilars(item.file_info, item.source_device?.device_id)">
                     {{ t('common.findSimilar') }}
-                  </NButton>
-                  <NButton
-                    v-if="getStorageMode(item.file_info.category) !== 'none'"
-                    size="tiny" ghost @click="loadFileDetail(item.file_info.id, item.source_device?.device_id)"
-                  >
-                    {{ item.file_info.category === 1 ? t('indexer.parsedContent') : t('indexer.recognitionText') }}
                   </NButton>
                   <NButton
                     v-if="item.matched_chunk_ids && item.matched_chunk_ids.length > 0" size="tiny" ghost
@@ -455,10 +458,18 @@ onDeactivated(() => {
     <NModal
       v-model:show="showContentModal" preset="card" :title="t('indexer.parsedContent')"
       style="width: 80%; height:80%;"
+      @after-leave="handleContentModalClose"
     >
       <div style="max-height: 600px;overflow-y: auto;" class="select-text">
         <MarkdownPreview :content="parsedContent" />
       </div>
+      <template #footer>
+        <div style="display: flex; justify-content: flex-end;">
+          <NButton ghost size="small" @click="openFile(currentFilePath)">
+            {{ t('common.openFile') }}
+          </NButton>
+        </div>
+      </template>
     </NModal>
     <NModal
       v-model:show="showChunksModal" preset="card" :title="t('common.matchedSegments')"
@@ -478,7 +489,7 @@ onDeactivated(() => {
         </div>
       </div>
     </NModal>
-    <SimilarResultsModal ref="similarModalRef" :file-id="null" @open-file="openFile" />
+    <SimilarResultsModal ref="similarModalRef" :file-id="null" @open-file="openFile" @preview-file="(id, deviceId) => loadFileDetail(id, deviceId, true)" />
   </div>
 </template>
 
