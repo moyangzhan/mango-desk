@@ -1,10 +1,8 @@
 use crate::cluster::api_types::{
     CommonResponse, PingData, SearchData, ChunksData, ChunksRequest, FindSimilarsData,
-    FileContentData, PairingRequestData, PairingRespondData, ResetNotifyData,
-    CODE_SUCCESS, CODE_MISSING_DEVICE_ID, CODE_DEVICE_NOT_PAIRED, CODE_NOT_FOUND, CODE_INTERNAL_ERROR,
+    CODE_MISSING_DEVICE_ID, CODE_DEVICE_NOT_PAIRED, CODE_NOT_FOUND, CODE_INTERNAL_ERROR,
 };
 use crate::entities::{Device, PairingRequest};
-use crate::enums::FileCategory;
 use crate::enums::{OnlineStatus, PairingRequestStatus, PairingResponseStatus, PairingStatus};
 use crate::global::{APP_HANDLE, CLIENT_ID, STORAGE_PATH};
 use crate::repositories::{
@@ -15,17 +13,16 @@ use crate::structs::cluster_config::{
     DeviceCapabilities, PairingRequestPayload, PairingResponsePayload, RemoteFindSimilarsRequest,
     RemoteSearchRequest, ResetNotifyPayload,
 };
-use crate::structs::search_result::SearchResult;
 use rust_i18n::t;
 use axum::{
     Router,
     body::Body,
     extract::{Path, State},
     http::{HeaderMap, StatusCode, header},
-    response::{Json, Response, IntoResponse},
+    response::{Json, Response},
     routing::{get, post},
 };
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::{Value, json};
 use socket2::{Domain, Protocol, Socket, Type};
 use std::collections::HashMap;
@@ -646,7 +643,7 @@ async fn handle_file_content(
 ) -> Result<Json<Value>, StatusCode> {
     log::info!("GET /file/{}/content", file_id);
     // Verify requester is paired
-    let requester_id = verify_paired_device_status(&headers)?;
+    let _requester_id = verify_paired_device_status(&headers)?;
 
     // Get file info from database
     let mut file_info = file_info_repo::get_by_id(file_id)

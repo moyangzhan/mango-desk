@@ -240,7 +240,8 @@ const changingProgress = ref({ current: 0, total: 0 })
 
 async function onContentStorageChanged(type: 'document' | 'image' | 'audio', value: string) {
   const oldValue = indexerStore.indexerSetting.content_storage[type] || 'database'
-  if (oldValue === value) return
+  if (oldValue === value)
+    return
 
   // Block if another storage change is already running
   if (changingType.value) {
@@ -266,15 +267,14 @@ async function onContentStorageChanged(type: 'document' | 'image' | 'audio', val
 
   // Build confirmation message
   let confirmMsg = ''
-  if (value === 'none') {
+  if (value === 'none')
     confirmMsg = t('indexer.changeConfirmNone', { count: affectedCount })
-  } else if (oldValue === 'none') {
+  else if (oldValue === 'none')
     confirmMsg = t('indexer.changeConfirmReparse', { count: affectedCount })
-  } else if (value === 'file') {
+  else if (value === 'file')
     confirmMsg = t('indexer.changeConfirmFile', { count: affectedCount })
-  } else {
+  else
     confirmMsg = t('indexer.changeConfirmDatabase', { count: affectedCount })
-  }
 
   // Show confirmation dialog
   window.$dialog.warning({
@@ -471,13 +471,13 @@ onMounted(async () => {
         changingProgress.value = { current: data.current, total: data.total }
       } else if (eventType === 'complete' || eventType === 'error' || eventType === 'cancelled') {
         changingType.value = null
-        if (eventType === 'complete') {
+        if (eventType === 'complete')
           window.$message.success(t('indexer.changeComplete'))
-        } else if (eventType === 'error') {
+        else if (eventType === 'error')
           window.$message.error(t('common.operationFailed'))
-        } else if (eventType === 'cancelled') {
+        else if (eventType === 'cancelled')
           window.$message.info(t('indexer.changeCancelled'))
-        }
+
         // Reload setting from backend to sync any revert on failure/cancel
         try {
           const setting = await invoke<IndexerSetting>('load_indexer_setting')
@@ -689,9 +689,15 @@ onUnmounted(() => {
               @update:value="(v: string) => onContentStorageChanged('document', v)"
             >
               <NSpace>
-                <NRadio value="database">{{ t('indexer.storageDatabase') }}</NRadio>
-                <NRadio value="file">{{ t('indexer.storageFile') }}</NRadio>
-                <NRadio value="none">{{ t('indexer.storageNone') }}</NRadio>
+                <NRadio value="database">
+                  {{ t('indexer.storageDatabase') }}
+                </NRadio>
+                <NRadio value="file">
+                  {{ t('indexer.storageFile') }}
+                </NRadio>
+                <NRadio value="none">
+                  {{ t('indexer.storageNone') }}
+                </NRadio>
               </NSpace>
             </NRadioGroup>
             <div class="text-xs text-gray-400 mt-1">
@@ -706,8 +712,12 @@ onUnmounted(() => {
               @update:value="(v: string) => onContentStorageChanged('image', v)"
             >
               <NSpace>
-                <NRadio value="database">{{ t('indexer.storageDatabase') }}</NRadio>
-                <NRadio value="file">{{ t('indexer.storageFile') }}</NRadio>
+                <NRadio value="database">
+                  {{ t('indexer.storageDatabase') }}
+                </NRadio>
+                <NRadio value="file">
+                  {{ t('indexer.storageFile') }}
+                </NRadio>
               </NSpace>
             </NRadioGroup>
             <div class="text-xs text-gray-400 mt-1">
@@ -722,8 +732,12 @@ onUnmounted(() => {
               @update:value="(v: string) => onContentStorageChanged('audio', v)"
             >
               <NSpace>
-                <NRadio value="database">{{ t('indexer.storageDatabase') }}</NRadio>
-                <NRadio value="file">{{ t('indexer.storageFile') }}</NRadio>
+                <NRadio value="database">
+                  {{ t('indexer.storageDatabase') }}
+                </NRadio>
+                <NRadio value="file">
+                  {{ t('indexer.storageFile') }}
+                </NRadio>
               </NSpace>
             </NRadioGroup>
             <div class="text-xs text-gray-400 mt-1">

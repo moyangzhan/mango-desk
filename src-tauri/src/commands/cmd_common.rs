@@ -1,6 +1,6 @@
 use crate::fs_watcher::watcher;
 use crate::global::{ACTIVE_LOCALE, APP_DATA_PATH, CLIENT_ID, UI_MOUNTED};
-use crate::repositories::{file_content_embedding_repo, file_info_repo};
+use crate::repositories::file_content_embedding_repo;
 use crate::searcher;
 use crate::utils::{app_util, task_util};
 use chrono::Utc;
@@ -130,7 +130,7 @@ pub async fn clear_active_task() -> Result<(), String> {
 
 /// Retry data copy from old path after crash recovery
 #[command]
-pub async fn retry_data_copy(old_path: String, app: AppHandle) -> Result<String, String> {
+pub async fn retry_data_copy(old_path: String, _app: AppHandle) -> Result<String, String> {
     let new_data_path = APP_DATA_PATH.read().await.clone();
 
     // Lock active task

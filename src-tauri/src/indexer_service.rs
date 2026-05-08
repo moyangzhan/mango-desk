@@ -4,9 +4,9 @@ use crate::enums::{ContentStorageChangeEvent, FileCategory, IndexingEvent};
 use chrono::Utc;
 use crate::errors::AppError;
 use crate::global::{
-    ACTIVE_MODEL_PLATFORM, CONFIG_NAME_INDEXER_SETTING, CONTENT_STORAGE_CHANGING,
+    CONFIG_NAME_INDEXER_SETTING, CONTENT_STORAGE_CHANGING,
     FS_WATCHER_SETTING, IGNORE_HIDDEN_DIRS, INDEXER_SETTING,
-    INDEXING, INDEXING_FROM_WATCHER, SCANNING, SCANNING_TOTAL, STOP_INDEX_SIGNAL, STORAGE_PATH,
+    INDEXING, SCANNING, SCANNING_TOTAL, STOP_INDEX_SIGNAL, STORAGE_PATH,
 };
 use crate::indexers;
 use crate::initializer;
@@ -19,7 +19,6 @@ use crate::scanner;
 use crate::structs::indexer_setting::IndexerSetting;
 use crate::traits::indexing_template::IndexingTemplate;
 use crate::utils::{frontend_util, indexing_task_util, task_util};
-use rust_i18n::t;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;

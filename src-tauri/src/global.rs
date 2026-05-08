@@ -162,7 +162,7 @@ pub static EXT_TO_DOC_LOADER: LazyLock<AsyncRwLock<HashMap<String, DocHandler>>>
 // Chunking related
 pub const DOCUMENT_CHUNK_SIZE: usize = 768;
 pub const DOCUMENT_CHUNK_OVERLAP: usize = 20;
-pub const MAX_DOCUMENT_LOAD_CHARS: usize = 30000;
+pub const MAX_DOCUMENT_LOAD_CHARS: usize = 200_000;
 
 // Indexing related
 pub static INDEXER_SETTING: LazyLock<AsyncRwLock<IndexerSetting>> =

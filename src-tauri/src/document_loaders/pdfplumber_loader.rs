@@ -256,7 +256,7 @@ fn extract_images_from_page(
         } else {
             suffix
         };
-        let img_path = images_dir.join(&img_name);
+        let _img_path = images_dir.join(&img_name);
 
         let (data, decompressed) = match stream.decompressed_content() {
             Ok(d) => (d, true),

@@ -1,4 +1,4 @@
-use crate::enums::{PairingRequestStatus, OnlineStatus, FileIndexStatus, IndexingTaskStatus, PairingStatus};
+use crate::enums::{PairingRequestStatus, OnlineStatus, FileIndexStatus, IndexingTaskStatus};
 use crate::structs::file_metadata::FileMetadata;
 use crate::structs::sparse_vector::SparseVector;
 use crate::utils::datetime_util;

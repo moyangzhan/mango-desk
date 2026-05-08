@@ -315,7 +315,7 @@ export default {
     audioStorage: 'Audio',
     storageDatabase: 'Store in Database',
     storageFile: 'Save as Markdown File',
-    storageNone: "Don't Save (Index Only)",
+    storageNone: 'Don\'t Save (Index Only)',
     recognitionText: 'Recognition Text',
     parsedContent: 'Parsed Content',
     clearIndexConfirmation: 'Clear Index? (not the files on disk)',
@@ -354,7 +354,7 @@ export default {
     storageFileDesc:
       'Save parsed content as Markdown files, suitable for AI Agent to read directly',
     storageNoneDesc:
-      "Don't save parsed content. Search still works, but preview will be unavailable",
+      'Don\'t save parsed content. Search still works, but preview will be unavailable',
     dataPathDesc:
       'Migrate data to another disk to save system drive space',
     offlineSyncStarted: 'Syncing changes in watched directories...',

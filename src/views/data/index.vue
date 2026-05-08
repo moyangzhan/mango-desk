@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { DataTableColumns, PaginationInfo } from 'naive-ui'
-import { NIcon, NPopover, NCheckboxGroup, NCheckbox, NSpace } from 'naive-ui'
+import { NCheckbox, NCheckboxGroup, NIcon, NPopover, NSpace } from 'naive-ui'
 import { invoke } from '@tauri-apps/api/core'
 import { openPath } from '@tauri-apps/plugin-opener'
 import { useWindowSize } from '@vueuse/core'
@@ -55,8 +55,7 @@ async function handlePreview(row: FileInfo) {
       const fileInfo = await invoke<FileInfo>('load_file_detail', { fileId: row.id })
       if (fileInfo)
         parsedContent.value = fileInfo.content || ''
-    }
-    catch (e) {
+    } catch (e) {
       console.error('Failed to load file detail:', e)
       window.$message.error(t('common.operationFailed'))
     }

@@ -3,7 +3,7 @@
 //! This module defines the common request/response types used by both
 //! HTTP server and HTTP client for inter-device communication.
 
-use axum::{http::StatusCode, response::{IntoResponse, Json, Response}};
+use axum::response::{IntoResponse, Json, Response};
 use serde::{Deserialize, Serialize};
 use crate::enums::PairingResponseStatus;
 use crate::structs::cluster_config::DeviceCapabilities;

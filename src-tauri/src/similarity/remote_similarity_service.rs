@@ -5,7 +5,7 @@
 
 use tokio::task::JoinSet;
 
-use crate::cluster::http_client::{self, MAX_RESULTS_PER_DEVICE};
+use crate::cluster::http_client;
 use crate::entities::{Device, FileInfo};
 use crate::enums::{OnlineStatus, PairingStatus};
 use crate::repositories::device_repo;

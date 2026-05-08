@@ -9,8 +9,6 @@ use crate::indexer_service;
 use crate::repositories::{ai_model_repo, config_repo, file_info_repo, model_platform_repo, self_hosted_platform_repo};
 use crate::structs::proxy_setting::ProxyInfo;
 use crate::utils::app_util;
-use rust_i18n::t;
-use std::sync::atomic::Ordering;
 use tauri::{command, AppHandle};
 
 // ========== Locale commands ==========

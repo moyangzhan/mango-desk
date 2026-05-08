@@ -69,10 +69,12 @@ impl AnyToMdLoader {
         const MAX_FILE_SIZE: u64 = 100 * 1024 * 1024;
         if let Ok(meta) = fs::metadata(path) {
             if meta.len() > MAX_FILE_SIZE {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    format!("File too large for parsing ({} bytes): {}", meta.len(), path.display()),
-                ));
+                log::warn!(
+                    "Skipping file too large for parsing ({} bytes): {}",
+                    meta.len(),
+                    path.display()
+                );
+                return Ok(String::new());
             }
         }
 
@@ -181,7 +183,7 @@ fn load_plain_text(path: &Path, max_load_chars: usize) -> io::Result<String> {
     };
 
     let file = std::fs::File::open(path)?;
-    let mut reader = std::io::BufReader::new(file);
+    let reader = std::io::BufReader::new(file);
     let mut content = String::new();
 
     reader

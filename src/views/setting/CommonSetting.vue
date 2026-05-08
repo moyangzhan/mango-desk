@@ -43,9 +43,9 @@ function handleSaveProxy() {
 
 async function openDirDialog() {
   const paths = await open({ directory: true, multiple: false })
-  if (!paths || Array.isArray(paths)) {
+  if (!paths || Array.isArray(paths))
     return
-  }
+
   let res: string
   try {
     res = await invoke<string>('set_data_path', { path: paths, force: false })
@@ -206,7 +206,9 @@ onMounted(async () => {
     <NCard :title="t('indexer.dataPath')" class="mb-4" size="small" :bordered="true">
       <div class="flex flex-col space-y-2">
         <div>{{ dataPath }}</div>
-        <div class="text-xs text-gray-400">{{ t('indexer.dataPathDesc') }}</div>
+        <div class="text-xs text-gray-400">
+          {{ t('indexer.dataPathDesc') }}
+        </div>
         <NAlert v-if="needRestart" type="warning">
           {{ t('common.restartAppForChange') }}
           <NButton text type="primary" class="text-link" @click="restart">

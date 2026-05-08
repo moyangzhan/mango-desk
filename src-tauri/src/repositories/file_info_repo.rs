@@ -547,7 +547,7 @@ pub fn get_by_path(path: &str) -> Result<Option<FileInfo>, RepositoryError> {
     let mut stmt = conn.prepare("select * from file_info where path = ?1 limit 1")?;
     match stmt.query_row([path], |row: &Row<'_>| Ok(build_file_info(row)?)) {
         Ok(hit) => return Ok(Some(hit)),
-        Err(e) => {
+        Err(_) => {
             return Ok(None);
         }
     }

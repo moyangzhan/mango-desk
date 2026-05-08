@@ -33,6 +33,7 @@ pub fn append_seperator(path: &mut String) {
         path.push(std::path::MAIN_SEPARATOR);
     }
 }
+#[cfg(test)]
 mod test {
     use super::*;
     use crate::utils::app_util;

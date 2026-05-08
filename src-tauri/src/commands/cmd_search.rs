@@ -1,15 +1,11 @@
-use crate::entities::Device;
 use crate::enums::{OnlineStatus, PairingStatus};
 use crate::global::CLIENT_ID;
 use crate::repositories::device_repo;
 use crate::searcher;
 use crate::similarity::similarity_service;
-use crate::structs::search_result::{SearchResult, SourceDevice};
+use crate::structs::search_result::SearchResult;
 use serde::Serialize;
 use tauri::command;
-
-// Re-export for use in other modules
-pub use crate::cluster::http_client::SimilarFeatures;
 
 /// Search device info for UI
 #[derive(Serialize)]

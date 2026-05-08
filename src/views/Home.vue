@@ -131,9 +131,7 @@ const keyDown = (e: any) => {
     if (!isFocused.value && selectedIndex.value > -1) {
       const result = searchResults.value[selectedIndex.value]
       loadFileDetail(result.file_info.id, result.source_device?.device_id)
-    }
-    else
-      triggerSearch()
+    } else { triggerSearch() }
   } else if (e.key === 'ArrowUp') {
     if (selectedIndex.value === 0) {
       focusInput()
@@ -319,8 +317,12 @@ onDeactivated(() => {
       <div v-if="searchResults.length === 0" class="flex flex-col mt-8 h-full space-y-4">
         <!-- Empty state when search returned no results -->
         <div v-if="query.trim().length > 0 && !localSearching && !remoteDeviceSearching" class="flex flex-col items-center space-y-2">
-          <div class="text-base text-gray-400">{{ t('common.searchEmpty') }}</div>
-          <div class="text-xs text-gray-400">{{ t('common.searchEmptyTip') }}</div>
+          <div class="text-base text-gray-400">
+            {{ t('common.searchEmpty') }}
+          </div>
+          <div class="text-xs text-gray-400">
+            {{ t('common.searchEmptyTip') }}
+          </div>
         </div>
         <!-- Keyborad Shortcuts -->
         <div v-if="query.trim().length === 0" class="text text-sm text-gray-400 text-left">

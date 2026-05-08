@@ -7,7 +7,6 @@ use std::time::Duration;
 
 use reqwest::Client;
 use rust_i18n::t;
-use serde::Deserialize;
 use tauri::Emitter;
 
 use crate::cluster::api_types::{

@@ -32,7 +32,7 @@ impl DocumentLoader for OdtLoader {
         let text = open_doc::read_data(path, "content.xml", &["text:p"], max_load_chars)?;
         Ok(text)
     }
-    fn load_file_max(&self, file: &std::fs::File, max_load_chars: usize) -> io::Result<String> {
+    fn load_file_max(&self, _file: &std::fs::File, _max_load_chars: usize) -> io::Result<String> {
         Err(io::Error::new(
             io::ErrorKind::Unsupported,
             "load_file_max with File is not supported for odt files, use load_max() with Path instead"

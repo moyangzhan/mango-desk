@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 use rusqlite::Connection;
-use log::{error, info, warn};
+use log::{info, warn};
 use tauri::Emitter;
 
 static DB_INIT_MANAGER: OnceLock<DbInitManager> = OnceLock::new();
@@ -94,7 +94,7 @@ impl DbInitManager {
     }
 
     /// Get connection (with health check and auto-reconnect)
-    pub fn get_connection(&self) -> Result<ConnectionGuard, DbError> {
+    pub fn get_connection(&self) -> Result<ConnectionGuard<'_>, DbError> {
         // First try to get existing connection
         {
             let conn_guard = self.conn.lock().map_err(|_| DbError::LockFailed)?;
