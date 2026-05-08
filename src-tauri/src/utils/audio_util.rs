@@ -231,11 +231,6 @@ pub fn detect_audio_type_by_features(samples: &[f32]) -> AudioType {
         return AudioType::Unknown;
     }
 
-    // Calculate variance of segment ZCRs
-    // 计算分段过零率的方差
-    let mean_zcr: f32 = segment_zcrs.iter().sum::<f32>() / segment_zcrs.len() as f32;
-    let _zcr_variance: f32 = segment_zcrs.iter().map(|&z| (z - mean_zcr).powi(2)).sum::<f32>() / segment_zcrs.len() as f32;
-
     // Calculate variance of segment energies
     // 计算分段能量的方差
     let mean_energy: f32 = segment_energies.iter().sum::<f32>() / segment_energies.len() as f32;

@@ -29,7 +29,7 @@ impl EmbedResult {
         // BGE-M3 outputs: [dense_tensor, sparse_map_tensor]
         let sparse_vec = if outputs.len() > 1 {
             log::debug!("input_ids_len: {}", input_ids.len());
-            let (_s_shape, s_data) = outputs[1].try_extract_tensor::<f32>()?;
+            let (_, s_data) = outputs[1].try_extract_tensor::<f32>()?;
             let limit = std::cmp::min(input_ids.len(), s_data.len());
             let mut sparse_map = HashMap::new();
             for i in 0..limit {

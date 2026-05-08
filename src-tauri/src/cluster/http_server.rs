@@ -643,7 +643,7 @@ async fn handle_file_content(
 ) -> Result<Json<Value>, StatusCode> {
     log::info!("GET /file/{}/content", file_id);
     // Verify requester is paired
-    let _requester_id = verify_paired_device_status(&headers)?;
+    verify_paired_device_status(&headers)?;
 
     // Get file info from database
     let mut file_info = file_info_repo::get_by_id(file_id)
