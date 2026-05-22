@@ -84,7 +84,7 @@ pub async fn find_similars_for_remote_file(
     }
 
     // Get local device ID for exclude list
-    let local_device_id = CLIENT_ID.read().await.clone();
+    let local_device_id = crate::read_lock!(CLIENT_ID).clone();
     let exclude_device_ids = vec![local_device_id.clone()];
 
     // Generate a unique request ID for this similarity search

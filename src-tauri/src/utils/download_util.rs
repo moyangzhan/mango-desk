@@ -38,7 +38,7 @@ pub async fn download_multilingual_model(
     let mut model_url = MULTI_LANG_MODEL_URL.to_string();
     let mut tokenizer_url = MULTI_LANG_TOKENIZER_URL.to_string();
     // Use mirror first when zh-CN locale is active
-    if *ACTIVE_LOCALE.read().await == Locale::ZhCn.text() {
+    if *crate::read_lock!(ACTIVE_LOCALE) == Locale::ZhCn.text() {
         model_url = model_url.replace(HUGGINFACE_WEBSITE, HUGGINFACE_MIRROR);
         tokenizer_url = tokenizer_url.replace(HUGGINFACE_WEBSITE, HUGGINFACE_MIRROR);
     }

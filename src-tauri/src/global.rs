@@ -12,7 +12,7 @@ use crate::traits::document_loader::DocumentLoader;
 use chrono::{DateTime, Local};
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, AtomicUsize};
-use std::sync::{Arc, LazyLock, OnceLock};
+use std::sync::{Arc, LazyLock, OnceLock, RwLock};
 use tauri::AppHandle;
 use tokio::sync::RwLock as AsyncRwLock;
 
@@ -79,18 +79,17 @@ pub const CONFIG_NAME_ACTIVE_LOCALE: &'static str = "active_locale";
 pub const CONFIG_NAME_DB_VERSION: &'static str = "db_version";
 pub const CONFIG_NAME_ACTIVE_SELF_HOSTED_PLATFORM: &'static str = "active_self_hosted_platform";
 
-pub static APP_DATA_PATH: LazyLock<AsyncRwLock<String>> =
-    LazyLock::new(|| AsyncRwLock::new("".to_string()));
+pub static APP_DATA_PATH: RwLock<String> = RwLock::new(String::new());
 pub static ONNX_EXEC_PROVIDERS_INITIALIZED: OnceLock<bool> = OnceLock::new();
 pub static HOME_PATH: OnceLock<String> = OnceLock::new();
 pub static STORAGE_PATH: OnceLock<String> = OnceLock::new();
 pub static DB_PATH: OnceLock<String> = OnceLock::new();
 pub static TMP_PATH: OnceLock<String> = OnceLock::new();
 pub static EXIT_APP_SIGNAL: AtomicBool = AtomicBool::new(false);
-pub static ACTIVE_MODEL_PLATFORM: LazyLock<AsyncRwLock<ModelPlatform>> =
-    LazyLock::new(|| AsyncRwLock::new(ModelPlatform::default()));
-pub static ACTIVE_SELF_HOSTED_PLATFORM: LazyLock<AsyncRwLock<SelfHostedPlatform>> =
-    LazyLock::new(|| AsyncRwLock::new(SelfHostedPlatform::default()));
+pub static ACTIVE_MODEL_PLATFORM: LazyLock<RwLock<ModelPlatform>> =
+    LazyLock::new(|| RwLock::new(ModelPlatform::default()));
+pub static ACTIVE_SELF_HOSTED_PLATFORM: LazyLock<RwLock<SelfHostedPlatform>> =
+    LazyLock::new(|| RwLock::new(SelfHostedPlatform::default()));
 
 pub static PROXY: LazyLock<AsyncRwLock<ProxyInfo>> = LazyLock::new(|| {
     AsyncRwLock::new(ProxyInfo {
@@ -102,11 +101,10 @@ pub static PROXY: LazyLock<AsyncRwLock<ProxyInfo>> = LazyLock::new(|| {
 pub const DEFAULT_DATETIME_FORMAT: &str = "%Y-%m-%d %H:%M:%S";
 pub const DEFAULT_DATETIME_MICRO_FORMAT: &str = "%Y-%m-%d %H:%M:%S.%f";
 
-pub static CLIENT_ID: LazyLock<AsyncRwLock<String>> =
-    LazyLock::new(|| AsyncRwLock::new("".to_string())); //Identifier for this client instance
+pub static CLIENT_ID: RwLock<String> = RwLock::new(String::new());
 // Current locale, default is en-US
-pub static ACTIVE_LOCALE: LazyLock<AsyncRwLock<String>> =
-    LazyLock::new(|| AsyncRwLock::new("en-US".to_string()));
+pub static ACTIVE_LOCALE: LazyLock<RwLock<String>> =
+    LazyLock::new(|| RwLock::new("en-US".to_string()));
 
 pub static DOWNLOADING: AtomicBool = AtomicBool::new(false);
 

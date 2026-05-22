@@ -32,7 +32,7 @@ pub async fn process() {
     task_util::cleanup_orphan_task();
 
     // Initialize the client_id
-    init_string_setting(CONFIG_NAME_CLIENT_ID, &CLIENT_ID).await;
+    init_sync_string_setting(CONFIG_NAME_CLIENT_ID, &CLIENT_ID);
 
     init_setting(
         CONFIG_NAME_PROXY,
@@ -52,7 +52,7 @@ pub async fn process() {
         &FS_WATCHER_SETTING,
     )
     .await;
-    init_string_setting(CONFIG_NAME_ACTIVE_LOCALE, &ACTIVE_LOCALE).await;
+    init_sync_string_setting(CONFIG_NAME_ACTIVE_LOCALE, &ACTIVE_LOCALE);
 
     //Onnx Runtime initialization
     if ONNX_EXEC_PROVIDERS_INITIALIZED.get().is_none() {
@@ -77,7 +77,7 @@ pub async fn process() {
     if let Ok(Some(config)) = config {
         let model_platform = model_platform_repo::get_one(&config.value);
         if let Ok(platform) = model_platform {
-            *ACTIVE_MODEL_PLATFORM.write().await = platform;
+            *crate::write_lock!(ACTIVE_MODEL_PLATFORM) = platform;
         } else {
             error!("Cannt find model platform:{}", config.value);
         }
@@ -90,7 +90,7 @@ pub async fn process() {
     if let Ok(Some(config)) = config {
         let self_hosted_platform = self_hosted_platform_repo::get_one(&config.value);
         if let Ok(platform) = self_hosted_platform {
-            *ACTIVE_SELF_HOSTED_PLATFORM.write().await = platform;
+            *crate::write_lock!(ACTIVE_SELF_HOSTED_PLATFORM) = platform;
         } else {
             error!(
                 "Cannot find self-hosted platform: {}",
@@ -162,5 +162,18 @@ async fn init_string_setting(config_name: &str, lock: &impl ConfigLock<String>) 
         let mut setting_guard = lock.write().await;
         *setting_guard = setting;
         info!("init string {} setting: {:?}", config_name, *setting_guard);
+    }
+}
+
+fn init_sync_string_setting(config_name: &str, lock: &std::sync::RwLock<String>) {
+    if let Some(setting) = config_repo::get_one(config_name)
+        .unwrap_or_else(|error| {
+            error!("get setting from config table error: {error}");
+            None
+        })
+        .and_then(|s| (!s.value.is_empty()).then(|| s.value))
+    {
+        *crate::write_lock!(lock) = setting;
+        info!("init string {} setting: {:?}", config_name, *crate::read_lock!(lock));
     }
 }

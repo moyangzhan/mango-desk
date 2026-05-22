@@ -260,7 +260,7 @@ pub async fn start_http_server() -> Result<(), String> {
         DEFAULT_PORT
     };
 
-    let device_id = CLIENT_ID.read().await.clone();
+    let device_id = crate::read_lock!(CLIENT_ID).clone();
     let device_name = if setting.device_name.is_empty() {
         hostname::get()
             .map(|h| h.to_string_lossy().to_string())

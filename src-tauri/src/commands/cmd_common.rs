@@ -13,7 +13,7 @@ use tauri::{command, AppHandle, Manager};
 pub async fn ui_mounted(app: AppHandle) -> Result<(), String> {
     log::info!("UI mounted");
     UI_MOUNTED.store(true, Ordering::SeqCst);
-    let locale = ACTIVE_LOCALE.read().await.clone();
+    let locale = crate::read_lock!(ACTIVE_LOCALE).clone();
     rust_i18n::set_locale(locale.as_str());
     let _ = app_util::rebuild_tray_menu(&app);
     tokio::spawn(async move {
@@ -56,12 +56,12 @@ pub async fn ui_mounted(app: AppHandle) -> Result<(), String> {
 
 #[command]
 pub async fn get_client_id() -> String {
-    CLIENT_ID.read().await.clone()
+    crate::read_lock!(CLIENT_ID).clone()
 }
 
 #[command]
 pub async fn get_data_path() -> Result<String, String> {
-    Ok(APP_DATA_PATH.read().await.to_string())
+    Ok(crate::read_lock!(APP_DATA_PATH).to_string())
 }
 
 #[command]
@@ -131,7 +131,7 @@ pub async fn clear_active_task() -> Result<(), String> {
 /// Retry data copy from old path after crash recovery
 #[command]
 pub async fn retry_data_copy(old_path: String, _app: AppHandle) -> Result<String, String> {
-    let new_data_path = APP_DATA_PATH.read().await.clone();
+    let new_data_path = crate::read_lock!(APP_DATA_PATH).clone();
 
     // Lock active task
     task_util::lock_active_task(&task_util::ActiveTask {
@@ -199,9 +199,7 @@ pub async fn revert_data_path(old_path: String, app: AppHandle) -> Result<(), St
         log::error!("Failed to revert data path: {}", e);
     }
 
-    let mut guard = APP_DATA_PATH.write().await;
-    *guard = old_path;
-    drop(guard);
+    *crate::write_lock!(APP_DATA_PATH) = old_path;
 
     let _ = task_util::clear_active_task();
     Ok(())

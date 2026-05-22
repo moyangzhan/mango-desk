@@ -37,7 +37,7 @@ impl<'a> AudioIndexer {
             }
             FileParserMode::Remote => {
                 let (platform_name, base_url) = {
-                    let active_platform = ACTIVE_MODEL_PLATFORM.read().await;
+                    let active_platform = crate::read_lock!(ACTIVE_MODEL_PLATFORM);
                     (
                         active_platform.name.clone(),
                         active_platform.base_url.clone(),

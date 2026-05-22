@@ -48,7 +48,7 @@ pub async fn remote_find_similars_with_exclude(
 
     // Build exclude list for forwarding (add ourselves)
     let mut forward_exclude = exclude_device_ids.to_vec();
-    forward_exclude.push(crate::global::CLIENT_ID.read().await.clone());
+    forward_exclude.push(crate::read_lock!(crate::global::CLIENT_ID).clone());
 
     // Execute remote similar searches concurrently
     let mut join_set = JoinSet::new();

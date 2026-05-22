@@ -57,7 +57,7 @@ pub async fn list_online_devices() -> Result<Vec<SearchDevice>, String> {
     let mut devices = Vec::new();
 
     // Add local device
-    let client_id = CLIENT_ID.read().await.clone();
+    let client_id = crate::read_lock!(CLIENT_ID).clone();
     let device_name = crate::cluster::get_cluster_setting().await.device_name;
     let local_name = if device_name.is_empty() {
         hostname::get()
@@ -126,9 +126,10 @@ pub async fn fetch_remote_file(device_id: String, file_id: i64) -> Result<Vec<u8
         .build()
         .unwrap_or_else(|_| Client::new());
 
+    let device_id = crate::read_lock!(CLIENT_ID).clone();
     let response = client
         .get(&url)
-        .header("X-Device-ID", CLIENT_ID.read().await.clone())
+        .header("X-Device-ID", device_id)
         .send()
         .await
         .map_err(|e| format!("Request failed: {}", e))?;

@@ -115,7 +115,7 @@ pub async fn set_data_path(
         error!("new data path is empty");
         return Err("new data path is empty".to_string());
     }
-    if new_data_path == *APP_DATA_PATH.read().await {
+    if new_data_path == *crate::read_lock!(APP_DATA_PATH) {
         return Ok("same".to_string());
     }
 
@@ -125,7 +125,7 @@ pub async fn set_data_path(
     }
 
     // DB persistent lock
-    let old_data_path_val = APP_DATA_PATH.read().await.clone();
+    let old_data_path_val = crate::read_lock!(APP_DATA_PATH).clone();
     task_util::lock_active_task(&task_util::ActiveTask {
         task_type: "data_copying".to_string(),
         category: None,
@@ -178,7 +178,7 @@ pub async fn set_data_path(
         })
         .join(env!("CARGO_PKG_NAME"));
     info!("system data path: {}", sys_data_path.display());
-    let old_data_path = APP_DATA_PATH.read().await.clone();
+    let old_data_path = crate::read_lock!(APP_DATA_PATH).clone();
     let config_path = sys_data_path.join(".config");
     if let Err(e) = std::fs::write(&config_path, new_data_path) {
         error!("Failed to write data path record: {}", e);
@@ -206,9 +206,7 @@ pub async fn set_data_path(
             }
         }
     }
-    let mut guard = APP_DATA_PATH.write().await;
-    *guard = new_data_path.to_string();
-    drop(guard);
+    *crate::write_lock!(APP_DATA_PATH) = new_data_path.to_string();
     let _ = task_util::unlock_active_task();
     Ok("success".to_string())
 }
@@ -272,9 +270,7 @@ pub async fn init_paths(app: &AppHandle) {
     info!("data_path: {}", data_path.display());
     let data_path_str = data_path.to_string_lossy().into_owned();
     info!("MangoFinder data directory: {}", data_path_str);
-    let mut guard = APP_DATA_PATH.write().await;
-    *guard = data_path_str;
-    drop(guard);
+    *crate::write_lock!(APP_DATA_PATH) = data_path_str;
     if !Path::new(&data_path).exists() {
         create_dir(&data_path).unwrap_or_else(|error| {
             error!("Failed to create app directory: {}", error);

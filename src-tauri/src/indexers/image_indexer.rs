@@ -47,7 +47,7 @@ impl ImageIndexer {
             }
             FileParserMode::SelfHosted => {
                 // Get active self-hosted platform
-                let platform_name = ACTIVE_SELF_HOSTED_PLATFORM.read().await.name.clone();
+                let platform_name = crate::read_lock!(ACTIVE_SELF_HOSTED_PLATFORM).name.clone();
 
                 // Get vision model for self-hosted platform
                 if let Ok(Some(ai_model)) =
@@ -73,7 +73,7 @@ impl ImageIndexer {
             }
             FileParserMode::Remote => {
                 let (platform_name, base_url) = {
-                    let active_platform = ACTIVE_MODEL_PLATFORM.read().await;
+                    let active_platform = crate::read_lock!(ACTIVE_MODEL_PLATFORM);
                     (
                         active_platform.name.clone(),
                         active_platform.base_url.clone(),

@@ -15,7 +15,7 @@ use tauri::{command, AppHandle};
 
 #[command]
 pub async fn load_active_locale() -> Result<String, String> {
-    let guard = ACTIVE_LOCALE.read().await;
+    let guard = crate::read_lock!(ACTIVE_LOCALE);
     Ok(guard.clone())
 }
 
@@ -33,7 +33,7 @@ pub async fn set_active_locale(app: AppHandle, locale: &str) -> Result<usize, St
         log::error!("update config error: {}", e);
         0
     });
-    *ACTIVE_LOCALE.write().await = locale.to_string();
+    *crate::write_lock!(ACTIVE_LOCALE) = locale.to_string();
     let _ = app_util::rebuild_tray_menu(&app);
     log::debug!("update db result: {}", result);
     Ok(result)
@@ -76,14 +76,14 @@ pub async fn update_ai_model(
 #[command]
 pub async fn update_model_platform(platform: ModelPlatform) -> Result<usize, AppError> {
     let result = model_platform_repo::update_by_name(&platform.name, &platform)?;
-    if platform.name == ACTIVE_MODEL_PLATFORM.read().await.name {
+    if platform.name == crate::read_lock!(ACTIVE_MODEL_PLATFORM).name {
         match ACTIVE_MODEL_PLATFORM.try_write() {
             Ok(mut guard) => {
                 let one = model_platform_repo::get_one(&platform.name)?;
                 *guard = one;
             }
-            Err(_) => {
-                log::error!("Failed to acquire write lock for ACTIVE_MODEL_PLATFORM");
+            Err(e) => {
+                log::error!("Failed to acquire write lock for ACTIVE_MODEL_PLATFORM: {}", e);
             }
         }
     }
@@ -142,7 +142,7 @@ pub async fn check_self_hosted_platform(platform: SelfHostedPlatform) -> Result<
 
 #[command]
 pub async fn load_active_platform() -> String {
-    let platform = ACTIVE_MODEL_PLATFORM.read().await;
+    let platform = crate::read_lock!(ACTIVE_MODEL_PLATFORM);
     platform.name.clone()
 }
 
@@ -158,7 +158,7 @@ pub async fn set_active_platform(platform_name: &str) -> Result<usize, String> {
             log::error!("update config error: {}", e);
             0
         });
-    *ACTIVE_MODEL_PLATFORM.write().await = platform;
+    *crate::write_lock!(ACTIVE_MODEL_PLATFORM) = platform;
     return Ok(result);
 }
 
@@ -174,7 +174,7 @@ pub async fn load_self_hosted_platforms() -> Vec<SelfHostedPlatform> {
 
 #[command]
 pub async fn load_active_self_hosted_platform() -> String {
-    let platform = ACTIVE_SELF_HOSTED_PLATFORM.read().await;
+    let platform = crate::read_lock!(ACTIVE_SELF_HOSTED_PLATFORM);
     platform.name.clone()
 }
 
@@ -191,21 +191,21 @@ pub async fn set_active_self_hosted_platform(platform_name: &str) -> Result<usiz
                 log::error!("update config error: {}", e);
                 0
             });
-    *ACTIVE_SELF_HOSTED_PLATFORM.write().await = platform;
+    *crate::write_lock!(ACTIVE_SELF_HOSTED_PLATFORM) = platform;
     return Ok(result);
 }
 
 #[command]
 pub async fn update_self_hosted_platform(platform: SelfHostedPlatform) -> Result<usize, AppError> {
     let result = self_hosted_platform_repo::update_by_name(&platform.name, &platform)?;
-    if platform.name == ACTIVE_SELF_HOSTED_PLATFORM.read().await.name {
+    if platform.name == crate::read_lock!(ACTIVE_SELF_HOSTED_PLATFORM).name {
         match ACTIVE_SELF_HOSTED_PLATFORM.try_write() {
             Ok(mut guard) => {
                 let one = self_hosted_platform_repo::get_one(&platform.name)?;
                 *guard = one;
             }
-            Err(_) => {
-                log::error!("Failed to acquire write lock for ACTIVE_SELF_HOSTED_PLATFORM");
+            Err(e) => {
+                log::error!("Failed to acquire write lock for ACTIVE_SELF_HOSTED_PLATFORM: {}", e);
             }
         }
     }

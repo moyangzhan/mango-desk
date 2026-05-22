@@ -57,7 +57,7 @@ pub async fn search(
         limit: MAX_RESULTS_PER_DEVICE,
     };
 
-    let client_id = CLIENT_ID.read().await.clone();
+    let client_id = crate::read_lock!(CLIENT_ID).clone();
     let response = HTTP_CLIENT
         .post(&url)
         .header("X-Device-ID", client_id)
@@ -176,7 +176,7 @@ pub async fn find_similars(
         url, request_id, exclude_device_ids, limit
     );
 
-    let client_id = CLIENT_ID.read().await.clone();
+    let client_id = crate::read_lock!(CLIENT_ID).clone();
     let response = HTTP_CLIENT
         .post(&url)
         .header("X-Device-ID", client_id)
@@ -212,7 +212,7 @@ pub async fn find_similars(
 pub async fn fetch_file(file_id: i64, ip: &str, port: i32) -> Result<Vec<u8>, String> {
     let url = format!("http://{}:{}/file/{}", ip, port, file_id);
 
-    let client_id = CLIENT_ID.read().await.clone();
+    let client_id = crate::read_lock!(CLIENT_ID).clone();
     let response = HTTP_CLIENT
         .get(&url)
         .header("X-Device-ID", client_id)
@@ -241,7 +241,7 @@ pub async fn fetch_file(file_id: i64, ip: &str, port: i32) -> Result<Vec<u8>, St
 pub async fn fetch_chunks(ids: &[u32], ip: &str, port: i32) -> Result<Vec<String>, String> {
     let url = format!("http://{}:{}/chunks", ip, port);
 
-    let client_id = CLIENT_ID.read().await.clone();
+    let client_id = crate::read_lock!(CLIENT_ID).clone();
     let response = HTTP_CLIENT
         .post(&url)
         .header("X-Device-ID", client_id)
@@ -278,7 +278,7 @@ pub async fn fetch_chunks(ids: &[u32], ip: &str, port: i32) -> Result<Vec<String
 pub async fn fetch_file_content(file_id: i64, ip: &str, port: i32) -> Result<FileContentData, String> {
     let url = format!("http://{}:{}/file/{}/content", ip, port, file_id);
 
-    let client_id = CLIENT_ID.read().await.clone();
+    let client_id = crate::read_lock!(CLIENT_ID).clone();
     let response = HTTP_CLIENT
         .get(&url)
         .header("X-Device-ID", client_id)
@@ -411,7 +411,7 @@ pub async fn send_pairing_request(
     ip: &str,
     port: i32,
 ) -> Result<(), String> {
-    let my_device_id = CLIENT_ID.read().await.clone();
+    let my_device_id = crate::read_lock!(CLIENT_ID).clone();
     let my_device_name = super::get_cluster_setting().await.device_name;
     let my_device_name = if my_device_name.is_empty() {
         hostname::get()
@@ -542,7 +542,7 @@ pub async fn send_pairing_response(
     requester_port: i32,
     approved: bool,
 ) -> Result<(), String> {
-    let my_device_id = CLIENT_ID.read().await.clone();
+    let my_device_id = crate::read_lock!(CLIENT_ID).clone();
 
     let payload = PairingResponsePayload {
         requester_id: requester_id.to_string(),
@@ -585,7 +585,7 @@ pub async fn send_reset_notify(
     remote_port: i32,
     previous_status: &str,
 ) -> Result<(), String> {
-    let my_device_id = CLIENT_ID.read().await.clone();
+    let my_device_id = crate::read_lock!(CLIENT_ID).clone();
 
     let payload = ResetNotifyPayload {
         from_device_id: my_device_id,

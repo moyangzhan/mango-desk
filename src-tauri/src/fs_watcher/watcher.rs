@@ -343,7 +343,7 @@ fn flush_pending(pending: &mut HashMap<PathBuf, FsEvent>) {
 /// Events from the data directory (database, parsed_documents, model files, etc.) must be
 /// ignored to prevent infinite feedback loops.
 async fn is_app_data_event(event: &Event) -> bool {
-    let app_data = APP_DATA_PATH.read().await.clone();
+    let app_data = crate::read_lock!(APP_DATA_PATH).clone();
     if app_data.is_empty() {
         return false;
     }

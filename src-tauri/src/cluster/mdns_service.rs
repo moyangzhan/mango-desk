@@ -46,7 +46,7 @@ pub async fn start_mdns_broadcast(device_name: String, port: i32) -> Result<(), 
     txt_records.insert("version".to_string(), env!("CARGO_PKG_VERSION").to_string());
     let index_count = file_info_repo::count().unwrap_or(0);
     txt_records.insert("indexCount".to_string(), index_count.to_string());
-    let device_id = CLIENT_ID.read().await.clone();
+    let device_id = crate::read_lock!(CLIENT_ID).clone();
     txt_records.insert("deviceId".to_string(), device_id);
 
     // Create service info
@@ -291,7 +291,7 @@ async fn handle_mdns_event(event: ServiceEvent) {
                 .unwrap_or(0);
 
             // Skip self
-            let my_device_id = CLIENT_ID.read().await.clone();
+            let my_device_id = crate::read_lock!(CLIENT_ID).clone();
             if device_id == my_device_id || device_id.is_empty() {
                 return;
             }
