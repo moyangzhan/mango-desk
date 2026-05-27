@@ -523,9 +523,10 @@ pub fn get_by_id(file_id: i64) -> Result<Option<FileInfo>, RepositoryError> {
     let mut stmt = conn.prepare("select * from file_info where id = ?1")?;
     match stmt.query_row([file_id], |row: &Row<'_>| Ok(build_file_info(row)?)) {
         Ok(hit) => return Ok(Some(hit)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => return Ok(None),
         Err(e) => {
-            log::debug!("file_info_repo.get_by_id() Error: {}", e);
-            return Ok(None);
+            log::error!("file_info_repo.get_by_id() Error: {}", e);
+            return Err(RepositoryError::Database(e));
         }
     }
 }
@@ -535,9 +536,10 @@ pub fn get_by_md5(md5: &str) -> Result<Option<FileInfo>, RepositoryError> {
     let mut stmt = conn.prepare("select * from file_info where md5 = ?1 limit 1")?;
     match stmt.query_row([md5], |row: &Row<'_>| Ok(build_file_info(row)?)) {
         Ok(hit) => return Ok(Some(hit)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => return Ok(None),
         Err(e) => {
-            log::debug!("file_info_repo.get_by_md5(), md5: {}, Error: {}", md5, e);
-            return Ok(None);
+            log::error!("file_info_repo.get_by_md5(), md5: {}, Error: {}", md5, e);
+            return Err(RepositoryError::Database(e));
         }
     }
 }

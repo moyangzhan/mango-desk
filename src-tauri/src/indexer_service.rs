@@ -513,15 +513,21 @@ pub async fn start_indexing(paths: Vec<String>, from: &str) -> Result<bool, Stri
 
     let result = run_indexing_pipeline(&paths, &task, from).await;
 
-    match result {
-        Ok(()) => indexing_finish(task.id, "done", from).await?,
+    match &result {
+        Ok(()) => {
+            if let Err(e) = indexing_finish(task.id, "done", from).await {
+                log::error!("Failed to finish indexing task: {}", e);
+            }
+        }
         Err(e) => {
             log::error!("Indexing pipeline failed: {}", e);
-            indexing_finish(task.id, &format!("error: {}", e), from).await?;
+            if let Err(e2) = indexing_finish(task.id, &format!("error: {}", e), from).await {
+                log::error!("Failed to finish indexing task after error: {}", e2);
+            }
         }
     }
 
-    return Ok(true);
+    result.map(|_| true)
 }
 
 async fn run_indexing_pipeline(

@@ -1,35 +1,38 @@
 #![allow(dead_code)]
 
+// Public modules (CLI accessible)
+pub mod db_initializer;
+pub mod entities;
+pub mod global;
+pub mod indexer_service;
+pub mod initializer;
+pub mod repositories;
+pub mod searcher;
+pub mod similarity;
+pub mod structs;
+pub mod utils;
+
+// Private modules
 mod audio_parser;
 mod cluster;
 mod commands;
-mod db_initializer;
 mod db_init_manager;
 mod db_migrations;
 mod document_loaders;
 mod embedding_service;
 mod embedding_service_manager;
-mod entities;
 mod enums;
 mod errors;
 mod fs_watcher;
-mod global;
 mod image_parser;
-mod indexer_service;
 mod indexers;
-mod initializer;
 mod model_platform_services;
 mod ocr_service;
-mod repositories;
 mod scanner;
-mod searcher;
 mod self_hosted_services;
-mod similarity;
-mod structs;
 mod timers;
 mod traits;
 mod types;
-mod utils;
 
 use crate::commands::{
     add_device_manually, add_watch_path, check_devices, check_devices_status, check_model_platform, check_path_type, check_self_hosted_platform, clear_active_task, clear_index,

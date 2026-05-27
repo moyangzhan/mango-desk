@@ -144,11 +144,26 @@ pub fn list(
     column_key: &str,
     sort_order: &str,
 ) -> Result<Vec<IndexingTask>, RepositoryError> {
+    // 白名单验证列名和排序方向，防止 SQL 注入
+    let allowed_columns = ["id", "create_time", "update_time", "status", "total_cnt", "duration"];
+    let allowed_orders = ["asc", "desc"];
+    
+    let safe_column = if allowed_columns.contains(&column_key) {
+        column_key
+    } else {
+        "id"
+    };
+    let safe_order = if allowed_orders.contains(&sort_order.to_lowercase().as_str()) {
+        sort_order
+    } else {
+        "desc"
+    };
+    
     let conn = Connection::open(get_db_path())?;
     let mut stmt = conn.prepare(
         format!(
             "select * from indexing_task order by {} {} limit :limit offset :offset",
-            column_key, sort_order
+            safe_column, safe_order
         )
         .as_str(),
     )?;
