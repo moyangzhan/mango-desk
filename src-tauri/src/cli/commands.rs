@@ -1,10 +1,16 @@
 use clap::{Parser, Subcommand};
+use local_ip_address::list_afinet_netifas;
 use serde_json;
+use std::net::{TcpListener, UdpSocket};
+use std::path::Path;
+use std::sync::atomic::Ordering;
 use std::time::Instant;
 
 use mango_finder_lib::searcher;
-use mango_finder_lib::repositories::{file_info_repo, file_content_embedding_repo, file_content_fts_repo, file_metadata_embedding_repo, device_repo, indexing_task_repo};
-use mango_finder_lib::global::{INDEXING, SCANNING, INDEXING_SUMMARY};
+use mango_finder_lib::similarity::similarity_service;
+use mango_finder_lib::indexer_service;
+use mango_finder_lib::repositories::{file_info_repo, file_content_embedding_repo, file_content_fts_repo, file_metadata_embedding_repo, device_repo, indexing_task_repo, config_repo};
+use mango_finder_lib::global::{INDEXING, SCANNING, INDEXING_SUMMARY, STOP_INDEX_SIGNAL, CLIENT_ID, STORAGE_PATH, DB_PATH, EMBEDDING_MODEL_PATH, EMBEDDING_TOKENIZER_PATH, ACTIVE_LOCALE};
 
 use crate::output;
 
@@ -97,19 +103,19 @@ pub enum Commands {
     /// Show version
     Version,
 
-    /// Show CLI documentation
-    HelpDoc,
-
-    /// Show detailed documentation for a specific command
-    Doc {
-        /// Command name (search, similar, index, file, device, status, version)
-        command: String,
+    /// Show help documentation
+    Help {
+        /// Command name (optional, shows full help if not specified)
+        command: Option<String>,
     },
 
-    /// Show man page style documentation
-    Man {
-        /// Command name (optional, shows full man page if not specified)
-        command: Option<String>,
+    /// Check system status and connectivity
+    Check,
+
+    /// Get or set locale
+    Locale {
+        /// Locale to set (e.g., zh-CN, en-US). If not specified, show current locale.
+        value: Option<String>,
     },
 }
 
@@ -176,7 +182,7 @@ pub async fn handle_similar(file_id: i64, device: Option<String>, limit: usize, 
     }
 
     let start = Instant::now();
-    match mango_finder_lib::similarity::similarity_service::find_similars_for_local_file(file_id, limit).await {
+    match similarity_service::find_similars_for_local_file(file_id, limit).await {
         Ok(results) => {
             let elapsed = start.elapsed();
             let data = serde_json::json!({
@@ -197,8 +203,8 @@ pub async fn handle_index(action: IndexAction, output_format: &str) {
         IndexAction::Status => {
             let total = file_info_repo::count().unwrap_or(0);
             let indexed = file_content_embedding_repo::count().unwrap_or(0);
-            let is_indexing = INDEXING.load(std::sync::atomic::Ordering::SeqCst);
-            let is_scanning = SCANNING.load(std::sync::atomic::Ordering::SeqCst);
+            let is_indexing = INDEXING.load(Ordering::SeqCst);
+            let is_scanning = SCANNING.load(Ordering::SeqCst);
 
             // 获取当前索引任务的进度
             let indexing_progress = if is_indexing || is_scanning {
@@ -238,7 +244,7 @@ pub async fn handle_index(action: IndexAction, output_format: &str) {
 
             let paths_clone = paths.clone();
             tokio::spawn(async move {
-                match mango_finder_lib::indexer_service::start_indexing(paths_clone.clone(), "cli").await {
+                match indexer_service::start_indexing(paths_clone.clone(), "cli").await {
                     Ok(_) => {
                         log::info!("Indexing completed for paths: {:?}", paths_clone);
                     }
@@ -251,12 +257,12 @@ pub async fn handle_index(action: IndexAction, output_format: &str) {
             let data = serde_json::json!({
                 "message": "Indexing started in background",
                 "paths": paths,
-                "tip": "Use 'mango-finder-cli index status' to check progress"
+                "tip": "Use 'mf index status' to check progress"
             });
             output::print_success(&data, output_format);
         }
         IndexAction::Stop => {
-            mango_finder_lib::global::STOP_INDEX_SIGNAL.store(true, std::sync::atomic::Ordering::SeqCst);
+            STOP_INDEX_SIGNAL.store(true, Ordering::SeqCst);
             let data = serde_json::json!({
                 "message": "Stop signal sent"
             });
@@ -335,12 +341,17 @@ pub async fn handle_device(action: DeviceAction, output_format: &str) {
 pub async fn handle_status(output_format: &str) {
     let total_files = file_info_repo::count().unwrap_or(0);
     let indexed_files = file_content_embedding_repo::count().unwrap_or(0);
-    let is_indexing = mango_finder_lib::global::INDEXING.load(std::sync::atomic::Ordering::SeqCst);
+    let is_indexing = INDEXING.load(Ordering::SeqCst);
+    let locale = ACTIVE_LOCALE
+        .read()
+        .map(|l| l.clone())
+        .unwrap_or_else(|_| "en-US".to_string());
 
     let data = serde_json::json!({
         "total_files": total_files,
         "indexed_files": indexed_files,
         "is_indexing": is_indexing,
+        "locale": locale,
         "version": env!("CARGO_PKG_VERSION")
     });
 
@@ -349,22 +360,318 @@ pub async fn handle_status(output_format: &str) {
 
 pub fn handle_version(output_format: &str) {
     let data = serde_json::json!({
-        "name": "mango-finder-cli",
+        "name": "mf",
         "version": env!("CARGO_PKG_VERSION")
     });
 
     output::print_success(&data, output_format);
 }
 
-pub fn handle_help_doc() {
-    let doc = include_str!("../../../docs/cli.md");
-    println!("{}", doc);
+pub fn handle_locale(value: Option<String>, output_format: &str) {
+    match value {
+        Some(locale) => {
+            // 设置新的 locale
+            let valid_locales = ["zh-CN", "en-US"];
+            if !valid_locales.contains(&locale.as_str()) {
+                output::print_error(&format!("Invalid locale '{}'. Valid values: {:?}", locale, valid_locales));
+                return;
+            }
+            
+            // 更新全局变量
+            *ACTIVE_LOCALE.write().unwrap() = locale.clone();
+            
+            // 更新数据库
+            if let Err(e) = config_repo::update_by_name("active_locale", &locale) {
+                output::print_error(&format!("Failed to save locale: {}", e));
+                return;
+            }
+            
+            let data = serde_json::json!({
+                "locale": locale,
+                "message": "Locale updated successfully"
+            });
+            output::print_success(&data, output_format);
+        }
+        None => {
+            // 显示当前 locale
+            let locale = ACTIVE_LOCALE
+                .read()
+                .map(|l| l.clone())
+                .unwrap_or_else(|_| "en-US".to_string());
+            
+            let data = serde_json::json!({
+                "locale": locale
+            });
+            output::print_success(&data, output_format);
+        }
+    }
 }
 
-pub fn handle_command_doc(command: &str) {
-    let doc = match command {
+pub fn handle_check(output_format: &str) {
+    // 获取本地 IP
+    let local_ip = get_local_ip_address();
+    
+    // 获取客户端 ID
+    let client_id = CLIENT_ID
+        .read()
+        .map(|id| id.clone())
+        .unwrap_or_else(|_| "unknown".to_string());
+    
+    // 获取索引文件数量
+    let indexed_files = file_info_repo::count().unwrap_or(0);
+    let total_embeddings = file_content_embedding_repo::count().unwrap_or(0);
+    
+    // 获取集群设置
+    let cluster_setting = get_cluster_setting();
+    let device_name = cluster_setting.get("device_name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown");
+    let cluster_enabled = cluster_setting.get("enabled")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    
+    // 检查端口是否可用
+    let port = 15678; // 默认端口
+    let port_available = check_port_available(port);
+    
+    // 获取网络接口信息
+    let network_interfaces = get_network_interfaces();
+    
+    // 获取存储路径
+    let storage_path = STORAGE_PATH
+        .get()
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| "unknown".to_string());
+    
+    // 获取数据库路径
+    let db_path = DB_PATH
+        .get()
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| "unknown".to_string());
+    
+    // 检查模型配置
+    let model_status = check_model_status();
+    
+    // 获取已配对设备数量
+    let paired_devices = get_paired_device_count();
+    
+    // 构建检查结果
+    let check = serde_json::json!({
+        "system": {
+            "version": env!("CARGO_PKG_VERSION"),
+            "client_id": client_id,
+            "device_name": device_name,
+        },
+        "network": {
+            "local_ip": local_ip,
+            "interfaces": network_interfaces,
+            "port": port,
+            "port_available": port_available,
+        },
+        "storage": {
+            "path": storage_path,
+            "db_path": db_path,
+            "indexed_files": indexed_files,
+            "total_embeddings": total_embeddings,
+        },
+        "cluster": {
+            "enabled": cluster_enabled,
+            "paired_devices": paired_devices,
+        },
+        "ai_model": model_status,
+        "recommendations": get_recommendations(&local_ip, port_available, cluster_enabled, indexed_files, paired_devices)
+    });
+
+    output::print_success(&check, output_format);
+}
+
+fn get_local_ip_address() -> Option<String> {
+    // 方法1：通过 UDP 连接获取最可能的本地 IP
+    if let Ok(socket) = UdpSocket::bind("0.0.0.0:0") {
+        if socket.connect("8.8.8.8:80").is_ok() {
+            if let Ok(addr) = socket.local_addr() {
+                return Some(addr.ip().to_string());
+            }
+        }
+    }
+    
+    // 方法2：从网络接口列表获取第一个 IPv4 地址
+    if let Ok(interfaces) = list_afinet_netifas() {
+        for (_, ip) in interfaces {
+            if ip.is_ipv4() && !ip.is_loopback() {
+                return Some(ip.to_string());
+            }
+        }
+    }
+    
+    None
+}
+
+fn get_cluster_setting() -> serde_json::Value {
+    // 从数据库读取集群设置
+    match config_repo::get_one("cluster_setting") {
+        Ok(Some(config)) => {
+            serde_json::from_str(&config.value).unwrap_or_else(|_| serde_json::json!({}))
+        }
+        _ => serde_json::json!({})
+    }
+}
+
+fn check_port_available(port: u16) -> bool {
+    TcpListener::bind(format!("0.0.0.0:{}", port)).is_ok()
+}
+
+fn get_network_interfaces() -> Vec<serde_json::Value> {
+    let mut interfaces = Vec::new();
+    
+    if let Ok(network_interfaces) = list_afinet_netifas() {
+        for (name, ip) in network_interfaces {
+            if ip.is_ipv4() {
+                interfaces.push(serde_json::json!({
+                    "name": name,
+                    "ip": ip.to_string()
+                }));
+            }
+        }
+    }
+    
+    interfaces
+}
+
+fn check_model_status() -> serde_json::Value {
+    let embedding_model = EMBEDDING_MODEL_PATH
+        .get()
+        .map(|s| s.to_string())
+        .unwrap_or_default();
+    let tokenizer = EMBEDDING_TOKENIZER_PATH
+        .get()
+        .map(|s| s.to_string())
+        .unwrap_or_default();
+    
+    let embedding_exists = !embedding_model.is_empty() && Path::new(&embedding_model).exists();
+    let tokenizer_exists = !tokenizer.is_empty() && Path::new(&tokenizer).exists();
+    
+    serde_json::json!({
+        "embedding_model": {
+            "path": embedding_model,
+            "exists": embedding_exists,
+        },
+        "tokenizer": {
+            "path": tokenizer,
+            "exists": tokenizer_exists,
+        },
+        "ready": embedding_exists && tokenizer_exists
+    })
+}
+
+fn get_paired_device_count() -> i64 {
+    match device_repo::count_paired() {
+        Ok(count) => count,
+        Err(_) => 0,
+    }
+}
+
+fn get_recommendations(
+    local_ip: &Option<String>,
+    port_available: bool,
+    cluster_enabled: bool,
+    indexed_files: i64,
+    paired_devices: i64,
+) -> Vec<String> {
+    let mut recommendations = Vec::new();
+    
+    if local_ip.is_none() {
+        recommendations.push(t!("cli.check.no-ip").to_string());
+    }
+    
+    if !port_available {
+        recommendations.push(t!("cli.check.port-occupied").to_string());
+    }
+    
+    if !cluster_enabled {
+        recommendations.push(t!("cli.check.cluster-disabled").to_string());
+    }
+    
+    if indexed_files == 0 {
+        recommendations.push(t!("cli.check.no-indexed-files").to_string());
+    }
+    
+    if paired_devices == 0 && cluster_enabled {
+        recommendations.push(t!("cli.check.no-paired-devices").to_string());
+    }
+    
+    if recommendations.is_empty() {
+        recommendations.push(t!("cli.check.all-normal").to_string());
+    }
+    
+    recommendations
+}
+
+pub fn handle_help(command: Option<&str>) {
+    match command {
+        Some(cmd) => {
+            // 显示单个命令的帮助
+            let help_content = get_command_help(cmd);
+            println!("{}", help_content);
+        }
+        None => {
+            // 显示完整的帮助文档
+            let is_zh = ACTIVE_LOCALE
+                .read()
+                .map(|locale| locale.as_str() == "zh-CN")
+                .unwrap_or(false);
+            
+            let doc = if is_zh {
+                include_str!("../../../docs/cli_cn.md")
+            } else {
+                include_str!("../../../docs/cli.md")
+            };
+            println!("{}", doc);
+        }
+    }
+}
+
+fn get_command_help(command: &str) -> String {
+    let is_zh = ACTIVE_LOCALE
+        .read()
+        .map(|locale| locale.as_str() == "zh-CN")
+        .unwrap_or(false);
+    
+    match command {
         "search" => {
-            r#"search - Search documents
+            if is_zh {
+                r#"search - 搜索文档
+
+用法:
+    mf search <query> [选项]
+
+参数:
+    <query>    搜索关键词
+
+选项:
+    --type <type>      搜索类型: semantic (默认), keyword
+    --device <id>      远程设备 ID (可选)
+    --limit <n>        最大结果数 (默认: 10)
+    --output <format>  输出格式: json (默认), table
+    --quiet            静默模式
+    -h, --help         显示帮助
+
+示例:
+    # 语义搜索
+    mf search "机器学习"
+
+    # 关键词搜索
+    mf search "report.docx" --type keyword
+
+    # 限制结果数
+    mf search "AI" --limit 5
+
+说明:
+    - 语义搜索使用 AI embedding 进行语义匹配
+    - 关键词搜索使用全文搜索进行精确匹配
+    - 结果按相关性分数 (0-100) 排序"#
+            } else {
+                r#"search - Search documents
 
 USAGE:
     mf search <query> [OPTIONS]
@@ -378,7 +685,6 @@ OPTIONS:
     --limit <n>        Max results (default: 10)
     --output <format>  Output format: json (default), table
     --quiet            Suppress logs
-    --help-doc         Show detailed help for this command
     -h, --help         Print help
 
 EXAMPLES:
@@ -391,16 +697,41 @@ EXAMPLES:
     # Limit results
     mf search "AI" --limit 5
 
-    # Table output
-    mf search "AI" --output table
-
 NOTES:
     - Semantic search uses AI embeddings for meaning-based matching
     - Keyword search uses full-text search for exact word matching
     - Results are ranked by relevance score (0-100)"#
+            }
         }
         "similar" => {
-            r#"similar - Find similar files by file ID
+            if is_zh {
+                r#"similar - 查找相似文件
+
+用法:
+    mf similar <file_id> [选项]
+
+参数:
+    <file_id>    文件 ID
+
+选项:
+    --device <id>      远程设备 ID (可选)
+    --limit <n>        最大结果数 (默认: 10)
+    --output <format>  输出格式: json (默认), table
+    --quiet            静默模式
+    -h, --help         显示帮助
+
+示例:
+    # 查找相似文件
+    mf similar 123
+
+    # 限制结果数
+    mf similar 123 --limit 5
+
+说明:
+    - 基于文件内容相似度，而非文件名
+    - 支持文档 (语义)、图片 (感知哈希)、音频 (指纹)"#
+            } else {
+                r#"similar - Find similar files by file ID
 
 USAGE:
     mf similar <file_id> [OPTIONS]
@@ -413,7 +744,6 @@ OPTIONS:
     --limit <n>        Max results (default: 10)
     --output <format>  Output format: json (default), table
     --quiet            Suppress logs
-    --help-doc         Show detailed help for this command
     -h, --help         Print help
 
 EXAMPLES:
@@ -426,9 +756,49 @@ EXAMPLES:
 NOTES:
     - Similarity is based on file content, not filename
     - Works for documents (semantic), images (perceptual hash), and audio (fingerprint)"#
+            }
         }
         "index" => {
-            r#"index - Index management
+            if is_zh {
+                r#"index - 索引管理
+
+用法:
+    mf index <action>
+
+操作:
+    status              显示索引状态和进度
+    start <paths...>    在后台启动索引任务
+    stop                停止索引
+    list                列出已索引文件
+    clear               清空所有索引
+
+选项:
+    --output <format>  输出格式: json (默认), table
+    --quiet            静默模式
+    -h, --help         显示帮助
+
+示例:
+    # 显示状态
+    mf index status
+
+    # 开始索引
+    mf index start "C:\Documents" "D:\Projects"
+
+    # 列出文件 (分页)
+    mf index list --page 1 --page-size 50
+
+    # 停止索引
+    mf index stop
+
+    # 清空索引
+    mf index clear
+
+说明:
+    - index start 在后台异步执行
+    - 使用 index status 查询进度
+    - index clear 会永久删除所有索引数据"#
+            } else {
+                r#"index - Index management
 
 USAGE:
     mf index <action>
@@ -443,7 +813,6 @@ ACTIONS:
 OPTIONS:
     --output <format>  Output format: json (default), table
     --quiet            Suppress logs
-    --help-doc         Show detailed help for this command
     -h, --help         Print help
 
 EXAMPLES:
@@ -466,9 +835,37 @@ NOTES:
     - index start runs asynchronously in background
     - Use index status to check progress
     - index clear deletes all indexed data permanently"#
+            }
         }
         "file" => {
-            r#"file - File operations
+            if is_zh {
+                r#"file - 文件操作
+
+用法:
+    mf file <id> [选项]
+
+参数:
+    <id>    文件 ID
+
+选项:
+    --open             使用系统默认程序打开文件
+    --device <id>      远程设备 ID (可选)
+    --output <format>  输出格式: json (默认), table
+    --quiet            静默模式
+    -h, --help         显示帮助
+
+示例:
+    # 获取文件信息
+    mf file 123
+
+    # 打开文件 (图片、文档)
+    mf file 123 --open
+
+说明:
+    - --open 使用系统默认程序打开文件
+    - 最适合图片 (jpg, png, gif, webp, bmp)"#
+            } else {
+                r#"file - File operations
 
 USAGE:
     mf file <id> [OPTIONS]
@@ -481,7 +878,6 @@ OPTIONS:
     --device <id>      Remote device ID (optional)
     --output <format>  Output format: json (default), table
     --quiet            Suppress logs
-    --help-doc         Show detailed help for this command
     -h, --help         Print help
 
 EXAMPLES:
@@ -494,9 +890,32 @@ EXAMPLES:
 NOTES:
     - --open uses system default program for the file type
     - Works best with images (jpg, png, gif, webp, bmp)"#
+            }
         }
         "device" => {
-            r#"device - Device management
+            if is_zh {
+                r#"device - 设备管理
+
+用法:
+    mf device <action>
+
+操作:
+    list    列出在线设备
+
+选项:
+    --output <format>  输出格式: json (默认), table
+    --quiet            静默模式
+    -h, --help         显示帮助
+
+示例:
+    # 列出在线设备
+    mf device list
+
+说明:
+    - 只显示已配对且在线的设备
+    - 使用 GUI 管理设备配对"#
+            } else {
+                r#"device - Device management
 
 USAGE:
     mf device <action>
@@ -507,7 +926,6 @@ ACTIONS:
 OPTIONS:
     --output <format>  Output format: json (default), table
     --quiet            Suppress logs
-    --help-doc         Show detailed help for this command
     -h, --help         Print help
 
 EXAMPLES:
@@ -517,9 +935,29 @@ EXAMPLES:
 NOTES:
     - Shows paired and online devices only
     - Use the GUI to manage device pairing"#
+            }
         }
         "status" => {
-            r#"status - Show application status
+            if is_zh {
+                r#"status - 显示应用状态
+
+用法:
+    mf status [选项]
+
+选项:
+    --output <format>  输出格式: json (默认), table
+    --quiet            静默模式
+    -h, --help         显示帮助
+
+示例:
+    # 显示状态
+    mf status
+
+说明:
+    - 显示总文件数、已索引文件数、索引状态
+    - 显示当前语言设置和版本号"#
+            } else {
+                r#"status - Show application status
 
 USAGE:
     mf status [OPTIONS]
@@ -535,10 +973,26 @@ EXAMPLES:
 
 NOTES:
     - Shows total files, indexed files, and indexing status
-    - Also shows CLI version"#
+    - Shows current locale and version"#
+            }
         }
         "version" => {
-            r#"version - Show version information
+            if is_zh {
+                r#"version - 显示版本信息
+
+用法:
+    mf version [选项]
+
+选项:
+    --output <format>  输出格式: json (默认), table
+    --quiet            静默模式
+    -h, --help         显示帮助
+
+示例:
+    # 显示版本
+    mf version"#
+            } else {
+                r#"version - Show version information
 
 USAGE:
     mf version [OPTIONS]
@@ -551,551 +1005,141 @@ OPTIONS:
 EXAMPLES:
     # Show version
     mf version"#
+            }
         }
-        "help-doc" => {
-            r#"help-doc - Show CLI documentation
+        "check" => {
+            if is_zh {
+                r#"check - 检查系统状态
+
+用法:
+    mf check [选项]
+
+选项:
+    --output <format>  输出格式: json (默认), table
+    --quiet            静默模式
+    -h, --help         显示帮助
+
+示例:
+    # 检查系统状态
+    mf check
+
+检查内容:
+    - 系统信息 (版本、设备名称、客户端 ID)
+    - 网络状态 (本地 IP、网络接口、端口可用性)
+    - 存储状态 (路径、已索引文件数量)
+    - 集群状态 (是否启用、已配对设备数量)
+    - AI 模型状态 (模型文件是否存在)"#
+            } else {
+                r#"check - Check system status
 
 USAGE:
-    mf help-doc [OPTIONS]
+    mf check [OPTIONS]
+
+OPTIONS:
+    --output <format>  Output format: json (default), table
+    --quiet            Suppress logs
+    -h, --help         Print help
+
+EXAMPLES:
+    # Check system status
+    mf check
+
+Check items:
+    - System info (version, device name, client ID)
+    - Network status (local IP, network interfaces, port availability)
+    - Storage status (path, indexed files count)
+    - Cluster status (enabled, paired devices count)
+    - AI model status (model files existence)"#
+            }
+        }
+        "locale" => {
+            if is_zh {
+                r#"locale - 获取或设置语言
+
+用法:
+    mf locale [value]
+
+参数:
+    value    要设置的语言 (如 zh-CN, en-US)
+             如果不指定，则显示当前语言
+
+选项:
+    -h, --help    显示帮助
+
+示例:
+    # 显示当前语言
+    mf locale
+
+    # 设置为中文
+    mf locale zh-CN
+
+    # 设置为英文
+    mf locale en-US"#
+            } else {
+                r#"locale - Get or set locale
+
+USAGE:
+    mf locale [value]
+
+ARGS:
+    value    Locale to set (e.g., zh-CN, en-US)
+             If not specified, show current locale
 
 OPTIONS:
     -h, --help    Print help
 
 EXAMPLES:
-    # Show full documentation
-    mf help-doc
+    # Show current locale
+    mf locale
 
-NOTES:
-    - Shows the complete CLI documentation
-    - Use -h or --help for quick command help"#
+    # Set locale to Chinese
+    mf locale zh-CN
+
+    # Set locale to English
+    mf locale en-US"#
+            }
         }
-        "doc" => {
-            r#"doc - Show detailed documentation for a command
+        "help" => {
+            if is_zh {
+                r#"help - 显示帮助文档
+
+用法:
+    mf help [command]
+
+参数:
+    command    命令名称 (可选，显示完整帮助)
+
+示例:
+    # 显示完整帮助
+    mf help
+
+    # 显示 search 命令帮助
+    mf help search"#
+            } else {
+                r#"help - Show help documentation
 
 USAGE:
-    mf doc <command>
+    mf help [command]
 
 ARGS:
-    <command>    Command name (search, similar, index, file, device, status, version, help-doc)
+    command    Command name (optional, shows full help)
 
 EXAMPLES:
-    # Show search command documentation
-    mf doc search
+    # Show full help
+    mf help
 
-    # Show index command documentation
-    mf doc index"#
-        }
-        "man" => {
-            r#"man - Show man page style documentation
-
-USAGE:
-    mf man [command]
-
-ARGS:
-    [command]    Command name (optional)
-
-EXAMPLES:
-    # Show full man page
-    mf man
-
-    # Show man page for search command
-    mf man search"#
+    # Show search command help
+    mf help search"#
+            }
         }
         _ => {
-            eprintln!("Unknown command: {}", command);
-            eprintln!("Available commands: search, similar, index, file, device, status, version, help-doc, doc, man");
-            return;
+            return if is_zh {
+                format!("未知命令: {}\n可用命令: search, similar, index, file, device, status, version, check, locale, help", command)
+            } else {
+                format!("Unknown command: {}\nAvailable commands: search, similar, index, file, device, status, version, check, locale, help", command)
+            };
         }
-    };
-    println!("{}", doc);
-}
-
-pub fn handle_man(command: Option<&str>) {
-    match command {
-        Some(cmd) => {
-            // 显示单个命令的 man page
-            let man_content = get_man_page(cmd);
-            println!("{}", man_content);
-        }
-        None => {
-            // 显示完整的 man page
-            let man_content = get_full_man_page();
-            println!("{}", man_content);
-        }
-    }
-}
-
-fn get_man_page(command: &str) -> String {
-    match command {
-        "search" => {
-            r#"MF(1)                     Mango Finder CLI                     MF(1)
-
-NAME
-       mf search - Search documents using semantic or keyword search
-
-SYNOPSIS
-       mf search [OPTIONS] <query>
-
-DESCRIPTION
-       Search for documents in the index using either semantic (AI-based) or
-       keyword (full-text) search. Semantic search uses AI embeddings to find
-       documents based on meaning, while keyword search uses full-text search
-       for exact word matching.
-
-OPTIONS
-       --type <type>
-              Search type: semantic (default), keyword
-
-       --device <id>
-              Remote device ID (optional)
-
-       --limit <n>
-              Max results (default: 10)
-
-       --output <format>
-              Output format: json (default), table
-
-       --quiet
-              Suppress logs, only output result
-
-       --help-doc
-              Show detailed help for this command
-
-       -h, --help
-              Print help
-
-EXAMPLES
-       Semantic search:
-              mf search "machine learning"
-
-       Keyword search:
-              mf search "report.docx" --type keyword
-
-       Limit results:
-              mf search "AI" --limit 5
-
-       Table output:
-              mf search "AI" --output table
-
-EXIT STATUS
-       0      Success
-       1      Error (invalid arguments, search failed, etc.)
-
-ENVIRONMENT
-       MANGO_FINDER_OUTPUT
-              Default output format (json or table)
-
-       MANGO_FINDER_QUIET
-              Set to 1 to enable quiet mode
-
-SEE ALSO
-       mf(1), mf-similar(1), mf-index(1), mf-file(1)
-
-AUTHORS
-       Mango Finder Team
-
-VERSION
-       0.12.0"#.to_string()
-        }
-        "similar" => {
-            r#"MF-SIMILAR(1)            Mango Finder CLI            MF-SIMILAR(1)
-
-NAME
-       mf similar - Find similar files by file ID
-
-SYNOPSIS
-       mf similar [OPTIONS] <file_id>
-
-DESCRIPTION
-       Find files similar to the specified file. Similarity is based on file
-       content, not filename. Works for documents (semantic), images
-       (perceptual hash), and audio (fingerprint).
-
-OPTIONS
-       --device <id>
-              Remote device ID (optional)
-
-       --limit <n>
-              Max results (default: 10)
-
-       --output <format>
-              Output format: json (default), table
-
-       --quiet
-              Suppress logs, only output result
-
-       --help-doc
-              Show detailed help for this command
-
-       -h, --help
-              Print help
-
-EXAMPLES
-       Find similar files:
-              mf similar 123
-
-       Limit results:
-              mf similar 123 --limit 5
-
-EXIT STATUS
-       0      Success
-       1      Error (file not found, search failed, etc.)
-
-SEE ALSO
-       mf(1), mf-search(1), mf-file(1)
-
-VERSION
-       0.12.0"#.to_string()
-        }
-        "index" => {
-            r#"MF-INDEX(1)              Mango Finder CLI              MF-INDEX(1)
-
-NAME
-       mf index - Manage document index
-
-SYNOPSIS
-       mf index <action> [OPTIONS]
-
-DESCRIPTION
-       Manage the document index. Can start, stop, and monitor indexing
-       tasks, as well as list and clear indexed files.
-
-ACTIONS
-       status Show index status and progress
-
-       start <paths...>
-              Start indexing in background
-
-       stop   Stop indexing
-
-       list   List indexed files
-
-       clear  Clear all index
-
-OPTIONS
-       --page <n>
-              Page number for list (default: 1)
-
-       --page-size <n>
-              Page size for list (default: 20)
-
-       --output <format>
-              Output format: json (default), table
-
-       --quiet
-              Suppress logs, only output result
-
-       --help-doc
-              Show detailed help for this command
-
-       -h, --help
-              Print help
-
-EXAMPLES
-       Show status:
-              mf index status
-
-       Start indexing:
-              mf index start "C:\Documents" "D:\Projects"
-
-       List files:
-              mf index list --page 1 --page-size 50
-
-       Stop indexing:
-              mf index stop
-
-       Clear all index:
-              mf index clear
-
-NOTES
-       index start runs asynchronously in background
-       Use index status to check progress
-       index clear deletes all indexed data permanently
-
-EXIT STATUS
-       0      Success
-       1      Error (indexing failed, etc.)
-
-SEE ALSO
-       mf(1), mf-search(1), mf-file(1)
-
-VERSION
-       0.12.0"#.to_string()
-        }
-        "file" => {
-            r#"MF-FILE(1)               Mango Finder CLI               MF-FILE(1)
-
-NAME
-       mf file - File operations
-
-SYNOPSIS
-       mf file [OPTIONS] <id>
-
-DESCRIPTION
-       Get information about a specific file by its ID. Can also open the
-       file with the system default program.
-
-OPTIONS
-       --open Open file with system default program
-
-       --device <id>
-              Remote device ID (optional)
-
-       --output <format>
-              Output format: json (default), table
-
-       --quiet
-              Suppress logs, only output result
-
-       --help-doc
-              Show detailed help for this command
-
-       -h, --help
-              Print help
-
-EXAMPLES
-       Get file info:
-              mf file 123
-
-       Open file:
-              mf file 123 --open
-
-EXIT STATUS
-       0      Success
-       1      Error (file not found, etc.)
-
-SEE ALSO
-       mf(1), mf-search(1), mf-index(1)
-
-VERSION
-       0.12.0"#.to_string()
-        }
-        "device" => {
-            r#"MF-DEVICE(1)            Mango Finder CLI            MF-DEVICE(1)
-
-NAME
-       mf device - Device management
-
-SYNOPSIS
-       mf device <action>
-
-DESCRIPTION
-       Manage devices for cross-device search. Currently only supports
-       listing online devices.
-
-ACTIONS
-       list   List online devices
-
-OPTIONS
-       --output <format>
-              Output format: json (default), table
-
-       --quiet
-              Suppress logs, only output result
-
-       --help-doc
-              Show detailed help for this command
-
-       -h, --help
-              Print help
-
-EXAMPLES
-       List online devices:
-              mf device list
-
-EXIT STATUS
-       0      Success
-       1      Error (device not found, etc.)
-
-SEE ALSO
-       mf(1), mf-search(1)
-
-VERSION
-       0.12.0"#.to_string()
-        }
-        "status" => {
-            r#"MF-STATUS(1)            Mango Finder CLI            MF-STATUS(1)
-
-NAME
-       mf status - Show application status
-
-SYNOPSIS
-       mf status [OPTIONS]
-
-DESCRIPTION
-       Show the current status of the Mango Finder application, including
-       total files, indexed files, and indexing status.
-
-OPTIONS
-       --output <format>
-              Output format: json (default), table
-
-       --quiet
-              Suppress logs, only output result
-
-       -h, --help
-              Print help
-
-EXAMPLES
-       Show status:
-              mf status
-
-EXIT STATUS
-       0      Success
-
-SEE ALSO
-       mf(1), mf-version(1)
-
-VERSION
-       0.12.0"#.to_string()
-        }
-        "version" => {
-            r#"MF-VERSION(1)           Mango Finder CLI           MF-VERSION(1)
-
-NAME
-       mf version - Show version information
-
-SYNOPSIS
-       mf version [OPTIONS]
-
-DESCRIPTION
-       Show the version of the Mango Finder CLI.
-
-OPTIONS
-       --output <format>
-              Output format: json (default), table
-
-       --quiet
-              Suppress logs, only output result
-
-       -h, --help
-              Print help
-
-EXAMPLES
-       Show version:
-              mf version
-
-EXIT STATUS
-       0      Success
-
-SEE ALSO
-       mf(1), mf-status(1)
-
-VERSION
-       0.12.0"#.to_string()
-        }
-        _ => {
-            format!("No man page available for '{}'. Available commands: search, similar, index, file, device, status, version", command)
-        }
-    }
-}
-
-fn get_full_man_page() -> String {
-    r#"MF(1)                     Mango Finder CLI                     MF(1)
-
-NAME
-       mf - Mango Finder command line interface
-
-SYNOPSIS
-       mf [OPTIONS] [COMMAND]
-
-DESCRIPTION
-       Mango Finder CLI is a command line interface for searching and
-       managing documents using AI-powered semantic search. It supports
-       semantic search, keyword search, file similarity detection, and
-       cross-device search capabilities.
-
-OPTIONS
-       --output <format>
-              Output format: json (default), table
-
-       --quiet
-              Suppress logs, only output result
-
-       -h, --help
-              Print help
-
-       -V, --version
-              Print version
-
-COMMANDS
-       search <query>
-              Search documents using semantic or keyword search
-
-       similar <file_id>
-              Find similar files by file ID
-
-       index <action>
-              Manage document index (status, start, stop, list, clear)
-
-       file <id>
-              File operations (get info, open)
-
-       device <action>
-              Device management (list online devices)
-
-       status Show application status
-
-       version
-              Show version information
-
-       help-doc
-              Show CLI documentation
-
-       doc <command>
-              Show detailed documentation for a specific command
-
-       man [command]
-              Show man page style documentation
-
-EXAMPLES
-       Search for documents:
-              mf search "machine learning"
-
-       Find similar files:
-              mf similar 123
-
-       Start indexing:
-              mf index start "C:\Documents"
-
-       Get file info:
-              mf file 123
-
-       Show status:
-              mf status
-
-ENVIRONMENT
-       MANGO_FINDER_OUTPUT
-              Default output format (json or table)
-
-       MANGO_FINDER_QUIET
-              Set to 1 to enable quiet mode
-
-FILES
-       ~/.config/mango-finder/
-              Configuration directory
-
-       ~/AppData/Roaming/mango-finder/
-              Data directory (Windows)
-
-EXIT STATUS
-       0      Success
-       1      Error (invalid arguments, operation failed, etc.)
-
-SEE ALSO
-       mf-search(1), mf-similar(1), mf-index(1), mf-file(1), mf-device(1)
-
-AUTHORS
-       Mango Finder Team
-
-VERSION
-       0.12.0
-
-REPORTING BUGS
-       Report bugs at: https://github.com/moyangzhan/mango-finder/issues
-
-COPYRIGHT
-       Copyright © 2026 Mango Finder. Licensed under MIT."#.to_string()
+    }.to_string()
 }
 
 fn is_image(ext: &str) -> bool {
@@ -1124,3 +1168,4 @@ fn open_with_system(path: &str) {
             .spawn();
     }
 }
+

@@ -52,46 +52,46 @@ fn main() {
         match command {
             commands::Commands::Search { query, r#type, device, limit, help_doc } => {
                 if help_doc {
-                    commands::handle_command_doc("search");
+                    commands::handle_help(Some("search"));
                     return;
                 }
                 commands::handle_search(&query, &r#type, device, limit, &cli.output).await;
             }
             commands::Commands::Similar { file_id, device, limit, help_doc } => {
                 if help_doc {
-                    commands::handle_command_doc("similar");
+                    commands::handle_help(Some("similar"));
                     return;
                 }
                 commands::handle_similar(file_id, device, limit, &cli.output).await;
             }
             commands::Commands::Index { action, help_doc } => {
                 if help_doc {
-                    commands::handle_command_doc("index");
+                    commands::handle_help(Some("index"));
                     return;
                 }
                 match action {
                     Some(action) => commands::handle_index(action, &cli.output).await,
-                    None => commands::handle_command_doc("index"),
+                    None => commands::handle_help(Some("index")),
                 }
             }
             commands::Commands::File { id, open, device, help_doc } => {
                 if help_doc {
-                    commands::handle_command_doc("file");
+                    commands::handle_help(Some("file"));
                     return;
                 }
                 match id {
                     Some(id) => commands::handle_file(id, open, device, &cli.output).await,
-                    None => commands::handle_command_doc("file"),
+                    None => commands::handle_help(Some("file")),
                 }
             }
             commands::Commands::Device { action, help_doc } => {
                 if help_doc {
-                    commands::handle_command_doc("device");
+                    commands::handle_help(Some("device"));
                     return;
                 }
                 match action {
                     Some(action) => commands::handle_device(action, &cli.output).await,
-                    None => commands::handle_command_doc("device"),
+                    None => commands::handle_help(Some("device")),
                 }
             }
             commands::Commands::Status => {
@@ -100,14 +100,14 @@ fn main() {
             commands::Commands::Version => {
                 commands::handle_version(&cli.output);
             }
-            commands::Commands::HelpDoc => {
-                commands::handle_help_doc();
+            commands::Commands::Help { command } => {
+                commands::handle_help(command.as_deref());
             }
-            commands::Commands::Doc { command } => {
-                commands::handle_command_doc(&command);
+            commands::Commands::Check => {
+                commands::handle_check(&cli.output);
             }
-            commands::Commands::Man { command } => {
-                commands::handle_man(command.as_deref());
+            commands::Commands::Locale { value } => {
+                commands::handle_locale(value, &cli.output);
             }
         }
     });

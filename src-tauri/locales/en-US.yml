@@ -60,3 +60,11 @@ message:
   file-not-found: File not found
   internal-error: Internal server error
   migration-processing: Content storage change is in progress. Please wait.
+cli:
+  check:
+    no-ip: Cannot get local IP address, please check network connection
+    port-occupied: "Port 15678 is occupied, please close the program using this port or change port config"
+    cluster-disabled: Multi-device feature is not enabled, please enable it in settings
+    no-indexed-files: No indexed files found, please use 'mf index start' to index files first
+    no-paired-devices: No paired devices found, please add devices or accept pairing requests in GUI
+    all-normal: System status is normal, all features are available
