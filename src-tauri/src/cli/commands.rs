@@ -9,7 +9,7 @@ use mango_finder_lib::global::{INDEXING, SCANNING, INDEXING_SUMMARY};
 use crate::output;
 
 #[derive(Parser)]
-#[command(name = "mf", about = "Mango Finder CLI for AI agents")]
+#[command(name = "mf", about = "Mango Finder Command Line Interface")]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Commands>,
